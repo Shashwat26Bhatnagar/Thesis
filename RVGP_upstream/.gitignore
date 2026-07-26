@@ -1,0 +1,16 @@
+.DS_store
+*.pkl
+*.svg
+*.png
+build/
+myjob*
+*.c
+*.so
+*.pyo
+*.pyc
+.DS_Store
+__pycache__/
+*.egg
+*.egg-info/
+*.ini
+*ipynb_checkpoints
