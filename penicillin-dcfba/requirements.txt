@@ -1,0 +1,33 @@
+# Penicillin dcFBA — Python dependencies
+# Install with:  pip install -r requirements.txt
+#
+# Used for:
+#   verify_ial1006.py  — explicit dFBA on real iAL1006 CSVs (run this first)
+#   prototype/         — toy-core dFBA + Bajpai-Reuss c(t) (reference)
+#
+# The Julia dcFBA (penicillin_dcfba.jl) has separate Julia dependencies listed below.
+
+# --- core scientific stack ---
+numpy>=1.24
+scipy>=1.10          # linprog (HiGHS backend), solve_ivp (LSODA)
+matplotlib>=3.6      # plotting
+
+# --- genome-scale metabolic modelling ---
+cobra>=0.29          # loads iAL1006.xml, FVA for model condensation
+                     # note: cobra 0.29+ uses HiGHS as default LP solver (no glpk needed)
+
+# --- data handling ---
+pandas>=1.5          # optional: reading df.csv outputs from the Julia solver
+
+# ============================================================
+# Julia dependencies (penicillin_dcfba.jl)
+# Add these in the Julia REPL:   ] add <PackageName>
+# ============================================================
+# JuMP                  # mathematical optimisation modelling
+# Ipopt                 # interior-point NLP solver
+# HSL_jll               # HSL ma27 linear solver (faster than MUMPS)
+#                       # if HSL unavailable: change "ma27" -> "mumps" in the Julia file
+# DelimitedFiles        # readdlm / writedlm for CSV
+# JLD2                  # save/load optimisation variables
+# DataFrames            # tabular output
+# CSV                   # write df.csv

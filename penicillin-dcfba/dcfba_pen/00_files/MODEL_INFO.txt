@@ -1,0 +1,7 @@
+iAL1006 PARSIMONIOUS CORE for dcFBA
+  576 metabolites x 565 reactions (down from full 1792, condensed 1292)
+  Built by parsimonious FBA (pFBA) union of growth + Pen-G production under a
+  defined glucose medium, removing redundant/alternative routes -> far less
+  degenerate (fixes the IPOPT restoration-phase stalling on larger models).
+  Verified: grows (mu=0.085/h at glc=1), makes Pen-G; explicit dFBA titre ~15.5 g/L.
+  Indices (1-based): glu=EX_GLCb=2, bio=r1348=532, penG=EX_PENGb=3, atpm=r1466=553, o2=EX_O2b=8

@@ -1,0 +1,1792 @@
+1	EX_LLACb	EX_LLACb
+2	EX_MALb	EX_MALb
+3	EX_13GLUCANb	EX_13GLUCANb
+4	EX_2HPENGb	EX_2HPENGb
+5	EX_AKGb	EX_AKGb
+6	EX_C4ODb	EX_C4ODb
+7	EX_PABAb	EX_PABAb
+8	EX_4HPOAb	EX_4HPOAb
+9	EX_4HPENVb	EX_4HPENVb
+10	EX_6APAb	EX_6APAb
+11	EX_OPCb	EX_OPCb
+12	EX_8HPAb	EX_8HPAb
+13	EX_ACb	EX_ACb
+14	EX_ADb	EX_ADb
+15	EX_TREb	EX_TREb
+16	EX_GLCb	EX_GLCb
+17	EX_ARABINb	EX_ARABINb
+18	EX_AMIACEb	EX_AMIACEb
+19	EX_ANb	EX_ANb
+20	EX_PENARTb	EX_PENARTb
+21	EX_ARTPROTb	EX_ARTPROTb
+22	EX_PENGb	EX_PENGb
+23	EX_PENGAb	EX_PENGAb
+24	EX_bALAb	EX_bALAb
+25	EX_bDGLCb	EX_bDGLCb
+26	EX_BIOMASSb	EX_BIOMASSb
+27	EX_C40b	EX_C40b
+28	EX_CB15LCTb	EX_CB15LCTb
+29	EX_CELLOBb	EX_CELLOBb
+30	EX_CELLUb	EX_CELLUb
+31	EX_CHITb	EX_CHITb
+32	EX_CHIBb	EX_CHIBb
+33	EX_CHITOb	EX_CHITOb
+34	EX_CHOb	EX_CHOb
+35	EX_CITb	EX_CITb
+36	EX_CO2b	EX_CO2b
+37	EX_CYNEb	EX_CYNEb
+38	EX_CYTSb	EX_CYTSb
+39	EX_AOLb	EX_AOLb
+40	EX_ARABb	EX_ARABb
+41	EX_C100b	EX_C100b
+42	EX_FRUb	EX_FRUb
+43	EX_GLACb	EX_GLACb
+44	EX_GLCNTb	EX_GLCNTb
+45	EX_GLCN15LACb	EX_GLCN15LACb
+46	EX_GLCNb	EX_GLCNb
+47	EX_DGLCb	EX_DGLCb
+48	EX_MNTb	EX_MNTb
+49	EX_MANb	EX_MANb
+50	EX_RIBb	EX_RIBb
+51	EX_XYLb	EX_XYLb
+52	EX_ETHb	EX_ETHb
+53	EX_ETHNITb	EX_ETHNITb
+54	EX_FMNb	EX_FMNb
+55	EX_FORb	EX_FORb
+56	EX_FUMb	EX_FUMb
+57	EX_GABAb	EX_GABAb
+58	EX_RGTb	EX_RGTb
+59	EX_GLb	EX_GLb
+60	EX_GLYBETb	EX_GLYBETb
+61	EX_GLYb	EX_GLYb
+62	EX_GLYCOGENb	EX_GLYCOGENb
+63	EX_GLYAb	EX_GLYAb
+64	EX_GNb	EX_GNb
+65	EX_H2Ob	EX_H2Ob
+66	EX_H2O2b	EX_H2O2b
+67	EX_H2Sb	EX_H2Sb
+68	EX_C170b	EX_C170b
+69	EX_C171b	EX_C171b
+70	EX_C70b	EX_C70b
+71	EX_C162b	EX_C162b
+72	EX_C161b	EX_C161b
+73	EX_C60b	EX_C60b
+74	EX_PENDFb	EX_PENDFb
+75	EX_HYXNb	EX_HYXNb
+76	EX_C200b	EX_C200b
+77	EX_ICITb	EX_ICITb
+78	EX_IPNb	EX_IPNb
+79	EX_AMAb	EX_AMAb
+80	EX_LACTb	EX_LACTb
+81	EX_ALAb	EX_ALAb
+82	EX_LAOLb	EX_LAOLb
+83	EX_LARABb	EX_LARABb
+84	EX_ARGb	EX_ARGb
+85	EX_ASNb	EX_ASNb
+86	EX_ASPb	EX_ASPb
+87	EX_C120b	EX_C120b
+88	EX_CITRb	EX_CITRb
+89	EX_CYSb	EX_CYSb
+90	EX_CYSTb	EX_CYSTb
+91	EX_DOQUIb	EX_DOQUIb
+92	EX_GLUb	EX_GLUb
+93	EX_GLNb	EX_GLNb
+94	EX_HISb	EX_HISb
+95	EX_HCYSb	EX_HCYSb
+96	EX_IDOLb	EX_IDOLb
+97	EX_ILEb	EX_ILEb
+98	EX_LEUb	EX_LEUb
+99	EX_LYSb	EX_LYSb
+100	EX_METb	EX_METb
+101	EX_ORNb	EX_ORNb
+102	EX_PHEb	EX_PHEb
+103	EX_PROb	EX_PROb
+104	EX_LRLb	EX_LRLb
+105	EX_SERb	EX_SERb
+106	EX_SORb	EX_SORb
+107	EX_THRb	EX_THRb
+108	EX_TRPb	EX_TRPb
+109	EX_TYRb	EX_TYRb
+110	EX_VALb	EX_VALb
+111	EX_MLTb	EX_MLTb
+112	EX_MLTIOSEb	EX_MLTIOSEb
+113	EX_MANNANb	EX_MANNANb
+114	EX_MELIb	EX_MELIb
+115	EX_METHOLb	EX_METHOLb
+116	EX_MYOIb	EX_MYOIb
+117	EX_C140b	EX_C140b
+118	EX_NAGb	EX_NAGb
+119	EX_NH3b	EX_NH3b
+120	EX_NICDb	EX_NICDb
+121	EX_NICAb	EX_NICAb
+122	EX_HNO3b	EX_HNO3b
+123	EX_HNO2b	EX_HNO2b
+124	EX_C90b	EX_C90b
+125	EX_O2b	EX_O2b
+126	EX_C182b	EX_C182b
+127	EX_C183b	EX_C183b
+128	EX_C181b	EX_C181b
+129	EX_C80b	EX_C80b
+130	EX_PENKb	EX_PENKb
+131	EX_OXALb	EX_OXALb
+132	EX_OAb	EX_OAb
+133	EX_C160b	EX_C160b
+134	EX_C150b	EX_C150b
+135	EX_POAb	EX_POAb
+136	EX_PENVb	EX_PENVb
+137	EX_PENVAb	EX_PENVAb
+138	EX_PAAb	EX_PAAb
+139	EX_PIb	EX_PIb
+140	EX_6CARHEXb	EX_6CARHEXb
+141	EX_PROPb	EX_PROPb
+142	EX_PYRb	EX_PYRb
+143	EX_QUINb	EX_QUINb
+144	EX_RAFFb	EX_RAFFb
+145	EX_STARb	EX_STARb
+146	EX_C180b	EX_C180b
+147	EX_SUCCb	EX_SUCCb
+148	EX_SUCb	EX_SUCb
+149	EX_SLFb	EX_SLFb
+150	EX_H2SO3b	EX_H2SO3b
+151	EX_Sb	EX_Sb
+152	EX_THMEb	EX_THMEb
+153	EX_URAb	EX_URAb
+154	EX_UREAb	EX_UREAb
+155	EX_URIb	EX_URIb
+156	EX_C50b	EX_C50b
+157	EX_XANb	EX_XANb
+158	EX_XYLANb	EX_XYLANb
+159	EX_XOLb	EX_XOLb
+160	EX_ACVb	EX_ACVb
+161	r0001	spontaneous conversion
+162	r0002	spontaneous conversion
+163	r0003	D-glucose 1-epimerase
+164	r0004	ATP:alpha-D-glucose 6-phosphotransferase
+165	r0005	ATP:beta-D-glucose 6-phosphotransferase
+166	r0006	alpha-D-glucose 6-phosphate ketol-isomerase
+167	r0007	beta-D-glucose 6-phosphate ketol-isomerase
+168	r0008	alpha-D-glucose 6-phosphate ketol-isomerase
+169	r0009	phosphofructokinase
+170	r0010	fructose-bisphosphate aldolase
+171	r0011	D-glyceraldehyde-3-phosphate aldose-ketose-isomerase
+172	r0012	glyceraldehyde-3-phosphate dehydrogenase
+173	r0013	phosphoglycerate kinase
+174	r0014	phosphoglycerate mutase
+175	r0015	2-phospho-D-glycerate hydro-lyase (phosphoenolpyruvate-forming)
+176	r0016	pyruvate kinase
+177	r0017	fructose-1,6-bisphosphatase
+178	r0018	phosphoenolpyruvate carboxykinase (ATP)
+179	r0019	ethanol:NADP+ oxidoreductase
+180	r0020	ethanol:NAD+ oxidoreductase
+181	r0021	ethanol:NAD+ oxidoreductase
+182	r0022	pyruvate:[dihydrolipoyllysine-residue acetyltransferase]-lipoyllysine 2-oxidoreductase (decarboxylating, acceptor-acetylating)
+183	r0023	acetyl-CoA:enzyme N6-(dihydrolipoyl)lysine S-acetyltransferase
+184	r0024	dihydrolipoamide:NAD+ oxidoreductase
+185	r0025	acetate:CoA ligase (AMP-forming)
+186	r0026	acetate:CoA ligase (AMP-forming)
+187	r0027	glucose-6-phosphate 1-dehydrogenase
+188	r0028	6-phospho-D-glucono-1,5-lactone lactonohydrolase
+189	r0029	6-phospho-D-gluconate:NADP+ 2-oxidoreductase (decarboxylating)
+190	r0030	D-ribulose-5-phosphate 3-epimerase
+191	r0031	D-ribose-5-phosphate aldose-ketose-isomerase
+192	r0032	sedoheptulose-7-phosphate:D-glyceraldehyde-3-phosphate glycolaldehyde transferase
+193	r0033	transketolase
+194	r0034	sedoheptulose-7-phosphate:D-glyceraldehyde-3-phosphate glyceronetransferase
+195	r0035	D-xylulose 5-phosphate D-glyceraldehyde-3-phosphate-lyase (adding phosphate; acetyl-phosphate-forming)
+196	r0036	2-deoxy-D-ribose-5-phosphate acetaldehyde-lyase (D-glyceraldehyde-3-phosphate-forming)
+197	r0037	ATP:D-ribose 5-phosphotransferase
+198	r0038	ATP:D-gluconate 6-phosphotransferase
+199	r0039	phosphoglucomutase
+200	r0040	D-fructose-6-phosphate D-erythrose-4-phosphate-lyase (adding phosphate; acetyl-phosphate-forming)
+201	r0041	acid phosphatase (aphA)
+202	r0042	beta-D-glucose:oxygen 1-oxidoreductase
+203	r0043	beta-D-glucose:oxygen 1-oxidoreductase
+204	r0044	D-glucono-1,5-lactone lactonohydrolase
+205	r0045	spontaneous conversion
+206	r0046	pyruvate carboxy-lyase (acetaldehyde-forming)
+207	r0047	(S)-lactaldehyde:NAD+ oxidoreductase
+208	r0048	glycolaldehyde:NAD+ oxidoreductase
+209	r0049	(S)-lactaldehyde:NAD+ oxidoreductase
+210	r0050	(R)-S-lactoylglutathione methylglyoxal-lyase (isomerizing)
+211	r0051	(R)-S-lactoylglutathione hydrolase
+212	r0052	acetaldehyde:NAD+ oxidoreductase
+213	r0053	acetaldehyde:NAD+ oxidoreductase
+214	r0054	acetaldehyde:NADP+ oxidoreductase
+215	r0055	acetyl-CoA hydrolase
+216	r0056	acetyl-CoA hydrolase
+217	r0057	NAD-dependent alcohol dehydrogenase
+218	r0058	(S)-malate:NADP+ oxidoreductase(oxaloacetate-decarboxylating)
+219	r0059	(S)-malate:NADP+ oxidoreductase(oxaloacetate-decarboxylating)
+220	r0060	(S)-malate:NAD+ oxidoreductase (decarboxylating)
+221	r0061	ATP:acetate phosphotransferase
+222	r0062	(R)-lactate:NAD+ oxidoreductase
+223	r0063	(R)-lactate:NAD+ oxidoreductase
+224	r0064	(S)-lactate:NAD+ oxidoreductase
+225	r0065	(S)-lactate:ferricytochrome-c 2-oxidoreductase
+226	r0066	(R)-lactate:ferricytochrome-c 2-oxidoreductase
+227	r0067	pyruvate:carbon-dioxide ligase (ADP-forming)
+228	r0068	glycerone-phosphate phosphate-lyase (methylglyoxal-forming) (or spontaneous conversion)
+229	r0069	lactaldehyde:NADP+ oxidoreductase
+230	r0070	propanoate:CoA ligase (AMP-forming)
+231	r0071	1-aminocyclopropane-1-carboxylate aminohydrolase (isomerizing)
+232	r0072	2-oxobutanoate:[dihydrolipoyllysine-residue propionyltransferase]-lipoyllysine 2-oxidoreductase (decarboxylating, acceptor-propionylating)
+233	r0073	propionyl-CoA:enzyme N6-(dihydrolipoyl)lysine S-propionyltransferase
+234	r0074	propanoyl-CoA:oxaloacetate C-propanoyltransferase (thioester-hydrolysing, 1-carboxyethyl-forming)
+235	r0075	2-hydroxybutane-1,2,3-tricarboxylate hydro-lyase
+236	r0076	(2S,3R)-3-hydroxybutane-1,2,3-tricarboxylate pyruvate-lyase (succinate-forming)
+237	r0077	(S)-methylmalonyl-CoA carboxy-lyase (propanoyl-CoA-forming)
+238	r0078	propanoyl-CoA:carbon-dioxide ligase (ADP-forming)
+239	r0079	(2S,3R)-3-Hydroxybutane-1,2,3-tricarboxylate hydro-lyase
+240	r0080	acetoacetate:CoA ligase (AMP-forming)
+241	r0081	(S)-3-hydroxybutanoyl-CoA:NADP+ oxidoreductase
+242	r0082	succinate-semialdehyde:NAD+ oxidoreductase
+243	r0083	succinate-semialdehyde:NADP+ oxidoreductase
+244	r0084	succinate:ubiquinone oxidoreductase
+245	r0085	acetyl-CoA:oxaloacetate C-acetyltransferase (thioester-hydrolysing)
+246	r0086	citrate hydro-lyase (cis-aconitate-forming)
+247	r0087	isocitrate hydro-lyase (cis-aconitate-forming)
+248	r0088	isocitrate:NAD+ oxidoreductase (decarboxylating)
+249	r0089	isocitrate:NADP+ oxidoreductase (decarboxylating)
+250	r0090	isocitrate:NADP+ oxidoreductase (decarboxylating)
+251	r0091	2-oxoglutarate:[dihydrolipoyllysine-residue succinyltransferase]-lipoyllysine 2-oxidoreductase (decarboxylating, acceptor-succinylating)
+252	r0092	succinyl-CoA:enzyme N6-(dihydrolipoyl)lysine S-succinyltransferase
+253	r0093	succinyl-CoA:acetoacetate CoA-transferase
+254	r0094	succinate:CoA ligase (GDP-forming)
+255	r0095	succinate:CoA ligase (ADP-forming)
+256	r0096	succinate:(acceptor) oxidoreductase
+257	r0097	(S)-malate hydro-lyase (fumarate-forming)
+258	r0098	(S)-malate:NAD+ oxidoreductase
+259	r0099	(S)-malate:NAD+ oxidoreductase
+260	r0100	citrate oxaloacetate-lyase (forming acetate from the pro-S carboxymethyl group of citrate)
+261	r0101	acetyl-CoA:oxaloacetate C-acetyltransferase [(pro-S)-carboxymethyl-forming, ADP-phosphorylating]
+262	r0102	acetyl-CoA:glyoxylate C-acetyltransferase (thioester-hydrolysing, carboxymethyl-forming)
+263	r0103	isocitrate glyoxylate-lyase (succinate-forming)
+264	r0104	oxaloacetate acetylhydrolase
+265	r0105	oxalate carboxy-lyase
+266	r0106	glycolate:NAD+ oxidoreductase
+267	r0107	glycolate:oxygen 2-oxidoreductase
+268	r0108	tartrate dehydrogenase
+269	r0109	D-glycerate:NADP+ 2-oxidoreductase
+270	r0110	formate:NAD+ oxidoreductase
+271	r0111	pyruvate:carbon-dioxide ligase (ADP-forming)
+272	r0112	succinate:(acceptor) oxidoreductase
+273	r0113	NADH:ubiquinone oxidoreductase
+274	r0114	diphosphate phosphohydrolase
+275	r0115	diphosphate phosphohydrolase
+276	r0116	ubiquinol oxidase (mitochondrial alternative oxidase (aox))
+277	r0117	NADH:ubiquinone oxidoreductase
+278	r0118	ferrocytochrome-c:oxygen oxidoreductase
+279	r0119	NADH:ubiquinone oxidoreductase
+280	r0120	NADH:ubiquinone oxidoreductase
+281	r0121	NADPH:ferricytochrome oxidoreductase
+282	r0122	H+-exporting ATPase
+283	r0123	phospholipid-translocating ATPase
+284	r0124	NADPH:oxygen oxidoreductase
+285	r0125	NADPH dehydrogenase (quinone)
+286	r0126	electron-transferring-flavoprotein dehydrogenase
+287	r0127	ubiquinol:ferricytochrome-c oxidoreductase
+288	r0128	H+-transporting two-sector ATPase
+289	r0129	5,10-methylenetetrahydrofolate:NAD+ oxidoreductase
+290	r0130	5,10-methylenetetrahydrofolate:NADP+ oxidoreductase
+291	r0131	5-methyltetrahydrofolate:NADP+ oxidoreductase
+292	r0132	5,10-methenyltetrahydrofolate 5-hydrolase (decyclizing)
+293	r0133	formate:tetrahydrofolate ligase (ADP-forming)
+294	r0134	5-formyltetrahydrofolate cyclo-ligase
+295	r0135	folylpolyglutamate synthetase
+296	r0136	GTP 7,8-8,9-dihydrolase
+297	r0137	2-amino-4-hydroxy-6-(erythro-1,2,3-trihydroxypropyl)dihydropteridine triphosphate phosphohydrolase (alkaline optimum)
+298	r0138	2-amino-4-hydroxy-6-(D-erythro-1,2,3-trihydroxypropyl)-7,8-dihydropteridine glycolaldehyde-lyase
+299	r0139	ATP:2-amino-4-hydroxy-6-hydroxymethyl-7,8-dihydropteridine 6'-pyrophosphotransferase
+300	r0140	2-amino-4-hydroxy-6-hydroxymethyl-7,8-dihydropteridine-diphosphate:4-aminobenzoate-2-amino-4-hydroxydihydropteridine-6-methenyltransferase
+301	r0141	2-amino-4-hydroxy-6-hydroxymethyl-7,8-dihydropteridine:4-aminobenzoate-2-amino-4-hydroxydihydropteridine-6-methenyltransferase
+302	r0142	7,8-dihydropteroate:L-glutamate ligase (ADP-forming)
+303	r0143	5,6,7,8-tetrahydrofolate:NADP+ oxidoreductase
+304	r0144	5,6,7,8-tetrahydrofolate:NADP+ oxidoreductase
+305	r0145	chorismate:L-glutamine aminotransferase
+306	r0146	4-amino-4-deoxychorismate pyruvate-lyase
+307	r0147	10-formyltetrahydrofolate amidohydrolase
+308	r0148	10-formyltetrahydrofolate:L-methionyl-tRNA N-formyltransferase
+309	r0149	5,10-methylenetetrahydrofolate:glycine hydroxymethyltransferase
+310	r0150	5,10-methylenetetrahydrofolate:glycine hydroxymethyltransferase
+311	r0151	10-formyltetrahydrofolate:5'-phosphoribosylglycinamide formyltransferase
+312	r0152	10-formyltetrahydrofolate:5'-phosphoribosylglycinamide formyltransferase
+313	r0153	formaldehyde:NAD+ oxidoreductase
+314	r0154	spontaneous conversion
+315	r0155	S-(hydroxymethyl)glutathione dehydrogenase
+316	r0156	S-formylglutathione hydrolase
+317	r0157	formate:NAD+ oxidoreductase
+318	r0158	D-xylulose-5-phosphate:formaldehyde glycolaldehydetransferase
+319	r0159	D-arabinitol:NAD 4-oxidoreductase
+320	r0160	D-arabitol dehydrogenase
+321	r0161	beta-glucuronidase
+322	r0162	2-deoxy-D-gluconate:NAD+ 3-oxidoreductase
+323	r0163	xylitol:NADP+ 4-oxidoreductase (L-xylulose-forming)
+324	r0164	xylitol:NAD+ 2-oxidoreductase (D-xylulose-forming)
+325	r0165	xylitol:NADP+ oxidoreductase
+326	r0166	L-arabinitol:NAD+ 4-oxidoreductase (L-xylulose-forming)
+327	r0167	aldehyde reductase
+328	r0168	L-arabitol:NADP+ 1-oxidoreductase
+329	r0169	D-arabinose:NAD+ 1-oxidoreductase
+330	r0170	D-arabinose:NADP+ 1-oxidoreductase
+331	r0171	ATP:D-xylulose 5-phosphotransferase
+332	r0172	ATP:L-ribulose 5-phosphotransferase
+333	r0173	L-ribulose-5-phosphate 4-epimerase
+334	r0174	UDP-glucuronosyltransferase
+335	r0175	D-mannitol:NADP+ 2-oxidoreductase
+336	r0176	L-iditol:NAD+ 2-oxidoreductase
+337	r0177	D-sorbitol dehydrogenase (acceptor)
+338	r0178	D-mannose-6-phosphate aldose-ketose-isomerase
+339	r0179	ATP:D-fructose 6-phosphotransferase
+340	r0180	D-mannitol-1-phosphate:NAD+ 5-oxidoreductase
+341	r0181	D-mannitol:NAD+ 2-oxidoreductase
+342	r0182	ATP:D-fructose-6-phosphate 2-phosphotransferase
+343	r0183	beta-D-fructose-2,6-bisphosphate 2-phosphohydrolase
+344	r0184	D-mannose 6-phosphate 1,6-phosphomutase
+345	r0185	GTP:alpha-D-mannose-1-phosphate guanylyltransferase
+346	r0186	GDP:D-mannose-1-phosphate guanylyltransferase
+347	r0187	UDP-glucose glycoprotein glucosyltransferase
+348	r0188	D-glucitol:NAD+ 2-oxidoreductase
+349	r0189	beta-D-mannan hydrolases
+350	r0190	ATP:D-mannose 6-phosphotransferase
+351	r0191	D-mannitol-1-phosphate phosphohydrolase
+352	r0192	sucrose alpha-glucohydrolase
+353	r0193	UDP-glucose:D-glucose-6-phosphate 1-alpha-D-glucosyltransferase
+354	r0194	trehalose-6-phosphate phosphohydrolase
+355	r0195	alpha,alpha-trehalose glucohydrolase
+356	r0196	alpha,alpha-trehalose glucohydrolase
+357	r0197	maltose glucohydrolase
+358	r0198	maltose glucohydrolase
+359	r0199	UDP-glucose:1,3-beta-D-glucan 3-beta-D-glucosyltransferase
+360	r0200	endoglucanase
+361	r0201	endoglucanase
+362	r0202	cellulose 1,4-beta-cellobiosidase
+363	r0203	beta-glucosidase
+364	r0204	beta-glucosidase
+365	r0205	cellobiose dehydrogenase
+366	r0206	1,4-alpha-D-glucan glucohydrolase
+367	r0207	1,4-alpha-D-glucan glucohydrolase
+368	r0208	glycogen synthase
+369	r0209	1,4-alpha-glucan branching enzyme
+370	r0210	glycogen phosphorylase
+371	r0211	maltose glucohydrolase
+372	r0212	amylo-1,6-glucosidase
+373	r0213	poly(1,4-alpha-D-galacturonide) galacturonohydrolase
+374	r0214	1,3-beta-glucan glucohydrolase
+375	r0215	1,3-beta-glucan glucohydrolase
+376	r0216	1,4-alpha-D-glucan glucanohydrolase
+377	r0217	alpha-amylase
+378	r0218	mannosyl-oligosaccharide 1,2-alpha-mannosidase
+379	r0219	beta-mannosidase
+380	r0220	D-xylose xylohydrolase
+381	r0221	D-xylose xylohydrolase
+382	r0222	maltose alpha-D-glucosylmutase
+383	r0223	cellobiose dehydrogenase
+384	r0224	galactitol:NADP+ 1-oxidoreductase
+385	r0225	ATP:D-galactose 1-phosphotransferase
+386	r0226	UTP:alpha-D-galactose-1-phosphate uridylyltransferase
+387	r0227	UDP-glucose 4-epimerase
+388	r0228	UTP:alpha-D-glucose-1-phosphate uridylyltransferase
+389	r0229	alpha-D-glucose 1-phosphate 1,6-phosphomutase
+390	r0230	UDP-glucose:alpha-D-galactose-1-phosphate uridylyltransferase
+391	r0231	melibiose galactohydrolase
+392	r0232	melibiose galactohydrolase
+393	r0233	D-galactose:oxygen 6-oxidoreductase
+394	r0234	D-tagatose 1,6-bisphosphate D-glyceraldehyde-3-phosphate-lyase (glycerone-phosphate-forming)
+395	r0235	ATP:D-tagatose-6-phosphate 1-phosphotransferase
+396	r0236	D-galactose:NAD+ 1-oxidoreductase
+397	r0237	D-galactono-1,4-lactone hydroxyacylhydrolase
+398	r0238	D-galactonate hydro-lyase
+399	r0239	lactose galactohydrolase
+400	r0240	lactose galactohydrolase
+401	r0241	raffinose fructohydrolase
+402	r0242	sn-glycerol-3-phosphate phosphohydrolase
+403	r0243	1,2-diacyl-sn-glycerol 3-phosphate phosphohydrolase
+404	r0244	1-acylglycerol acylhydrolase
+405	r0245	phosphatidate phosphatase
+406	r0246	1-acylglycerol-3-phosphate acyltransferase
+407	r0247	triacylglycerol acylhydrolase
+408	r0248	1,2-diacyl-sn-glycerol acylhydrolase
+409	r0249	UDPgalactose:1,2-diacylglycerol 3-beta-D-galactosyltransferase
+410	r0250	galactolipid galactosyltransferase
+411	r0251	glycerol:NAD+ 2-oxidoreductase
+412	r0252	glycerol dehydrogenase (NADP)
+413	r0253	alcohol oxidase
+414	r0254	alcohol oxidase
+415	r0255	NAD-dependent alcohol dehydrogenase
+416	r0256	glycerol:NADP+ oxidoreductase
+417	r0257	ATP:glycerol 3-phosphotransferase
+418	r0258	CDP-diacylglycerol:myo-inositol 3-phosphatidyltransferase
+419	r0259	palmitoyl-CoA:L-serine C-palmitoyltransferase (decarboxylating)
+420	r0260	sphinganine:NADP+ 3-oxidoreductase
+421	r0261	sphingosine hydroxylase/ syringomycin response protein 2
+422	r0262	serine C-palmitoyltransferase
+423	r0263	sphinganine:NADP+ 3-oxidoreductase
+424	r0264	sphingosine hydroxylase/ syringomycin response protein 2
+425	r0265	serine C-palmitoyltransferase
+426	r0266	sphinganine:NADP+ 3-oxidoreductase
+427	r0267	ceramide synthase
+428	r0268	ceramide synthase
+429	r0269	ceramide synthase
+430	r0270	ceramide synthase
+431	r0271	artificial reaction
+432	r0272	ceramide synthase
+433	r0273	ceramide synthase
+434	r0274	ceramide synthase
+435	r0275	ceramide synthase
+436	r0276	artificial reaction
+437	r0277	2-hydroxyacylsphingosine 1-beta-galactosyltransferase
+438	r0278	2-hydroxyacylsphingosine 1-beta-galactosyltransferase
+439	r0279	artifical reaction
+440	r0280	ceramide synthase
+441	r0281	2-hydroxyacylsphingosine 1-beta-glucosyltransferase
+442	r0282	ceramide synthase
+443	r0283	2-hydroxyacylsphingosine 1-beta-glucosyltransferase
+444	r0284	IPC synthase, mannosyl diphosphorylinositol ceramide synthase
+445	r0285	mannosylinositol phosphorylceramide (MIPC) synthase
+446	r0286	mannosylinositol phosphorylceramide (MIPC) synthase
+447	r0287	galactosyltransferase
+448	r0288	galactosyltransferase
+449	r0289	galactosyltransferase
+450	r0290	glycerol-3-phosphate acyltransferase
+451	r0291	glycerol-3-phosphate acyltransferase
+452	r0292	1-acylglycerone phosphate reductase
+453	r0293	CTP:phosphatidate cytidyltransferase
+454	r0294	CDP-diacylglycerol:L-serine 3-phosphatidyltransferase
+455	r0295	phosphatidyl-L-serine carboxy-lyase
+456	r0296	S-adenosyl-L-methionine:phosphatidylethanolamine N-methyltransferase
+457	r0297	S-adenosyl-L-methionine:phosphatidyl-N-methylethanolamine N-methyltransferase
+458	r0298	S-adenosyl-L-methionine:phosphatidyl-N-dimethylethanolamine N-methyltransferase
+459	r0299	CDP-diacylglycerol:sn-glycerol-3-phosphate 3-phosphatidyltransferase
+460	r0300	phosphatidylglycerophosphate phosphohydrolase
+461	r0301	CDP-diacylglycerol:phosphatidylglycerol 3-phosphatidyltransferase
+462	r0302	phospholipase A2/lecithinase a/phosphatidase/phosphatidolipase/phospholipase A
+463	r0303	phosphatidylethanolamine 2-acylhydrolase
+464	r0304	1-acyl-sn-glycero-3-phosphoethanolamine aldehydohydrolase
+465	r0305	sn-glycero-3-phosphoethanolamine glycerophosphohydrolase
+466	r0306	1-acylglycerol-3-phosphate O-acyltransferase
+467	r0307	sn-glycerol-3-phosphate:(acceptor) 2-oxidoreductase
+468	r0308	sn-glycerol-3-phosphate:NAD+ 2-oxidoreductase
+469	r0309	ethanolamine oxidase
+470	r0310	phosphatidylglycerol cholinephosphohydrolase
+471	r0311	1-phosphatidyl-D-myo-inositol inositolphosphohydrolase
+472	r0312	lysophospholipase/phospholipase B
+473	r0313	lysophospholipase/phospholipase B
+474	r0314	sn-glycero-3-phosphocholine glycerophosphohydrolase
+475	r0315	UTP:N-acetyl-alpha-D-glucosamine-1-phosphate uridylyltransferase
+476	r0316	chitobiose N-acetylglucosaminohydrolase
+477	r0317	chitobiose N-acetylglucosaminohydrolase
+478	r0318	chitinase
+479	r0319	chitinase
+480	r0320	[1,4-(N-Acetyl-beta-D-glucosaminyl)]n glycanohydrolase
+481	r0321	[1,4-(N-Acetyl-beta-D-glucosaminyl)]n glycanohydrolase
+482	r0322	N-acetyl-D-glucosamine-6-phosphate amidohydrolase
+483	r0323	D-glucosamine-6-phosphate aminohydrolase (ketol isomerizing)
+484	r0324	ATP:D-glucosamine 6-phosphotransferase
+485	r0325	UDP-N-acetyl-D-glucosamine:chitin-4-beta-N-acetylglucosaminyl-transferase
+486	r0326	chitin amidohydrolase
+487	r0327	chitin amidohydrolase
+488	r0328	alpha-L-arabinan arabinofuranohydrolase
+489	r0329	N-acetyl-D-glucosamine 1-phosphate 1,6-phosphomutase
+490	r0330	N-acetyl-D-glucosamine amidohydrolase
+491	r0331	acetyl-CoA:D-glucosamine-6-phosphate N-acetyltransferase
+492	r0332	chitosan N-acetylglucosaminohydrolase
+493	r0333	ATP:N-acetyl-D-glucosamine 6-phosphotransferase
+494	r0334	allantoin amidohydrolase
+495	r0335	(S)-ureidoglycolate urea-lyase (glyoxylate-forming)
+496	r0336	ATP:D-ribose-5-phosphate diphosphotransferase
+497	r0337	ATP diphosphate-lyase (cyclizing; 3',5'-cyclic-AMP-forming)
+498	r0338	ATP diphosphate-lyase (cyclizing; 3',5'-cyclic-AMP-forming)
+499	r0339	GTP diphosphate-lyase (cyclizing; 3',5'-cyclic-GMP-forming)
+500	r0340	1-(5-phospho-D-ribosyl)-5-amino-4-imidazolecarboxylate carboxy-lyase
+501	r0341	1-(5-phosphoribosyl)-5-amino-4-carboxyimidazole:L-aspartate ligase (ADP-forming)
+502	r0342	1-(5'-phosphoribosyl)-5-amino-4-(N-succinocarboxamide)-imidazole AMP-lyase
+503	r0343	2-(formamido)-N1-(5-phosphoribosyl)acetamidine cyclo-ligase (ADP-forming)
+504	r0344	5'-phosphoribosylformylglycinamide:L-glutamine amido-ligase (ADP-forming)
+505	r0345	5-phospho-D-ribosylamine:glycine ligase (ADP-forming)
+506	r0346	5-phosphoribosylamine:diphosphate phospho-alpha-D-ribosyltransferase (glutamate-amidating)
+507	r0347	10-formyltetrahydrofolate:5'-phosphoribosyl-5-amino-4-imidazolecarboxamide formyltransferase
+508	r0348	IMP 1,2-hydrolase (decyclizing)
+509	r0349	IMP:L-aspartate ligase (GDP-forming)
+510	r0350	N6-(1,2-dicarboxyethyl)AMP AMP-lyase (fumarate-forming)
+511	r0351	xanthosine-5'-phosphate:L-glutamine amido-ligase (AMP-forming)
+512	r0352	AMP aminohydrolase
+513	r0353	adenosine 3',5'-phosphate 5'-nucleotidohydrolase
+514	r0354	35-cyclic nucleotide phosphodiesterase
+515	r0355	guanosine 3',5'-cyclic phosphate 5'-nucleotidohydrolase
+516	r0356	ADP-ribose ribophosphohydrolase
+517	r0357	guanine aminohydrolase
+518	r0358	xanthine:NAD+ oxidoreductase
+519	r0359	xanthine:oxygen oxidoreductase
+520	r0360	urate:oxygen oxidoreductase
+521	r0361	IMP:NAD+ oxidoreductase
+522	r0362	AMP:diphosphate phospho-D-ribosyltransferase
+523	r0363	adenosine aminohydrolase
+524	r0364	deoxyinosine:orthophosphate ribosyltransferase
+525	r0365	deoxyadenosine:orthophosphate ribosyltransferase
+526	r0366	deoxyguanosine:orthophosphate ribosyltransferase
+527	r0367	inosine:phosphate alpha-D-ribosyltransferase
+528	r0368	adenosine:phosphate alpha-D-ribosyltransferase
+529	r0369	xanthosine:orthophosphate ribosyltransferase
+530	r0370	guanosine:orthophosphate ribosyltransferase
+531	r0371	nicotinate D-ribonucleoside:orthophosphate ribosyltransferase
+532	r0372	XMP:pyrophosphate phosphoribosyltransferase
+533	r0373	ATP:adenosine 5'-phosphotransferase
+534	r0374	ATP:AMP phosphotransferase
+535	r0375	adenylate kinase
+536	r0376	adenylate kinase
+537	r0377	adenylate kinase
+538	r0378	adenylate kinase
+539	r0379	ATP:dAMP phosphotransferase
+540	r0380	adenine aminohydrolase
+541	r0381	ATP:inosine 5'-phosphotransferase
+542	r0382	ATP:guanosine 5'-phosphotransferase
+543	r0383	IMP:diphosphate phospho-D-ribosyltransferase
+544	r0384	GMP:diphosphate 5-phospho-alpha-D-ribosyltransferase
+545	r0385	2'-deoxyadenosine 5'-monophosphate phosphohydrolase
+546	r0386	2'-deoxyguanosine 5'-monophosphate phosphohydrolase
+547	r0387	adenosine 5'-monophosphate phosphohydrolase
+548	r0388	guanosine 5'-monophosphate phosphohydrolase
+549	r0389	Inosine 5'-monophosphate phosphohydrolase
+550	r0390	xanthosine 5'-phosphate phosphohydrolase
+551	r0391	2'-deoxyadenosine 5'-diphosphate:oxidized-thioredoxin 2'-oxidoreductase
+552	r0392	2'-deoxyguanosine 5'-diphosphate:oxidized-thioredoxin 2'-oxidoreductase
+553	r0393	2'-deoxycytidine diphosphate:oxidized-thioredoxin 2'-oxidoreductase
+554	r0394	2'-deoxyuridine 5'-diphosphate:oxidized-thioredoxin 2'-oxidoreductase
+555	r0395	GDP phosphohydrolase
+556	r0396	deoxyadenosine aminohydrolase
+557	r0397	ATP:dGDP phosphotransferase
+558	r0398	ATP:dADP phosphotransferase
+559	r0399	ATP:GDP phosphotransferase
+560	r0400	ATP:IDP phosphotransferase
+561	r0401	ATP:GMP phosphotransferase
+562	r0402	ATP:dGMP phosphotransferase
+563	r0403	guanylate kinase
+564	r0404	allantoate amidinohydrolase
+565	r0405	guanosine 3'-diphosphate 5'-triphosphate 5'-phosphohydrolase
+566	r0406	spontaneous conversion
+567	r0407	thymidine:phosphate deoxy-alpha-D-ribosyltransferase
+568	r0408	nucleoside triphosphatase
+569	r0409	carbamoyl-phosphate:L-aspartate carbamoyltransferase
+570	r0410	(S)-dihydroorotate amidohydrolase
+571	r0411	(S)-dihydroorotate:oxygen oxidoreductase
+572	r0412	orotidine-5'-phosphate:diphosphate-phospho-alpha-D-ribosyl-transferase
+573	r0413	orotidine-5'-phosphate carboxy-lyase (UMP-forming)
+574	r0414	ATP:UMP phosphotransferase
+575	r0415	UMP:diphosphate phospho-alpha-D-ribosyltransferase
+576	r0416	GTP:uridine 5'-phosphotransferase
+577	r0417	GTP:cytidine 5'-phosphotransferase
+578	r0418	ATP:uridine 5'-phosphotransferase
+579	r0419	NADPH:oxidized-thioredoxin oxidoreductase
+580	r0420	5,10-methylenetetrahydrofolate:dUMP C-methyltransferase
+581	r0421	UTP:L-glutamine amido-ligase (ADP-forming)
+582	r0422	UTP:ammonia ligase (ADP-forming)
+583	r0423	uridine ribohydrolase
+584	r0424	uracil hydro-lyase (adding D-ribose 5-phosphate;pseudouridine-5'-phosphate-forming)
+585	r0425	hydrogen-carbonate:L-glutamine amido-ligase (ADP-forming, carbamate-phosphorylating)
+586	r0426	hydrogen-carbonate:L-glutamine amido-ligase (ADP-forming, carbamate-phosphorylating)
+587	r0427	2'-deoxyuridine 5'-monophosphate phosphohydrolase
+588	r0428	thymidylate 5'-phosphohydrolase
+589	r0429	2'-deoxycytidine 5'-monophosphate phosphohydrolase
+590	r0430	cytidine-5'-monophosphate phosphohydrolase
+591	r0431	uridine 5'-monophosphate phosphohydrolase
+592	r0432	ribonucleoside-triphosphate reductase
+593	r0433	ribonucleoside-triphosphate reductase
+594	r0434	ribonucleoside-triphosphate reductase
+595	r0435	ribonucleoside-triphosphate reductase
+596	r0436	UDP phosphohydrolase
+597	r0437	ATP:dTMP phosphotransferase
+598	r0438	ATP:dCMP phosphotransferase
+599	r0439	uridylate kinase
+600	r0440	cytidine-5'-monophosphate phosphoribohydrolase
+601	r0441	nucleoside triphosphatase
+602	r0442	cytidine aminohydrolase
+603	r0443	ATP:UDP phosphotransferase
+604	r0444	ATP:CDP phosphotransferase
+605	r0445	ATP:dUDP phosphotransferase
+606	r0446	ATP:dCDP phosphotransferase
+607	r0447	nucleoside diphosphate kinase
+608	r0448	dUTP nucleotidohydrolase
+609	r0449	cytosine aminohydrolase
+610	r0450	dihydroorotate dehydrogenase
+611	r0451	nicotinamide amidohydrolase
+612	r0452	NADPH:NAD+ oxidoreductase
+613	r0453	ATP:NADH 2'-phosphotransferase
+614	r0454	NAD+ phosphohydrolase
+615	r0455	ATP:nicotinamide-nucleotide adenylyltransferase
+616	r0456	deamido-NAD+:L-glutamine amido-ligase (AMP-forming)
+617	r0457	nicotinate-nucleotide pyrophosphorylase
+618	r0458	ATP:NAD+ 2'-phosphotransferase
+619	r0459	ribosylnicotinate kinase
+620	r0460	spontaneous conversion
+621	r0461	5,10-methylenetetrahydrofolate:3-methyl-2-oxobutanoate hydroxymethyltransferase
+622	r0462	(R)-pantoate:NADP+ 2-oxidoreductase
+623	r0463	ATP:pantothenate 4'-phosphotransferase
+624	r0464	ATP:dephospho-CoA 3'-phosphotransferase
+625	r0465	pyruvate:pyruvate acetaldehydetransferase (decarboxylating)
+626	r0466	(R)-pantoate:beta-alanine ligase (AMP-forming)
+627	r0467	ATP:pantetheine-4'-phosphate adenylyltransferase
+628	r0468	(R)-4'-Phosphopantothenate:L-cysteine ligase
+629	r0469	N-[(R)-4'-phosphopantothenoyl]-L-cysteine carboxy-lyase
+630	r0470	proline dehydrogenase
+631	r0471	succinyl-CoA:glycine C-succinyltransferase (decarboxylating)
+632	r0472	5-aminolevulinate hydro-lyase (adding 5-aminolevulinate and cyclizing; porphobilinogen-forming)
+633	r0473	porphobilinogen:(4-[2-carboxyethyl]-3-[carboxymethyl]pyrrol-2-yl)methyltransferase (hydrolysing)
+634	r0474	hydroxymethylbilane hydro-lyase(cyclizing)
+635	r0475	uroporphyrinogen-III carboxy-lyase
+636	r0476	coproporphyrinogen:oxygen oxidoreductase(decarboxylating)
+637	r0477	protoporphyrinogen-IX:oxygen oxidoreductase
+638	r0478	protoheme ferro-lyase (protoporphyrin-forming)
+639	r0479	heme A farnesyltransferase
+640	r0480	cytochrome oxidase assembly factor COX15
+641	r0481	S-adenosyl-L-methionine:uroporphyrinogen-III C-methyltransferase
+642	r0482	S-adenosyl-L-methionine:uroporphyrin-III C-methyltransferase
+643	r0483	S-adenosyl-L-methionine:uroporphyrin-III C-methyltransferase
+644	r0484	L-glutamate-semialdehyde: NADP+ oxidoreductase (L-glutamyl-tRNA(Glu)-forming)
+645	r0485	(S)-4-amino-5-oxopentanoate 4,5-aminomutase
+646	r0486	biotin synthase
+647	r0487	6-carboxyhexanoyl-CoA:L-alanine C-carboxyhexanoyltransferase (decarboxylating)
+648	r0488	S-adenosyl-L-methionine:8-amino-7-oxononanoate aminotransferase
+649	r0489	spontaneous conversion
+650	r0490	7,8-diaminononanoate:carbon-dioxide cyclo-ligase
+651	r0491	biotin synthase
+652	r0492	6-carboxyhyxanoate:CoA ligase (AMP-forming)
+653	r0493	ATP:biotin adenylyltransferase
+654	r0494	biotinyl-5'-AMP:apo-[carboxylase] ligase (AMP-forming)
+655	r0495	spontaneous conversion
+656	r0496	pyridoxal 5-phosphate synthase
+657	r0497	ATP:pyridoxal 5'-phosphotransferase
+658	r0498	ATP:pyridoxal 5'-phosphotransferase
+659	r0499	pyridoxamine-5'-phosphate:oxygen oxidoreductase (deaminating)
+660	r0500	ATP:pyridoxine 5'-phosphotransferase
+661	r0501	pyridoxine 5-phosphate:oxygen oxidoreductase
+662	r0502	pyridoxine:oxygen oxidoreductase (deaminating)
+663	r0503	pyridoxamine:oxygen oxidoreductase (deaminating)
+664	r0504	pyridoxal-5'-phosphate phosphohydrolase
+665	r0505	chorismate pyruvate-lyase (4-hydroxybenzoate-forming)
+666	r0506	polyisopentenylpyrolinate:4-hydroxybenzoate nonaprenyltransferase
+667	r0507	uncharacterized enzyme
+668	r0508	S-adenosyl-L-methionine:3-polyprenyl-4,5-dihydroxylate 5-O-methyltransferase
+669	r0509	3-polyprenyl-4-hydroxy-5-methoxybenzoate carboxy-lyase (2-polyprenyl-6-methoxyphenol-forming)
+670	r0510	2-octaprenyl-6-methoxyphenol hydroxylase
+671	r0511	ubiquinone biosynthesis methyltransferase
+672	r0512	2-octaprenyl-3-methyl-6-methoxy-1,4-benzoquinol hydroxylase
+673	r0513	hexaprenyldihydroxybenzoate methyltransferase
+674	r0514	L-cysteine:[ThiI] sulfurtransferase
+675	r0515	ATP:4-amino-2-methyl-5-phosphomethylpyrimidine phosphotransferase
+676	r0516	ATP:4-methyl-5-(2-hydroxyethyl)-thiazole 2-phosphotransferase
+677	r0517	2-methyl-4-amino-5-hydroxymethylpyrimidine-diphosphate:4-methyl-5-(2-phosphoethyl)-thiazole 2-methyl-4-aminopyridine-5-methenyltransferase
+678	r0518	thiamin diphosphate phosphohydrolase
+679	r0519	thiamin monophosphate phosphohydrolase
+680	r0520	ATP:thiamine diphosphotransferase
+681	r0521	GTP 7,8-8,9-dihydrolase (diphosphate-forming)
+682	r0522	2,5-diamino-6-hydroxy-4-(5-phosphoribosylamino)-pyrimidine 2-aminohydrolase
+683	r0523	5-amino-6-(5-phosphoribitylamino)uracil:NADP+ 1'-oxidoreductase
+684	r0524	phosphoric monoester hydrolase
+685	r0525	D-ribulose 5-phosphate formate-lyase (L-3,4-dihydroxybutan-2-one-4-phosphate-forming)
+686	r0526	6,7-dimethyl-8-ribityllumazine synthase
+687	r0527	6,7-dimethyl-8-(1-D-ribityl)lumazine:6,7-dimethyl-8-(1-D-ribityl)lumazine 2,3-butanediyltransferase
+688	r0528	ATP:riboflavin 5'-phosphotransferase
+689	r0529	ATP:FMN adenylyltransferase
+690	r0530	riboflavin-5-phosphate phosphohydrolase (acid optimum)
+691	r0531	1D-myo-inositol-3-phosphate lyase (isomerizing)
+692	r0532	1D-myo-inositol 3-phosphate phosphohydrolase
+693	r0533	myo-Inositol:oxygen oxidoreductase
+694	r0534	myo-Inositol-hexakisphosphate 3-phosphohydrolase
+695	r0535	myo-inositol 2-dehydrogenase
+696	r0536	1D-myo-inositol 1-phosphate phosphohydrolase
+697	r0537	phosphatidylinositol 4-kinase
+698	r0538	ATP:1-phosphatidyl-1D-myo-inositol-4-phosphate 5-phosphotransferase
+699	r0539	ATP:1-phosphatidyl-1D-myo-inositol 3-phosphotransferase
+700	r0540	L-aspartate:2-oxoglutarate aminotransferase
+701	r0541	L-aspartate:2-oxoglutarate aminotransferase
+702	r0542	L-alanine:2-oxoglutarate aminotransferase
+703	r0543	L-asparagine amidohydrolase
+704	r0544	L-aspartate:L-glutamine amido-ligase (AMP-forming)
+705	r0545	L-aspartate:ammonia ligase (AMP-forming)
+706	r0546	L-aspartate-4-semialdehyde:NADP+ oxidoreductase (phosphorylating)
+707	r0547	ATP:L-aspartate 4-phosphotransferase
+708	r0548	L-aspartic acid:oxygen oxidoreductase (deaminating)
+709	r0549	L-glutamate 1-carboxy-lyase (4-aminobutanoate-forming)
+710	r0550	L-glutamate:NADP+ oxidoreductase (transaminating)
+711	r0551	L-glutamate:NAD+ oxidoreductase (deaminating)
+712	r0552	L-glutamate:NAD+ oxidoreductase (deaminating)
+713	r0553	L-glutamate:NADP+ oxidoreductase (deaminating)
+714	r0554	4-aminobutanoate:2-oxoglutarate aminotransferase
+715	r0555	L-glutamate:ammonia ligase (ADP-forming)
+716	r0556	L-glutamine amidohydrolase
+717	r0557	glucosamine-fructose-6-phosphate aminotransferase
+718	r0558	L-alanine:glyoxylate aminotransferase
+719	r0559	L-serine:pyruvate aminotransferase
+720	r0560	N-acetyl-gamma-glutamyl-phosphate reductase (EC 1.2.1.38) and acetylglutamate kinase (EC 2.7.2.8)
+721	r0561	S-adenosylmethioninamine:putrescine 3-aminopropyltransferase
+722	r0562	urea:carbon-dioxide ligase (ADP-forming)
+723	r0563	urea-1-carboxylate amidohydrolase
+724	r0564	S-adenosyl-L-methionine carboxy-lyase [(5-deoxy-5-adenosyl)(3-aminopropyl)methylsulfonium-forming]
+725	r0565	spermidine:(acceptor) oxidoreductase
+726	r0566	acetyl-CoA:L-glutamate N-acetyltransferase
+727	r0567	ATP:N-acetyl-L-glutamate 5-phosphotransferase
+728	r0568	N2-acetyl-L-ornithine:2-oxoglutarate aminotransferase
+729	r0569	N2-acetyl-L-ornithine amidohydrolase
+730	r0570	L-citrulline:L-aspartate ligase (AMP-forming)
+731	r0571	2-(Nomega-L-arginino)succinate arginine-lyase (fumarate-forming)
+732	r0572	L-arginine amidinohydrolase
+733	r0573	agmatine amidinohydrolase
+734	r0574	gamma-glutamyl phosphate reductase
+735	r0575	proline dehydrogenase
+736	r0576	L-proline,2-oxoglutarate:oxygen oxidoreductase (4-hydroxylating)
+737	r0577	delta-1-pyrroline-5-carboxylate dehydrogenase
+738	r0578	delta-1-pyrroline-5-carboxylate dehydrogenase
+739	r0579	L-proline:NADP+ 5-oxidoreductase
+740	r0580	pyrroline-5-carboxylate reductase
+741	r0581	trans-4-hydroxy-L-proline:NAD+ 5-oxidoreductase
+742	r0582	proline racemase
+743	r0583	N2-acetyl-L-ornithine:L-glutamate N-acetyltransferase
+744	r0584	L-ornithine:2-oxo-acid aminotransferase
+745	r0585	L-ornithine carboxy-lyase (putrescine-forming)
+746	r0586	S-adenosylmethioninamine:spermidine 3-aminopropyltransferase
+747	r0587	carbamoyl-phosphate:L-ornithine carbamoyltransferase
+748	r0588	spontaneous conversion
+749	r0589	spontaneous conversion
+750	r0590	sulfhydryl oxidase (Sox)
+751	r0591	S-adenosyl-L-methionine:L-homocysteine S-methyltransferase
+752	r0592	ATP:L-methionine S-adenosyltransferase
+753	r0593	acetyl-CoA:L-serine O-acetyltransferase
+754	r0594	O3-acetyl-L-serine:hydrogen-sulfide
+755	r0595	O3-acetyl-L-serine:hydrogen-sulfide
+756	r0596	L-cystathionine L-homocysteine-lyase (deaminating; pyruvate-forming)
+757	r0597	5-methyltetrahydropteroyltri-L-glutamate:L-homocysteine S-methyltransferase
+758	r0598	5-methyltetrahydrofolate:L-homocysteine S-methyltransferase
+759	r0599	S-adenosyl-L-homocysteine hydrolase
+760	r0600	acetyl-CoA:L-homoserine O-acetyltransferase
+761	r0601	O-acetyl-L-homoserine:hydrogen sulfide S-(3-amino-3-carboxypropyl)transferase
+762	r0602	O-succinyl-L-homoserine succinate-lyase (adding cysteine)
+763	r0603	O-succinyl-L-homoserine succinate-lyase (deaminating; 2-oxobutanoate-forming)
+764	r0604	O-succinyl-L-homoserine succinate-lyase (adding hydrogen sulfide)
+765	r0605	O-acetyl-L-homoserine succinate-lyase (adding cysteine)
+766	r0606	L-cystathionine cysteine-lyase (deaminating; 2-oxobutanoate-forming)
+767	r0607	S-methyl-5'-thioadenosine:phosphate-S-methyl-5-thio-alpha-D-ribosyl-transferase
+768	r0608	S-methyl-5-thio-D-ribulose-1-phosphate hydro-lyase
+769	r0609	5-(methylthio)-2,3-dioxopentyl-phosphate phosphohydrolase (isomerizing)
+770	r0610	1,2-dihydroxy-5-(methylthio)pent-1-en-3-one:oxygen oxidoreductase (formate-forming)
+771	r0611	aromatic-amino-acid transaminase
+772	r0612	aldehyde dehydrogenase (NAD+)
+773	r0613	sulfhydryl oxidase
+774	r0614	L-cysteine:oxygen oxidoreductase
+775	r0615	ATP:(R)-glycerate 3-phosphotransferase
+776	r0616	threonine dehydrogenase
+777	r0617	L-serine ammonia-lyase
+778	r0618	3-phospho-D-glycerate:NAD+ 2-oxidoreductase
+779	r0619	3-phosphoserine:2-oxoglutarate aminotransferase
+780	r0620	O-phospho-L-serine phosphohydrolase
+781	r0621	L-homoserine:NADP+ oxidoreductase
+782	r0622	L-homoserine:NAD+ oxidoreductase
+783	r0623	ATP:L-homoserine O-phosphotransferase
+784	r0624	O-phospho-L-homoserine phosphate-lyase (adding water;L-threonine-forming)
+785	r0625	L-threonine acetaldehyde-lyase (glycine-forming)
+786	r0626	L-threonine:NAD+ oxidoreductase
+787	r0627	aminoacetone:oxygen oxidoreductase(deaminating)
+788	r0628	choline dehydrogenase
+789	r0629	p-cumic alcohol:NAD+ oxidoreductase
+790	r0630	N,N-dimethylglycine oxidase
+791	r0631	sarcosine:oxygen oxidoreductase (demethylating)
+792	r0632	L-serine hydro-lyase (adding homocysteine; L-cystathionine-forming)
+793	r0633	L-threonine ammonia-lyase (2-oxobutanoate-forming)
+794	r0634	glycine:lipoylprotein oxidoreductase (decarboxylating and acceptor-aminomethylating)
+795	r0635	S-aminomethyldihydrolipoylprotein:(6S)-tetrahydrofolate aminomethyltransferase (ammonia-forming)
+796	r0636	dihydrolipoylprotein:NAD+ oxidoreductase
+797	r0637	spontaneous conversion
+798	r0638	phosphoribosyl-ATP pyrophosphohydrolase
+799	r0639	1-(5-phospho-D-ribosyl)-AMP 1,6-hydrolase
+800	r0640	glutamine amidotransferase cyclase
+801	r0641	S-adenosyl-L-methionine:L-histidine N-methyltransferase
+802	r0642	N-(5'-phospho-D-ribosylformimino)-5-amino-1-(5''-phospho-D-ribosyl)-4-imidazolecarboxamide ketol-isomerase
+803	r0643	D-erythro-1-(Imidazol-4-yl)glycerol 3-phosphate hydro-lyase
+804	r0644	5-amino-2-oxopentanoate:2-oxoglutarate aminotransferase
+805	r0645	L-histidinol-phosphate phosphohydrolase
+806	r0646	1-(5-phospho-D-ribosyl)-ATP:diphosphate phospho-alpha-D-ribosyl-transferase
+807	r0647	L-histidinol:NAD+ oxidoreductase
+808	r0648	L-valine:2-oxoglutarate aminotransferase
+809	r0649	spontaneous conversion
+810	r0650	branched chain amino acid aminotransferase
+811	r0651	pyruvate:2-oxobutanoate acetaldehydetransferase (decarboxylating)
+812	r0652	(S)-2-acetolactate methylmutase
+813	r0653	(R)-2,3-dihydroxy-3-methylbutanoate:NADP+ oxidoreductase (isomerizing)
+814	r0654	(S)-2-aceto-2-hydroxybutanoate:NADP+ oxidoreductase (isomerizing)
+815	r0655	(R)-2,3-dihydroxy-3-methylpentanoate:NADP+ oxidoreductase (isomerizing)
+816	r0656	(R)-2,3-dihydroxy-3-methylbutanoate hydro-lyase
+817	r0657	(R)-2,3-dihydroxy-3-methylpentanoate:NADP+ oxidoreductase (isomerizing)
+818	r0658	acetyl-CoA:3-methyl-2-oxobutanoate C-acetyltransferase (thioester-hydrolysing, carboxymethyl-forming)
+819	r0659	3-isopropylmalate hydro-lyase
+820	r0660	2-isopropylmalate hydro-lyase
+821	r0661	3-isopropylmalate dehydrogenase
+822	r0662	3-methyl-2-oxobutanoate:[dihydrolipoyllysine-residue (2-methylpropanoyl)transferase] lipoyllysine 2-oxidoreductase (decarboxylating, acceptor-2-methylpropanoylating)
+823	r0663	(S)-3-methyl-2-oxopentanoate:[dihydrolipoyllysine-residue (2-methylpropanoyl)transferase] lipoyllysine 2-oxidoreductase (decarboxylating, acceptor-2-methylpropanoylating)
+824	r0664	4-methyl-2-oxopentanoate:[dihydrolipoyllysine-residue (2-methylpropanoyl)transferase] lipoyllysine 2-oxidoreductase (decarboxylating, acceptor-2-methylpropanoylating)
+825	r0665	2-methylpropanoyl-CoA:enzyme N6-(dihydrolipoyl)lysine S-(2-methylpropanoyl)transferase
+826	r0666	(S)-2-methylbutanoyl-CoA:enzyme N6-(dihydrolipoyl)lysine S-(2-methylbutanoyl)transferase
+827	r0667	3-methylbutanoyl-CoA:enzyme N6-(dihydrolipoyl)lysine S-(3-methylbutanoyl)transferase
+828	r0668	enzyme N6-(dihydrolipoyl)lysine:NAD+ oxidoreductase
+829	r0669	2-methylpropanoyl-CoA:(acceptor) 2,3-oxidoreductase
+830	r0670	(S)-3-hydroxyisobutyryl-CoA hydro-lyase
+831	r0671	(S)-2-methylbutanoyl-CoA:acceptor 2,3-oxidoreductase
+832	r0672	(2S,3S)-3-hydroxy-2-methylbutanoyl-CoA hydro-liase
+833	r0673	(2S,3S)-3-hydroxy-2-methylbutanoyl-CoA:NAD+ oxidoreductase
+834	r0674	acetyl-CoA:propanoyl-CoA 2-C-acetyltransferase; 2-methylacetoacetyl-CoA thiolase
+835	r0675	L-isoleucine:2-oxoglutarate aminotransferase
+836	r0676	isovaleryl-CoA dehydrogenase
+837	r0677	3-methylcrotonoyl-CoA:carbon-dioxide ligase (ADP-forming)
+838	r0678	(S)-3-hydroxy-3-methylglutaryl-CoA hydro-lyase (trans-3-methylglutaconyl-CoA-forming)
+839	r0679	(S)-3-hydroxy-3-methylglutaryl-CoA acetoacetate-lyase (acetyl-CoA-forming)
+840	r0680	3-hydroxy-2-methylpropanoyl-CoA hydrolase
+841	r0681	3-hydroxy-2-methylpropanoate:NAD+ oxidoreductase
+842	r0682	2-methyl-3-oxopropanoate:NAD+ oxidoreductase (CoA-propanoylating)
+843	r0683	acetyl-CoA:2-oxoglutarate C-acetyltransferase (thioester-hydrolysing, carboxymethyl forming)
+844	r0684	methylcitrate dehydratase
+845	r0685	homoisocitrate hydro-lyase
+846	r0686	alpha-aminoadipate reductase
+847	r0687	N6-(L-1,3-dicarboxypropyl)-L-lysine:NADP+ oxidoreductase
+848	r0688	(1R,2S)-1-hydroxybutane-1,2,4-tricarboxylate:NAD+ oxidoreductase (decarboxylating)
+849	r0689	L-2-aminoadipate:2-oxoglutarate aminotransferase
+850	r0690	N6-(L-1,3-dicarboxypropyl)-L-lysine:NAD+ oxidoreductase (L-lysine-forming)
+851	r0691	L-aspartate-4-semialdehyde hydro-lyase (adding pyruvate and cyclizing)
+852	r0692	L-2-aminoadipate-6-semialdehyde:NADP+ 6-oxidoreductase
+853	r0693	phosphoenolpyruvate:D-erythrose-4-phosphate C-(1-carboxyvinyl)transferase (phosphate hydrolysing, 2-carboxy-2-oxoethyl-forming)
+854	r0694	2-dehydro-3-deoxy-D-arabino-heptonate 7-phosphate phosphate-lyase (cyclyzing)
+855	r0695	3-dehydroquinate hydro-lyase
+856	r0696	shikimate:NADP+ 3-oxidoreductase
+857	r0697	L-quinate:NAD+ 3-oxidoreductase
+858	r0698	ATP:shikimate 3-phosphotransferase
+859	r0699	phosphoenolpyruvate:3-phosphoshikimate 5-O-(1-carboxyvinyl)-transferase
+860	r0700	5-O-(1-carboxyvinyl)-3-phosphoshikimate phosphate-lyase (chorismate-forming)
+861	r0701	chorismate pyruvate-lyase (amino-accepting)
+862	r0702	N-(5-phospho-D-ribosyl)anthranilate:pyrophosphate phosphoribosyl-transferase
+863	r0703	N-(5-phospho-beta-D-ribosyl)anthranilate ketol-isomerase
+864	r0704	1-(2-carboxyphenylamino)-1-deoxy-D-ribulose-5-phosphate carboxy-lyase(cyclizing)
+865	r0705	L-serine hydro-lyase [adding 1-C-(indol-3-yl)glycerol 3-phosphate; L-tryptophan and glyceraldehyde-3-phosphate-forming]
+866	r0706	L-tryptophan:oxygen 2,3-oxidoreductase (decyclizing)
+867	r0707	L-tryptophan decarboxy-lyase
+868	r0708	N-formyl-L-kynurenine amidohydrolase
+869	r0709	L-kynurenine hydrolase
+870	r0710	L-kynurenine,NADPH:oxygen oxidoreductase (3-hydroxylating)
+871	r0711	3-hydroxy-L-kynurenine hydrolase
+872	r0712	2-amino-3-carboxymuconate semialdehyde carboxy-lyase
+873	r0713	chorismate pyruvatemutase
+874	r0714	prephenate:NAD+ oxidoreductase(decarboxylating)
+875	r0715	prephenate:NADP+ oxidoreductase(decarboxylating)
+876	r0716	prephenate hydro-lyase (decarboxylating; phenylpyruvate-forming)
+877	r0717	L-phenylalanine:2-oxoglutarate aminotransferase
+878	r0718	L-tyrosine:2-oxoglutarate aminotransferase
+879	r0719	4-hydroxyphenylpyruvate:oxygen oxidoreductase (hydroxylating,decarboxylating)
+880	r0720	homogentisate:oxygen 1,2-oxidoreductase (decyclizing)
+881	r0721	maleylacetoacetate isomerase
+882	r0722	4-fumarylacetoacetate fumarylhydrolase
+883	r0723	phenylalanine ammonia-lyase
+884	r0724	L-phenylalanine:oxygen oxidoreductase (decarboxylating)
+885	r0725	2-phenylacetamide amidohydrolase
+886	r0726	Indole-3-acetamide amidohydrolase
+887	r0727	diamine transaminase
+888	r0728	polyamine oxidase
+889	r0729	polyamine oxidase
+890	r0730	L-kynurenine:2-oxoglutarate aminotransferase
+891	r0731	phenylethylalcohol:NAD+ oxidoreductase
+892	r0732	phenylethylalcohol:NAD+ oxidoreductase
+893	r0733	hydrogen-peroxide:hydrogen-peroxide oxidoreductase
+894	r0734	hydrogen-peroxide:hydrogen-peroxide oxidoreductase
+895	r0735	hydrogen-peroxide:hydrogen-peroxide oxidoreductase
+896	r0736	hydrogen-peroxide:hydrogen-peroxide oxidoreductase
+897	r0737	glutaryl-CoA:dihydrolipoamide S-succinyltransferase
+898	r0738	2-oxoadipate:lipoamde 2-oxidoreductase(decarboxylating and acceptor-succinylating)
+899	r0739	glutaryl-CoA:(acceptor) 2,3-oxidoreductase (decarboxylating)
+900	r0740	(S)-3-hydroxybutanoyl-CoA hydro-lyase
+901	r0741	tyrosinase
+902	r0742	tyrosinase
+903	r0743	3-sulfo-L-alanine carboxy-lyase (taurine-forming)
+904	r0744	taurine, 2-oxoglutarate:O2 oxidoreductase (sulfite-forming)
+905	r0745	spontaneous conversion
+906	r0746	phenylacetaldehyde:NAD+ oxidoreductase
+907	r0747	phenylacetate:CoA ligase
+908	r0748	phenylacetate 2-hydroxylase
+909	r0749	phenoxyacetate 4-hydroxylase
+910	r0750	phenylpyruvate carboxy-lyase (phenylacetaldehyde-forming)
+911	r0751	2-hydroxyphenylacetate hydroxylase
+912	r0752	3-indoleacetonitrile aminohydrolase
+913	r0753	3-hydroxyanthranilate:oxygen 3,4-oxidoreductase (decyclizing)
+914	r0754	indole-3-acetamide hydro-lyase
+915	r0755	4-aminobutanal:NAD+ 1-oxidoreductase
+916	r0756	NAD-dependent aldehyde dehydrogenase
+917	r0757	3-aminopropanal:NAD+ oxidoreductase
+918	r0758	NAD-dependent aldehyde dehydrogenase
+919	r0759	N-carbamoyl-beta-alanine amidohydrolase
+920	r0760	5,6-dihydrouracil:NADP+ oxidoreductase
+921	r0761	5,6-dihydrouracil amidohydrolase
+922	r0762	primary-amine oxidase
+923	r0763	L-alanine:tRNA(Ala) ligase (AMP-forming)
+924	r0764	L-aspartate:tRNA(Asp) ligase (AMP-forming)
+925	r0765	L-aspartate:tRNA(Asp) ligase (AMP-forming)
+926	r0766	L-asparagine:tRNA(Asn) ligase (AMP-forming)
+927	r0767	L-asparagine:tRNA(Asn) ligase (AMP-forming)
+928	r0768	glutamate 5-kinase
+929	r0769	L-arginine:tRNA(Arg) ligase (AMP-forming)
+930	r0770	L-proline:tRNA(Pro) ligase (AMP-forming)
+931	r0771	L-cysteine:tRNA(Cys) ligase (AMP-forming)
+932	r0772	L-glutamate:tRNA(Glu) ligase (AMP-forming)
+933	r0773	L-glutamate:tRNA(Glu) ligase (AMP-forming)
+934	r0774	L-glutamine:tRNA(Gln) ligase (AMP-forming)
+935	r0775	L-glutamine:tRNA(Gln) ligase (AMP-forming)
+936	r0776	L-serine:tRNA(Ser) ligase (AMP-forming)
+937	r0777	glycine:tRNA(Gly) ligase (AMP-forming)
+938	r0778	L-threonine:tRNA(Thr) ligase (AMP-forming)
+939	r0779	L-threonine:tRNA(Thr) ligase (AMP-forming)
+940	r0780	L-histidine:tRNA(His) ligase (AMP-forming)
+941	r0781	L-isoleucine:tRNA(Ile) ligase (AMP-forming)
+942	r0782	L-isoleucine:tRNA(Ile) ligase (AMP-forming)
+943	r0783	L-valine:tRNAVal ligase (AMP-forming)
+944	r0784	L-leucine:tRNA(Leu) ligase (AMP-forming)
+945	r0785	L-lysine:tRNALys ligase (AMP-forming)
+946	r0786	L-methionine:tRNAMet ligase (AMP-forming)
+947	r0787	L-methionine:tRNAMet ligase (AMP-forming)
+948	r0788	L-tyrosine:tRNA(Tyr) ligase (AMP-forming)
+949	r0789	L-tyrosine:tRNA(Tyr) ligase (AMP-forming)
+950	r0790	L-tryptophan -tRNA(Trp) ligase (AMP-forming)
+951	r0791	L-phenylalanine:tRNA(Ala) ligase (AMP-forming)
+952	r0792	L-tryptophan:tRNA(Trp) ligase (AMP-forming)
+953	r0793	L-glutamate:L-cysteine gamma-ligase (ADP-forming)
+954	r0794	gamma-L-glutamyl-L-cysteine:glycine ligase (ADP-forming)
+955	r0795	gamma-glutamyltranspeptidase
+956	r0796	5-oxo-L-proline amidohydrolase (ATP-hydrolysing)
+957	r0797	glutathione:NADP+ oxidoreductase
+958	r0798	L-cysteinylglycine dipeptidase
+959	r0799	glutathione:hydrogen-peroxide oxidoreductase
+960	r0800	gamma-glutamylcyclotransferase
+961	r0801	acyl-CoA:6-APA acyltransferase
+962	r0802	acyl-CoA:6-APA acyltransferase
+963	r0803	isopenicillin N amidohydrolase
+964	r0804	penicillin amidase
+965	r0805	penicillin amidase
+966	r0806	phenoxyacetate:CoA ligase
+967	r0807	4-hydroxyphenoxyacetate:CoA ligase
+968	r0808	2-hydroxyphenylacetate:CoA ligase
+969	r0809	formation of 6-oxopiperidine-2-carboxylate
+970	r0810	spontaneous conversion
+971	r0811	spontaneous conversion
+972	r0812	isopenicillin-N synthase
+973	r0813	acyl-CoA:isopenicillin N N-acyltransferase
+974	r0814	L-2-aminohexanedioate:L-cysteine:L-valine ligase (AMP-forming, valine-inverting)
+975	r0815	acyl-CoA:6-APA acyltransferase
+976	r0816	acyl-CoA:6-APA acyltransferase
+977	r0817	acyl-CoA:6-APA acyltransferase
+978	r0818	acyl-CoA:6-APA acyltransferase
+979	r0819	benzylpenicillin hydrolase
+980	r0820	phenoxymethylpenicillin hydrolase
+981	r0821	butanoyl-CoA:oxygen 2-oxidoreductase
+982	r0822	biotin-carboxyl-carrier-protein:carbon-dioxide ligase (ADP-forming)
+983	r0823	stearoyl-CoA 9-desaturase
+984	r0824	stearoyl-CoA 9-desaturase
+985	r0825	oleate delta-12 desaturase
+986	r0826	stearoyl-CoA 9-desaturase
+987	r0827	oleate delta-12 desaturase
+988	r0828	stearoyl-CoA 15-desaturase
+989	r0829	3-oxoacyl-[acyl-carrier-protein] synthase
+990	r0830	3-oxoacyl-[acyl-carrier-protein] reductase
+991	r0831	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+992	r0832	enoyl-ACP reductase
+993	r0833	acetyl-CoA:carbon-dioxide ligase (ADP-forming)
+994	r0834	3-oxoacyl-[acyl-carrier-protein] synthase
+995	r0835	3-oxoacyl-[acyl-carrier-protein] reductase
+996	r0836	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+997	r0837	enoyl-ACP reductase
+998	r0838	3-oxoacyl-[acyl-carrier-protein] synthase
+999	r0839	3-oxoacyl-[acyl-carrier-protein] reductase
+1000	r0840	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1001	r0841	enoyl-ACP reductase
+1002	r0842	3-oxoacyl-[acyl-carrier-protein] synthase
+1003	r0843	3-oxoacyl-[acyl-carrier-protein] synthase
+1004	r0844	3-oxoacyl-[acyl-carrier-protein] reductase
+1005	r0845	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1006	r0846	enoyl-ACP reductase
+1007	r0847	3-oxoacyl-[acyl-carrier-protein] reductase
+1008	r0848	3-oxoacyl-[acyl-carrier-protein] synthase
+1009	r0849	3-oxoacyl-[acyl-carrier-protein] reductase
+1010	r0850	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1011	r0851	enoyl-ACP reductase
+1012	r0852	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1013	r0853	3-oxoacyl-[acyl-carrier-protein] synthase
+1014	r0854	3-oxoacyl-[acyl-carrier-protein] reductase
+1015	r0855	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1016	r0856	enoyl-ACP reductase
+1017	r0857	enoyl-ACP reductase
+1018	r0858	3-oxoacyl-[acyl-carrier-protein] synthase
+1019	r0859	3-oxoacyl-[acyl-carrier-protein] synthase
+1020	r0860	3-oxoacyl-[acyl-carrier-protein] reductase
+1021	r0861	3-oxoacyl-[acyl-carrier-protein] reductase
+1022	r0862	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1023	r0863	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1024	r0864	enoyl-ACP reductase
+1025	r0865	enoyl-ACP reductase
+1026	r0866	3-oxoacyl-[acyl-carrier-protein] synthase
+1027	r0867	3-oxoacyl-[acyl-carrier-protein] reductase
+1028	r0868	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1029	r0869	enoyl-ACP reductase
+1030	r0870	3-oxoacyl-[acyl-carrier-protein] synthase
+1031	r0871	3-oxoacyl-[acyl-carrier-protein] reductase
+1032	r0872	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1033	r0873	enoyl-ACP reductase
+1034	r0874	3-oxoacyl-[acyl-carrier-protein] synthase
+1035	r0875	3-oxoacyl-[acyl-carrier-protein] reductase
+1036	r0876	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1037	r0877	enoyl-ACP reductase
+1038	r0878	3-oxoacyl-[acyl-carrier-protein] synthase
+1039	r0879	3-oxoacyl-[acyl-carrier-protein] reductase
+1040	r0880	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1041	r0881	enoyl-ACP reductase
+1042	r0882	3-oxoacyl-[acyl-carrier-protein] synthase
+1043	r0883	3-oxoacyl-[acyl-carrier-protein] reductase
+1044	r0884	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1045	r0885	enoyl-ACP reductase
+1046	r0886	acetyl coenzyme A-acyl-carrier-protein transacylase
+1047	r0887	3-oxoacyl-[acyl-carrier-protein] synthase
+1048	r0888	3-oxoacyl-[acyl-carrier-protein] reductase
+1049	r0889	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1050	r0890	enoyl-ACP reductase
+1051	r0891	3-oxoacyl-[acyl-carrier-protein] synthase
+1052	r0892	3-oxoacyl-[acyl-carrier-protein] reductase
+1053	r0893	3-hydroxypalmitoyl-[acyl-carrier-protein] dehydratase
+1054	r0894	enoyl-ACP reductase
+1055	r0895	acyl-CoA dehydrogenase
+1056	r0896	acyl-CoA dehydrogenase
+1057	r0897	enoyl-CoA hydratase
+1058	r0898	enoyl-CoA hydratase
+1059	r0899	3-hydroxyacyl-CoA dehydrogenase
+1060	r0900	3-hydroxyacyl-CoA dehydrogenase
+1061	r0901	3-ketoacyl-CoA thiolase
+1062	r0902	3-ketoacyl-CoA thiolase
+1063	r0903	acyl-CoA dehydrogenase
+1064	r0904	enoyl-CoA hydratase
+1065	r0905	3-hydroxyacyl-CoA dehydrogenase
+1066	r0906	3-ketoacyl-CoA thiolase
+1067	r0907	acyl-CoA dehydrogenase
+1068	r0908	enoyl-CoA hydratase
+1069	r0909	3-hydroxyacyl-CoA dehydrogenase
+1070	r0910	3-ketoacyl-CoA thiolase
+1071	r0911	acyl-CoA dehydrogenase
+1072	r0912	enoyl-CoA hydratase
+1073	r0913	3-hydroxyacyl-CoA dehydrogenase
+1074	r0914	3-ketoacyl-CoA thiolase
+1075	r0915	acyl-CoA dehydrogenase
+1076	r0916	enoyl-CoA hydratase
+1077	r0917	3-hydroxyacyl-CoA dehydrogenase
+1078	r0918	3-ketoacyl-CoA thiolase
+1079	r0919	acyl-CoA dehydrogenase
+1080	r0920	enoyl-CoA hydratase
+1081	r0921	3-hydroxyacyl-CoA dehydrogenase
+1082	r0922	3-ketoacyl-CoA thiolase
+1083	r0923	acyl-CoA dehydrogenase
+1084	r0924	enoyl-CoA hydratase
+1085	r0925	3-hydroxyacyl-CoA dehydrogenase
+1086	r0926	3-ketoacyl-CoA thiolase
+1087	r0927	acyl-CoA dehydrogenase
+1088	r0928	enoyl-CoA hydratase
+1089	r0929	3-hydroxyacyl-CoA dehydrogenase
+1090	r0930	acetyl-CoA:acetyl-CoA C-acetyltransferase
+1091	r0931	acyl-CoA dehydrogenase
+1092	r0932	enoyl-CoA hydratase
+1093	r0933	3-hydroxyacyl-CoA dehydrogenase
+1094	r0934	3-ketoacyl-CoA thiolase
+1095	r0935	acyl-CoA dehydrogenase
+1096	r0936	enoyl-CoA hydratase
+1097	r0937	3-hydroxyacyl-CoA dehydrogenase
+1098	r0938	3-ketoacyl-CoA thiolase
+1099	r0939	acyl-CoA dehydrogenase
+1100	r0940	enoyl-CoA hydratase
+1101	r0941	3-hydroxyacyl-CoA dehydrogenase
+1102	r0942	3-ketoacyl-CoA thiolase
+1103	r0943	acyl-CoA dehydrogenase
+1104	r0944	enoyl-CoA hydratase
+1105	r0945	3-hydroxyacyl-CoA dehydrogenase
+1106	r0946	3-ketoacyl-CoA thiolase
+1107	r0947	acyl-CoA dehydrogenase
+1108	r0948	enoyl-CoA hydratase
+1109	r0949	3-hydroxyacyl-CoA dehydrogenase
+1110	r0950	3-ketoacyl-CoA thiolase
+1111	r0951	acyl-CoA dehydrogenase
+1112	r0952	enoyl-CoA hydratase
+1113	r0953	3-hydroxyacyl-CoA dehydrogenase
+1114	r0954	3-ketoacyl-CoA thiolase
+1115	r0955	acyl-CoA dehydrogenase
+1116	r0956	enoyl-CoA hydratase
+1117	r0957	3-hydroxyacyl-CoA dehydrogenase
+1118	r0958	3-ketoacyl-CoA thiolase
+1119	r0959	3-hydroxyacyl-CoA dehydrogenase
+1120	r0960	acetyl-CoA C-acyltransferase
+1121	r0961	peroxisomal fatty-acyl coenzyme A oxidase
+1122	r0962	enoyl-CoA hydratase
+1123	r0963	3-hydroxyacyl-CoA dehydrogenase
+1124	r0964	acetyl-CoA C-acyltransferase
+1125	r0965	peroxisomal fatty-acyl coenzyme A oxidase
+1126	r0966	enoyl-CoA hydratase
+1127	r0967	3-hydroxyacyl-CoA dehydrogenase
+1128	r0968	acetyl-CoA C-acyltransferase
+1129	r0969	peroxisomal fatty-acyl coenzyme A oxidase
+1130	r0970	enoyl-CoA hydratase
+1131	r0971	3-hydroxyacyl-CoA dehydrogenase
+1132	r0972	acetyl-CoA C-acyltransferase
+1133	r0973	peroxisomal fatty-acyl coenzyme A oxidase
+1134	r0974	peroxisomal fatty-acyl coenzyme A oxidase
+1135	r0975	enoyl-CoA hydratase
+1136	r0976	enoyl-CoA hydratase
+1137	r0977	3-hydroxyacyl-CoA dehydrogenase
+1138	r0978	3-hydroxyacyl-CoA dehydrogenase
+1139	r0979	acetyl-CoA C-acyltransferase
+1140	r0980	acetyl-CoA C-acyltransferase
+1141	r0981	peroxisomal fatty-acyl coenzyme A oxidase
+1142	r0982	enoyl-CoA hydratase
+1143	r0983	peroxisomal fatty-acyl coenzyme A oxidase
+1144	r0984	enoyl-CoA hydratase
+1145	r0985	3-hydroxyacyl-CoA dehydrogenase
+1146	r0986	acetyl-CoA C-acyltransferase
+1147	r0987	peroxisomal fatty-acyl coenzyme A oxidase
+1148	r0988	enoyl-CoA hydratase
+1149	r0989	3-hydroxyacyl-CoA dehydrogenase
+1150	r0990	acetyl-CoA C-acyltransferase
+1151	r0991	peroxisomal fatty-acyl coenzyme A oxidase
+1152	r0992	enoyl-CoA hydratase
+1153	r0993	3-hydroxyacyl-CoA dehydrogenase
+1154	r0994	acetyl-CoA C-acyltransferase
+1155	r0995	peroxisomal fatty-acyl coenzyme A oxidase
+1156	r0996	enoyl-CoA hydratase
+1157	r0997	3-hydroxyacyl-CoA dehydrogenase
+1158	r0998	acetyl-CoA C-acyltransferase
+1159	r0999	peroxisomal fatty-acyl coenzyme A oxidase
+1160	r1000	enoyl-CoA hydratase
+1161	r1001	3-hydroxyacyl-CoA dehydrogenase
+1162	r1002	acetyl-CoA C-acyltransferase
+1163	r1003	acyl-ACP-hydrolase
+1164	r1004	acyl-ACP-hydrolase
+1165	r1005	acyl-ACP-hydrolase
+1166	r1006	long-chain-fatty-acid-CoA ligase
+1167	r1007	long-chain-fatty-acid-CoA ligase
+1168	r1008	long-chain-fatty-acid-CoA ligase
+1169	r1009	long-chain-fatty-acid-CoA ligase
+1170	r1010	long-chain-fatty-acid-CoA ligase
+1171	r1011	acyl-ACP-hydrolase
+1172	r1012	acyl-ACP-hydrolase
+1173	r1013	acyl-ACP-hydrolase
+1174	r1014	long-chain-fatty-acid-CoA ligase
+1175	r1015	long-chain-fatty-acid-CoA ligase
+1176	r1016	long-chain-fatty-acid--CoA ligase 2
+1177	r1017	long-chain-fatty-acid--CoA ligase 2
+1178	r1018	long-chain-fatty-acid--CoA ligase 2
+1179	r1019	long-chain-fatty-acid--CoA ligase 2
+1180	r1020	long-chain-fatty-acid--CoA ligase 2
+1181	r1021	long-chain-fatty-acid--CoA ligase 2
+1182	r1022	long-chain-fatty-acid--CoA ligase 2
+1183	r1023	long-chain-fatty-acid--CoA ligase 2
+1184	r1024	long-chain-fatty-acid--CoA ligase 2
+1185	r1025	acetyl coenzyme A-acyl-carrier-protein transacylase
+1186	r1026	[ACP]acetyltransferase
+1187	r1027	long-chain-fatty-acid-CoA ligase
+1188	r1028	[ACP]acetyltransferase
+1189	r1029	carnitine O-acetyltransferase
+1190	r1030	carnitine O-acetyltransferase
+1191	r1031	acyl-ACP-hydrolase
+1192	r1032	carnitine O-acetyltransferase
+1193	r1033	long-chain-fatty-acid-CoA ligase
+1194	r1034	[ACP]acetyltransferase
+1195	r1035	carnitine O-acetyltransferase
+1196	r1036	carnitine O-acetyltransferase
+1197	r1037	acyl-ACP-hydrolase
+1198	r1038	carnitine O-acetyltransferase
+1199	r1039	long-chain-fatty-acid-CoA ligase
+1200	r1040	[ACP]acetyltransferase
+1201	r1041	carnitine O-acetyltransferase
+1202	r1042	carnitine O-acetyltransferase
+1203	r1043	acyl-ACP-hydrolase
+1204	r1044	long-chain-fatty-acid-CoA ligase
+1205	r1045	[ACP]acetyltransferase
+1206	r1046	carnitine O-acetyltransferase
+1207	r1047	carnitine O-acetyltransferase
+1208	r1048	acyl-ACP-hydrolase
+1209	r1049	long-chain-fatty-acid-CoA ligase
+1210	r1050	[ACP]acetyltransferase
+1211	r1051	carnitine O-acetyltransferase
+1212	r1052	carnitine O-acetyltransferase
+1213	r1053	acyl-ACP-hydrolase
+1214	r1054	long-chain-fatty-acid-CoA ligase
+1215	r1055	[ACP]acetyltransferase
+1216	r1056	carnitine O-acetyltransferase
+1217	r1057	carnitine O-acetyltransferase
+1218	r1058	acyl-ACP-hydrolase
+1219	r1059	long-chain-fatty-acid-CoA ligase
+1220	r1060	[ACP]acetyltransferase
+1221	r1061	carnitine O-acetyltransferase
+1222	r1062	carnitine O-acetyltransferase
+1223	r1063	acyl-ACP-hydrolase
+1224	r1064	long-chain-fatty-acid-CoA ligase
+1225	r1065	malonyl CoA-acyl carrier protein transacylase
+1226	r1066	[ACP]acetyltransferase
+1227	r1067	carnitine O-acetyltransferase
+1228	r1068	carnitine O-acetyltransferase
+1229	r1069	acyl-ACP-hydrolase
+1230	r1070	long-chain-fatty-acid-CoA ligase
+1231	r1071	[ACP]acetyltransferase
+1232	r1072	carnitine O-acetyltransferase
+1233	r1073	carnitine O-acetyltransferase
+1234	r1074	acyl-ACP-hydrolase
+1235	r1075	long-chain-fatty-acid-CoA ligase
+1236	r1076	[ACP]acetyltransferase
+1237	r1077	carnitine O-acetyltransferase
+1238	r1078	carnitine O-acetyltransferase
+1239	r1079	acyl-ACP-hydrolase
+1240	r1080	long-chain-fatty-acid-CoA ligase
+1241	r1081	[ACP]acetyltransferase
+1242	r1082	carnitine O-acetyltransferase
+1243	r1083	carnitine O-acetyltransferase
+1244	r1084	acyl-ACP-hydrolase
+1245	r1085	long-chain-fatty-acid-CoA ligase
+1246	r1086	[ACP]acetyltransferase
+1247	r1087	carnitine O-acetyltransferase
+1248	r1088	carnitine O-acetyltransferase
+1249	r1089	acyl-ACP-hydrolase
+1250	r1090	acyl-ACP-hydrolase
+1251	r1091	long-chain-fatty-acid-CoA ligase
+1252	r1092	long-chain-fatty-acid-CoA ligase
+1253	r1093	acyl-ACP-hydrolase
+1254	r1094	[ACP]acetyltransferase
+1255	r1095	[ACP]acetyltransferase
+1256	r1096	carnitine O-acetyltransferase
+1257	r1097	carnitine O-acetyltransferase
+1258	r1098	carnitine O-acetyltransferase
+1259	r1099	carnitine O-acetyltransferase
+1260	r1100	acyl-ACP-hydrolase
+1261	r1101	long-chain-fatty-acid-CoA ligase
+1262	r1102	long-chain-fatty-acid-CoA ligase
+1263	r1103	[ACP]acetyltransferase
+1264	r1104	carnitine O-acetyltransferase
+1265	r1105	carnitine O-acetyltransferase
+1266	r1106	carnitine O-acetyltransferase
+1267	r1107	carnitine O-acetyltransferase
+1268	r1108	acyl-ACP-hydrolase
+1269	r1109	acyl-ACP-hydrolase
+1270	r1110	[ACP]acetyltransferase
+1271	r1111	[ACP]acetyltransferase
+1272	r1112	[ACP]acetyltransferase
+1273	r1113	acetyl-CoA:carnitine O-acetyltransferase
+1274	r1114	[ACP]acetyltransferase
+1275	r1115	[ACP]acetyltransferase
+1276	r1116	[ACP]acetyltransferase
+1277	r1117	[ACP]acetyltransferase
+1278	r1118	O-acetylcarnitine mitochondrial membrane transport
+1279	r1119	C-14 sterol reductase (ERG24)
+1280	r1120	C-4 sterol decarboxylase (ERG26)
+1281	r1121	C-4 sterol decarboxylase (ERG26)
+1282	r1122	C-8 sterol isomerase (ERG1)
+1283	r1123	C-5 sterol desaturase (ERG3)
+1284	r1124	sterol O-acyltransferase
+1285	r1125	sterol esterase
+1286	r1126	squalene synthase
+1287	r1127	squalene,hydrogen-donor:oxygen oxidoreductase (2,3-epoxidizing)
+1288	r1128	(S)-2,3-epoxysqualene mutase (cyclizing, lanosterol-forming)
+1289	r1129	S-adenosyl-L-methionine:zymosterol C-methyltransferase
+1290	r1130	C-4 methyl sterol oxidase
+1291	r1131	C-22 sterol desaturase (ERG5)
+1292	r1132	ergosterol:NADP+ D24(241)-oxidoreductase
+1293	r1133	cytochrome p450 lanosterol 14A-demethylase (ERG11)
+1294	r1134	C-4 sterol methyl oxidase (ERG25)
+1295	r1135	C-4 sterol methyl oxidase (ERG25)
+1296	r1136	acetyl-CoA:acetyl-CoA C-acetyltransferase
+1297	r1137	acetyl-CoA:acetoacetyl-CoA C-acetyltransferase (thioester-hydrolysing, carboxymethyl-forming)
+1298	r1138	(R)-mevalonate:NADP+ oxidoreductase (CoA acylating)
+1299	r1139	ATP:(R)-mevalonate 5-phosphotransferase
+1300	r1140	ATP:(R)-5-phosphomevalonate phosphotransferase
+1301	r1141	ATP:(R)-5-diphosphomevalonate carboxy-lyase (adding ATP; isopentenyl-diphosphate-forming)
+1302	r1142	isopentenyl-diphosphate delta3-delta2-isomerase
+1303	r1143	dimethylallyl-diphosphate:isopentenyl-diphosphate dimethylallyltranstransferase
+1304	r1144	geranyl-diphosphate:isopentenyl-diphosphate geranyltrans-transferase
+1305	r1145	trans,trans-farnesyl-diphosphate:isopentenyl-diphosphate farnesyltranstransferase
+1306	r1146	geranylgeranyl-diphosphate:isopentenyl-diphosphate transtransferase
+1307	r1147	ATP:adenylylsulfate 3'-phosphotransferase
+1308	r1148	adenosine 3',5'-bisphosphate,sulfite:oxidized-thioredoxin oxidoreductase (3'-phosphoadenosine-5'-phosphosulfate -forming)
+1309	r1149	hydrogen-sulfide:NADP+ oxidoreductase
+1310	r1150	adenosine 3',5'-bisphosphate 3'-phosphohydrolase
+1311	r1151	ATP:sulfate adenylyltransferase
+1312	r1152	choline sulfate sulfohydrolase
+1313	r1153	3'-phosphoadenylyl-sulfate:choline sulfotransferase
+1314	r1154	sulfur dioxygenase
+1315	r1155	ADP:sulfate adenylyltransferase
+1316	r1156	sulfite:oxygen oxidoreductase
+1317	r1157	ammonium-hydroxide:NADP+ oxidoreductase
+1318	r1158	nitrite:NADP+ oxidoreductase
+1319	r1159	nitrite:NAD+ oxidoreductase
+1320	r1160	urea amidohydrolase
+1321	r1161	ethylnitronate:oxygen 2-oxidoreductase (nitrite-forming)
+1322	r1162	cyanate lyase
+1323	r1163	spontaneous conversion
+1324	r1164	(S)-malate mitochondrial permease
+1325	r1165	(S)-malate mitochondrial permease
+1326	r1166	2-acetolactate mitochondrial permease
+1327	r1167	2-dehydropantoate mitochondrial permease
+1328	r1168	2-isopropylmalate mitochondrial permease
+1329	r1169	2-oxobutanoate mitochondrial permease
+1330	r1170	2-oxoglutarate mitochondrial permease
+1331	r1171	3-hydroxykynurenine mitochondrial permease
+1332	r1172	4-methyl-2-oxopentanoate mitochondrial permease
+1333	r1173	5,10-methenyltetrahydrofolate mitochondrial permease
+1334	r1174	5,10-methylenetetrahydrofolate mitochondrial permease
+1335	r1175	5-aminolevulinate mitochondrial permease
+1336	r1176	5-methyltetrahydrofolate mitochondrial permease
+1337	r1177	acetylcarnitine/carnitine mitochondrial shuttle
+1338	r1178	ADP/ATP/phosphate mitochondrial shuttle
+1339	r1179	butyrylcarnitine/carnitine mitochondrial shuttle
+1340	r1180	carbamoyl phosphate mitochondrial permease
+1341	r1181	citrate mitochondrial permease
+1342	r1182	citrate/isocitrate mitochondrial shuttle
+1343	r1183	citrate/malate mitochondrial shuttle
+1344	r1184	coproporphyrinogen III mitochondrial permease
+1345	r1185	decanoylcarnitine/carnitine mitochondrial shuttle
+1346	r1186	dihydrofolate mitochondrial permease
+1347	r1187	dihydroorotate mitochondrial permease
+1348	r1188	FAD mitochondrial permease
+1349	r1189	formate mitochondrial permease
+1350	r1190	formyltetrahydrofolate mitochondrial permease
+1351	r1191	fumarate mitochondrial permease
+1352	r1192	gamma-aminobutyrate mitochondrial permease
+1353	r1193	glutamate mitochondrial permease
+1354	r1194	glycine mitochondrial permease
+1355	r1195	heptadecanoylcarnitine/carnitine mitochondrial shuttle
+1356	r1196	heptanoylcarnitine/carnitine mitochondrial shuttle
+1357	r1197	hexanoylcarnitine/carnitine mitochondrial shuttle
+1358	r1198	icosanoylcarnitine/carnitine mitochondrial shuttle
+1359	r1199	isocitrate mitochondrial permease
+1360	r1200	isocitrate/malate mitochondrial shuttle
+1361	r1201	L-2-aminoadipate mitochondrial permease
+1362	r1202	lactaldehyd mitochondrial permease
+1363	r1203	L-asparagine mitochondrial permease
+1364	r1204	L-aspartate mitochondrial permease
+1365	r1205	lauroylcarnitine/carnitine mitochondrial shuttle
+1366	r1206	L-citrulline mitochondrial permease
+1367	r1207	L-cysteine mitochondrial permease
+1368	r1208	L-glutamine mitochondrial permease
+1369	r1209	L-isoleucine mitochondrial permease
+1370	r1210	L-kynurenine mitochondrial permease
+1371	r1211	L-methionine mitochondrial permease
+1372	r1212	L-proline mitochondrial permease
+1373	r1213	L-threonine mitochondrial permease
+1374	r1214	L-tryptophan mitochondrial permease
+1375	r1215	L-tyrosine mitochondrial permease
+1376	r1216	L-valine mitochondrial permease
+1377	r1217	malate/succinate mitochondrial shuttle
+1378	r1218	myristoylcarnitine/carnitine mitochondrial shuttle
+1379	r1219	N2-acetyl-L-ornithine mitochondrial permease
+1380	r1220	nonanoylcarnitine/carnitine mitochondrial shuttle
+1381	r1221	O-acetyl-L-homoserine mitochondrial permease
+1382	r1222	O-acetyl-L-serine mitochondrial permease
+1383	r1223	octanoylcarnitine/carnitine mitochondrial shuttle
+1384	r1224	ornithine mitochondrial permease
+1385	r1225	orotate mitochondrial permease
+1386	r1226	oxaloacetate mitochondrial permease
+1387	r1227	palmitoylcarnitine/carnitine mitochondrial shuttle
+1388	r1228	pentadecanoylcarnitine/carnitine mitochondrial shuttle
+1389	r1229	pentanoylcarnitine/carnitine mitochondrial shuttle
+1390	r1230	phosphate mitochondrial permease
+1391	r1231	phosphate/malate mitochondrial shuttle
+1392	r1232	phosphate/succinate mitochondrial shuttle
+1393	r1233	propionate mitochondrial permease
+1394	r1234	propionylcarnitine/carnitine mitochondrial shuttle
+1395	r1235	pyruvate mitochondrial permease
+1396	r1236	serine mitochondrial permease
+1397	r1237	stearoylcarnitine/carnitine mitochondrial shuttle
+1398	r1238	succinate mitochondrial permease
+1399	r1239	succinate/fumarate mitochondrial shuttle
+1400	r1240	tetrahydrofolate mitochondrial permease
+1401	r1241	tridecanoylcarnitine/carnitine mitochondrial shuttle
+1402	r1242	undecanoylcarnitine/carnitine mitochondrial shuttle
+1403	r1243	acetaldehyde mitochondrial membrane diffusion
+1404	r1244	acetate mitochondrial membrane diffusion
+1405	r1245	acetoacetate mitochondrial membrane diffusion
+1406	r1246	CO2 mitochondrial membrane diffusion
+1407	r1247	ethanol mitochondrial membrane diffusion
+1408	r1248	H2O mitochondrial membrane diffusion
+1409	r1249	H2S mitochondrial membrane diffusion
+1410	r1250	NH3 mitochondrial membrane diffusion
+1411	r1251	O2 mitochondrial membrane diffusion
+1412	r1252	(-)-ureidoglycolate peroxisomal permease
+1413	r1253	(R)-lactate peroxisomal permease
+1414	r1254	2-hydroxybenzylpenicillin peroxisomal permease
+1415	r1255	4-hydroxyphenoxymethylpenicillin peroxisomal permease
+1416	r1256	6-aminopenicillanate peroxisomal permease
+1417	r1257	8-hydroxypenillic acid peroxisomal permease
+1418	r1258	acetylcarnitine/carnitine peroxisomal shuttle
+1419	r1259	allantoate peroxisomal permease
+1420	r1260	AMP/ATP/diphosphate peroxisomal shuttle
+1421	r1261	artificial penicillin peroxisomal permease
+1422	r1262	decanoyl-CoA peroxisomal permease
+1423	r1263	glycine peroxisomal permease
+1424	r1264	glycolate peroxisomal permease
+1425	r1265	heptadecanoyl-CoA peroxisomal permease
+1426	r1266	heptanoyl-CoA peroxisomal permease
+1427	r1267	hexanoyl-CoA peroxisomal permease
+1428	r1268	hexanoylpenicillin peroxisomal permease
+1429	r1269	icosanoyl-CoA peroxisomal permease
+1430	r1270	isocitrate/malate peroxisomal permease
+1431	r1271	isopenicillin N peroxisomal permease
+1432	r1272	L-2-aminoadipate peroxisomal permease
+1433	r1273	L-alanine peroxisomal permease
+1434	r1274	lauroyl-CoA peroxisomal permease
+1435	r1275	L-lysine peroxisomal permease
+1436	r1276	malate peroxisomal permease
+1437	r1277	myristoyl-CoA peroxisomal permease
+1438	r1278	octanoyl-CoA peroxisomal permease
+1439	r1279	octanoylpenicillin peroxisomal permease
+1440	r1280	palmitoyl-CoA peroxisomal permease
+1441	r1281	penicillin G peroxisomal permease
+1442	r1282	pentadecanoyl-CoA peroxisomal permease
+1443	r1283	phenoxymethylpenicillin peroxisomal permease
+1444	r1284	pyruvate peroxisomal permease
+1445	r1285	stearoyl-CoA peroxisomal permease
+1446	r1286	succinate peroxisomal permease
+1447	r1287	tridecanoyl-CoA peroxisomal permease
+1448	r1288	urea peroxosomal permease
+1449	r1289	xanthine peroxisomal permease
+1450	r1290	2-hydroxyphenylacetate peroxisomal membrane diffusion
+1451	r1291	4-hydroxyphenoxyacetate peroxisomal membrane diffusion
+1452	r1292	CO2 peroxisomal membrane diffusion
+1453	r1293	decanoate peroxisomal membrane diffusion
+1454	r1294	H2O peroxisomal membrane diffusion
+1455	r1295	heptadecanoate peroxisomal membrane diffusion
+1456	r1296	icosanoate peroxisomal membrane diffusion
+1457	r1297	laurate peroxisomal membrane diffusion
+1458	r1298	myristate peroxisomal membrane diffusion
+1459	r1299	O2 peroxisomal membrane diffusion
+1460	r1300	octanoate peroxisomal membrane diffusion
+1461	r1301	palmitate peroxisomal membrane diffusion
+1462	r1302	pentadecanoate peroxisomal membrane diffusion
+1463	r1303	phenoxyacetate peroxisomal membrane diffusion
+1464	r1304	phenylacetate peroxisomal membrane diffusion
+1465	r1305	stearate peroxisomal membrane diffusion
+1466	r1306	2-hydroxybenzylpenicillin permease
+1467	r1307	ethylnitronate permease
+1468	r1308	2-oxoglutarate permease
+1469	r1309	4-aminobenzoate permease
+1470	r1310	4-hydroxyphenoxymethylpenicillin permease
+1471	r1311	6-aminopenicillanate permease
+1472	r1312	6-oxo-piperidine-2-carboxylate permease
+1473	r1313	8-hydroxypenillic acid permease
+1474	r1314	adenine permease
+1475	r1315	thiamin permease
+1476	r1316	alpha-D-glucose permease
+1477	r1317	ammonium permease
+1478	r1318	anthranilate permease
+1479	r1319	benzylpenicilloic acid permease
+1480	r1320	benzylpenicilloic acid permease
+1481	r1321	beta-alanine permease
+1482	r1322	beta-D-glucose permease
+1483	r1323	cellobiono-1,5-lactone permease
+1484	r1324	cellobiose permease
+1485	r1325	chitosan permease
+1486	r1326	choline transport protein
+1487	r1327	citrate permease
+1488	r1328	cyanate permease
+1489	r1329	cytosine permease
+1490	r1330	D-arabinose permease
+1491	r1331	D-arabitol permease
+1492	r1332	D-fruktose permease
+1493	r1333	D-galactose permease
+1494	r1334	D-gluconate permease
+1495	r1335	D-glucosamine permease
+1496	r1336	D-mannose permease
+1497	r1337	D-mannose permease
+1498	r1338	D-xylose permease
+1499	r1339	FNM permease
+1500	r1340	fumarate permease
+1501	r1341	gaba permease
+1502	r1342	glucose permease
+1503	r1343	glutathione permease
+1504	r1344	glycerol permease
+1505	r1345	glycine permease
+1506	r1346	glycogen permease
+1507	r1347	glycolate permease
+1508	r1348	growth
+1509	r1349	guanine permease
+1510	r1350	H2SO3 permease
+1511	r1351	hexanoylpenicillin permease
+1512	r1352	hypoxanthine permease
+1513	r1353	isocitrate permease
+1514	r1354	isopenicillin N permease
+1515	r1355	L-2-aminoadipate permease
+1516	r1356	L-alanine permease
+1517	r1357	L-arabinose permease
+1518	r1358	L-arabitol permease
+1519	r1359	L-arginine permease
+1520	r1360	L-asparagine permease
+1521	r1361	L-aspartate permease
+1522	r1362	L-citrulline permease
+1523	r1363	L-cysteine permease
+1524	r1364	L-cystine permease
+1525	r1365	L-dopaquinone permease
+1526	r1366	L-glutamate permease
+1527	r1367	L-glutamine permease
+1528	r1368	L-histidine permease
+1529	r1369	L-homocysteine permease
+1530	r1370	L-iditol permease
+1531	r1371	L-isoleucine permease
+1532	r1372	L-leucine permease
+1533	r1373	L-lysine permease
+1534	r1374	L-methionine permease
+1535	r1375	L-ornithine permease
+1536	r1376	L-phenylalanine permease
+1537	r1377	L-proline permease
+1538	r1378	L-ribulose permease
+1539	r1379	L-serine permease
+1540	r1380	L-sorbose permease
+1541	r1381	L-threonine permease
+1542	r1382	L-tryptophan permease
+1543	r1383	L-tyrosine permease
+1544	r1384	L-valine permease
+1545	r1385	malate permease
+1546	r1386	maltose permease
+1547	r1387	maltotriose permease
+1548	r1388	mannan permease
+1549	r1389	mannitol permease
+1550	r1390	melibiose permease
+1551	r1391	myo-inositol permease
+1552	r1392	N-acetyl-D-glucosamine permease
+1553	r1393	nicotinamide permease
+1554	r1394	nitrate permease
+1555	r1395	octanoylpenicillin permease
+1556	r1396	oxalate permease
+1557	r1397	oxaloacetate permease
+1558	r1398	penicillin G permease
+1559	r1399	phenoxymethylpenicillin permease
+1560	r1400	phosphate permease
+1561	r1401	pimelate permease
+1562	r1402	propanoate permease
+1563	r1403	pyruvate permease
+1564	r1404	quinolinate permease
+1565	r1405	ribose permease
+1566	r1406	starch permease
+1567	r1407	succinate permease
+1568	r1408	sulfate permease
+1569	r1409	sulfur permease
+1570	r1410	trehalose permease
+1571	r1411	uracil permease
+1572	r1412	urea permease
+1573	r1413	uridine permease
+1574	r1414	valerate permease
+1575	r1415	xanthine permease
+1576	r1416	xylans permease
+1577	r1417	xylitol permease
+1578	r1418	sulfide permease
+1579	r1419	nitrite permease
+1580	r1420	4-hydroxyphenoxyacetate  plasma membrane diffusion
+1581	r1421	acetate plasma membrane diffusion
+1582	r1422	artificial protein permease
+1583	r1423	butyrate  plasma membrane diffusion
+1584	r1424	CO2 plasma membrane diffusion
+1585	r1425	decanoate plasma membrane diffusion
+1586	r1426	ethanol plasma membrane diffusion
+1587	r1427	formate plasma membrane diffusion
+1588	r1428	H2O plasma membrane diffusion
+1589	r1429	heptadecenoate plasma membrane diffusion
+1590	r1430	heptanoate plasma membrane diffusion
+1591	r1431	hexadecadienoate plasma membrane diffusion
+1592	r1432	hexadecenoate plasma membrane diffusion
+1593	r1433	hexanoate plasma membrane diffusion
+1594	r1434	icosanoate plasma membrane diffusion
+1595	r1435	laurate plasma membrane diffusion
+1596	r1436	L-lactate plasma membrane diffusion
+1597	r1437	margarate plasma membrane diffusion
+1598	r1438	methanol plasma membrane diffusion
+1599	r1439	myristate plasma membrane diffusion
+1600	r1440	nonanoate plasma membrane diffusion
+1601	r1441	O2 plasma membrane diffusion
+1602	r1442	octadecadienoate plasma membrane diffusion
+1603	r1443	octadecatrienoate plasma membrane diffusion
+1604	r1444	octadecenoate plasma membrane diffusion
+1605	r1445	octanoate plasma membrane diffusion
+1606	r1446	palmitate plasma membrane diffusion
+1607	r1447	pentadecanoate plasma membrane diffusion
+1608	r1448	phenoxyacetate  plasma membrane diffusion
+1609	r1449	phenylacetate  plasma membrane diffusion
+1610	r1450	stearate plasma membrane diffusion
+1611	r1451	2-oxy-but-3-enoate diffusion
+1612	r1452	ACV diffusion
+1613	r1453	artificial protein synthesis (included for connectivity)
+1614	r1454	acyl-[acyl-carrier protein] formation (mmol/mmol free fatty acids)
+1615	r1455	cell wall and storage formation (mmol/g)
+1616	r1456	protein formation (mmol/g)
+1617	r1457	RNA formation (mmol/g)
+1618	r1458	DNA formation (mmol/g)
+1619	r1459	amino acid pool (mmol/g)
+1620	r1460	phospholipid formation (mmol/g)
+1621	r1461	glycerides formation (mmol/g)
+1622	r1462	sterolesters formation (mmol/g)
+1623	r1463	biomass formation
+1624	r1464	other lipids formation
+1625	r1465	cofactor pool
+1626	r1466	ATP maintenance
+1627	r1467	artificial penicillin synthesis
+1628	r1468	artificial penicillin permease
+1629	freeATP	conversion between ADP and ATP
+1630	freeNADH	conversion between NAD(+) and NADH
+1631	freeNADPH	conversion between NADP(+) and NADPH
+1632	2ohpengOUT	production of 2-hydroxybenzylpenicillin
+1633	c4odOUT	production of 2-oxy-but-3-enoate
+1634	4ohpenvOUT	production of 4-hydroxyphenoxymethylpenicillin
+1635	6apaOUT	production of 6-aminopenicillanate
+1636	opcOUT	production of 6-oxopiperidine-2-carboxylate
+1637	8hpaOUT	production of 8-hydroxypenillic acid
+1638	amiaceOUT	production of aminoacetaldehyde
+1639	penartOUT	production of artificial penicillin
+1640	proteinOUT	production of artificial protein
+1641	pengOUT	production of benzylpenicillin
+1642	pengaOUT	production of benzylpenicilloic acid
+1643	penvaOUT	production of phenoxymethylpenicilloic acid
+1644	bmOUT	production of biomass
+1645	co2OUT	production of CO2
+1646	glybetOUT	production of glycine betaine
+1647	h2oOUT	production of H2O
+1648	pendhOUT	production of hexanoylpenicillin
+1649	penkOUT	production of octanoylpenicillin
+1650	penvOUT	production of phenoxymethylpenicillin
+1651	ureaOUT	production of urea
+1652	cystIN	production of L-cystine
+1653	doquiOUT	production of L-dopaquinone
+1654	ipnOUT	production of isopenicillin N
+1655	glcntOUT	production of D-gluconate
+1656	citOUT	production of citrate
+1657	acvOUT	production of ACV
+1658	hisIN	uptake of L-histidine
+1659	ileIN	uptake of L-isoleucine
+1660	leuIN	uptake of L-leucine
+1661	lysIN	uptake of L-lysine
+1662	metIN	uptake of L-methionine
+1663	pheIN	uptake of L-phenylalanine
+1664	thrIN	uptake of L-threonine
+1665	trpIN	uptake of L-tryptophan
+1666	valIN	uptake of L-valine
+1667	alaIN	uptake of L-alanine
+1668	argIN	uptake of L-arginine
+1669	asnIN	uptake of L-asparagine
+1670	cysIN	uptake of L-cysteine
+1671	glnIN	uptake of L-glutamine
+1672	glyIN	uptake of glycine
+1673	ornIN	uptake of L-ornithine
+1674	proIN	uptake of L-proline
+1675	serIN	uptake of L-serine
+1676	tyrIN	uptake of L-tyrosine
+1677	gluIN	uptake of L-glutamate
+1678	amaIN	uptake of L-2-aminoadipate
+1679	aspIN	uptake of L-aspartate
+1680	hcysIN	uptake of L-homocysteine
+1681	citrIN	uptake of L-citrulline
+1682	treIN	uptake of alpha,alpha-trehalose
+1683	bdglcIN	uptake of beta-D-glucose
+1684	cb15lctIN	uptake of cellobiono-1,5-lactone
+1685	cellobIN	uptake of cellobiose
+1686	13glucanIN	uptake of 1,3-beta-D-glucan
+1687	aolIN	uptake of D-arabinitol
+1688	fruIN	uptake of D-fructose
+1689	glacIN	uptake of D-galactose
+1690	dglcIN	uptake of D-glucose
+1691	mntIN	uptake of D-mannitol
+1692	manIN	uptake of D-mannose
+1693	ribIN	uptake of D-ribose
+1694	xylIN	uptake of D-xylose
+1695	glycogenIN	uptake of glycogen
+1696	laolIN	uptake of L-arabinitol
+1697	larabIN	uptake of L-arabinose
+1698	sorIN	uptake of L-sorbose
+1699	mltIN	uptake of maltose
+1700	mannanIN	uptake of mannans
+1701	meliIN	uptake of melibiose
+1702	glcIN	uptake of alpha-D-glucose
+1703	arabinIN	uptake of alpha-L-arabinan
+1704	celluIN	uptake of cellulose
+1705	arabIN	uptake of D-arabinose
+1706	lactIN	uptake of lactose
+1707	idolIN	uptake of L-iditol
+1708	lrlIN	uptake of L-ribulose
+1709	mltioseIN	uptake of maltotriose
+1710	raffIN	uptake of raffinose
+1711	starIN	uptake of starch
+1712	sucIN	uptake of sucrose
+1713	xolIN	uptake of xylitol
+1714	myoiIN	uptake of myo-inositol
+1715	c40IN	uptake of butyrate
+1716	c100IN	uptake of decanoate
+1717	c171IN	uptake of heptadecenoate
+1718	c70IN	uptake of heptanoate
+1719	c162IN	uptake of hexadecadienoate
+1720	c161IN	uptake of hexadecenoate
+1721	c60IN	uptake of hexanoate
+1722	c200IN	uptake of icosanoate
+1723	c120IN	uptake of laurate
+1724	c170IN	uptake of heptadecanoate
+1725	c140IN	uptake of myristate
+1726	c90IN	uptake of nonanoate
+1727	c182IN	uptake of octadecadienoate
+1728	c183IN	uptake of octadecatrienoate
+1729	c181IN	uptake of octadecenoate
+1730	c80IN	uptake of octanoate
+1731	c150IN	uptake of pentadecanoate
+1732	c180IN	uptake of stearate
+1733	c160IN	uptake of palmitate
+1734	propIN	uptake of propionate
+1735	piIN	uptake of phosphate
+1736	nh3IN	uptake of NH3
+1737	hno3IN	uptake of nitrate
+1738	hno2IN	uptake of nitrite
+1739	o2IN	uptake of O2
+1740	slfIN	uptake of sulfate
+1741	h2sIN	uptake of sulfide
+1742	sulfurIN	uptake of sulfur
+1743	h2so3IN	uptake of sulfite
+1744	thmIN	uptake of thiamin
+1745	pimIN	uptake of pimelate
+1746	poaIN	uptake of phenoxyacetate
+1747	paaIN	uptake of phenylacetate
+1748	nicaIN	uptake of nicotinate
+1749	choIN	uptake of choline
+1750	ureaIN	uptake of urea
+1751	cyneIN	uptake of cyanate
+1752	xanIN	uptake of xanthine
+1753	hyxnIN	uptake of hypoxanthine
+1754	adIN	uptake of adenine
+1755	4hpoaIN	uptake of 4-hydroxyphenoxyacetate
+1756	fmnIN	uptake of FMN
+1757	llacIN	uptake of (S)-lactate
+1758	malIN	uptake of (S)-malate
+1759	ethnitIN	uptake of ethylnitronate
+1760	akgIN	uptake of 2-oxoglutarate
+1761	pabaIN	uptake of 4-aminobenzoate
+1762	anIN	uptake of anthranilate
+1763	balaIN	uptake of beta-alanine
+1764	chibIN	uptake of chitobiose
+1765	chitoIN	uptake of chitosan
+1766	cytsIN	uptake of cytosine
+1767	glcn15lacIN	uptake of D-glucono-1,5-lactone
+1768	glcnIN	uptake of D-glucosamine
+1769	forIN	uptake of formate
+1770	fumIN	uptake of fumarate
+1771	gabaIN	uptake of gamma-aminobutyrate
+1772	rgtIN	uptake of glutathione
+1773	glIN	uptake of glycerol
+1774	glyaIN	uptake of glycolate
+1775	gnIN	uptake of guanine
+1776	h2o2IN	uptake of H2O2
+1777	icitIN	uptake of isocitrate
+1778	metholIN	uptake of methanol
+1779	nagIN	uptake of N-acetyl-D-glucosamine
+1780	nicdIN	uptake of nicotinamide
+1781	oxalIN	uptake of oxalate
+1782	oaIN	uptake of oxaloacetate
+1783	pyrIN	uptake of pyruvate
+1784	quinIN	uptake of quinolinate
+1785	succIN	uptake of succinate
+1786	uraIN	uptake of uracil
+1787	uriIN	uptake of uridine
+1788	c50IN	uptake of valerate
+1789	acIN	uptake of acetate
+1790	chitIN	uptake of chitin
+1791	etohIN	uptake of ethanol
+1792	xylanIN	uptake of xylans
