@@ -1,0 +1,9 @@
+node: opencast.inf.ed.ac.uk   started: Sun 26 Jul 16:44:43 BST 2026
+EXACT GP INFERENCE SELECTED
+frozen GP model: num_gp=8  train pts=300
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+expert probe t=75h: a=[21.96395876 24.38132544  0.7937611 ]  b=[21.09747171 24.50347424  0.7710918 ]
+expert cov (cov_n) eigenvalues: [0.00018914 0.00684495 0.04047212]
+policy Sum_of_gaussians: in=8 out=6 params=2808
+time alignment: 5 GP steps (0.2 h each) = 1 expert step (1.0 h) -> 150 comparisons over 150.0 h;  W2 mode = 'cross_dim'
+    g(expert)=[0.03041782 0.0038747  0.00033813]  GP lo=[0.15272951 0.07619002 0.00724667]  hi=[3.70997347 1.18568113 0.7927519 ]

@@ -341,6 +341,7 @@ class PFQuery:
             "t_next": float(t) + DT,
             "a": a, "b": b, "drift": b - a,
             "sigma": sigma, "cov": cov, "corr": corr,
+	    "cov_n": cov_n,
             "sample": sample, "pdf": pdf, "logpdf": logpdf,
             "field": f, "b_true": a + f * DT,
             "source": "given" if state is not None else source,
