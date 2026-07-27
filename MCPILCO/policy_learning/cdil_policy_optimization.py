@@ -3,7 +3,8 @@
 """
 policy_learning/cdil_policy_optimization.py
 
-Cross-Domain Imitation Learning (CDIL) policy optimization -- EPISODIC.
+Cross-Domain Imitation Learning (CDIL) policy optimization -- EPISODIC,
+with PHASE-SPECIFIC world models.
 
 STRUCTURE (mirrors MC-PILCO, Amadio et al. 2022):
     J(theta) = sum_{t=0..T} (1/M) sum_m c(x_t^(m)),  ONE backward, ONE update.
@@ -17,6 +18,24 @@ STRUCTURE (mirrors MC-PILCO, Amadio et al. 2022):
         GP predictive variance saturated at the prior lambda -> dvar/dinput = 0
         policy RBF basis abandoned its centres               -> da/dtheta   = 0
 
+PHASE-SPECIFIC WORLD MODELS  (the change in this revision)
+    Fermentation has distinct regimes, so one RBF world model was trained per phase:
+        phase 0: t <  35 h       phase 1: 35 <= t < 51 h      phase 2: t >= 51 h
+    The expert is queried BY TIME, so each window already knows its t_h -- the same
+    clock therefore selects the world model. Because every window is a self-contained
+    episode with a fresh start state, no rollout ever crosses a phase boundary, so
+    switching models introduces no discontinuity.
+
+    Start states are drawn from the SELECTED model's own training inputs, so the
+    particles begin inside the region that model actually covers. This is what keeps
+    the gradient alive, so it matters more than it looks.
+
+    All phase models share ONE z-space (the trainer fits the Standardizer on the full
+    dataset BEFORE filtering); this is asserted at load time.
+
+    USE_PHASE_MODELS = False falls back to the single all-data model, so the
+    "did phase-splitting help?" comparison is one config change.
+
 OBJECTIVE:  E_s( E_{a|s}( W2 ) )
     NUM_STATES start states, each replicated K_ACTIONS times; replicas share a state
     but draw independent actions (dropout), so the inner mean is E_{a|s} and the outer
@@ -26,7 +45,8 @@ OBJECTIVE:  E_s( E_{a|s}( W2 ) )
 
 POLICY:
     RBF centres are spread over the OBSERVED state range instead of randn's [-3, 3];
-    training states span [-5.5, 11.2], so randn centres under-cover it.
+    training states span [-5.5, 11.2], so randn centres under-cover it. With phase
+    models the range is the UNION over all phases, since one policy serves them all.
 
     NOTE ON ACTION BOUNDS. The PenSim docs specify +/-10% of setpoint, which in
     z-scored units is u_max_z = [0.023, 0.323, 0.554, 0.628, 0.702, 0.103] -- i.e.
@@ -76,7 +96,13 @@ dtype, device = torch.float64, torch.device("cpu")
 np.random.seed(0); torch.manual_seed(0)
 
 SAVE_DIR = os.path.join(_REPO, "results_pensim")
-MODEL_PATH = os.path.join(SAVE_DIR, "rbf_model.pt")
+
+# --- world models: one per fermentation phase, or a single all-data model ---
+USE_PHASE_MODELS = True
+MODEL_PATHS = {0: os.path.join(SAVE_DIR, "rbf_model_phase0.pt"),
+               1: os.path.join(SAVE_DIR, "rbf_model_phase1.pt"),
+               2: os.path.join(SAVE_DIR, "rbf_model_phase2.pt")}
+ALL_MODEL_PATH = os.path.join(SAVE_DIR, "rbf_model_all.pt")
 
 STATE_DIM = pdata.OBS_DIM          # 8
 INPUT_DIM = pdata.ACT_DIM          # 6
@@ -109,9 +135,9 @@ CENTER_RANGE_PAD = 1.10            # spread centres slightly beyond the data ran
 
 
 # =====================================================================================
-# 1. FROZEN GP WORLD MODEL
+# 1. FROZEN GP WORLD MODELS  (one per phase)
 # =====================================================================================
-def load_rbf_model(path=MODEL_PATH):
+def load_rbf_model(path):
     ckpt = torch.load(path, map_location=device, weights_only=False)
     init_dict = dict(
         active_dims=np.arange(0, GP_INPUT_DIM),
@@ -134,16 +160,62 @@ def load_rbf_model(path=MODEL_PATH):
     model.norm_list = [1.0] * STATE_DIM
     stats = {k: np.asarray(ckpt[k]) for k in
              ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
-    return model, stats
+    meta = {k: ckpt.get(k) for k in ("phase", "phase_tag", "phase_t_lo", "phase_t_hi",
+                                     "n_epoch", "select_mode", "train_t_min",
+                                     "train_t_max")}
+    return model, stats, meta
 
 
-model, stats = load_rbf_model()
-model.set_eval_mode()
-state_pool = model.gp_inputs[:, :STATE_DIM]
-s_lo = state_pool.min(0).values
-s_hi = state_pool.max(0).values
-print(f"frozen GP model: num_gp={model.num_gp}  train pts={model.gp_inputs.shape[0]}")
-print(f"training state range: [{s_lo.min().item():.2f}, {s_hi.max().item():.2f}] (z-units)")
+MODELS, POOLS, METAS = {}, {}, {}
+_paths = MODEL_PATHS if USE_PHASE_MODELS else {-1: ALL_MODEL_PATH}
+for _ph, _path in _paths.items():
+    if not os.path.exists(_path):
+        raise FileNotFoundError(f"world model for phase {_ph} not found: {_path}")
+    _m, stats, _meta = load_rbf_model(_path)
+    _m.set_eval_mode()                     # freeze hyperparameters (input-grad stays live)
+    MODELS[_ph], POOLS[_ph], METAS[_ph] = _m, _m.gp_inputs[:, :STATE_DIM], _meta
+
+# all models must share ONE z-space or switching between them is meaningless
+_sd_ref = None
+for _ph in sorted(MODELS):
+    _sd = np.asarray(torch.load(_paths[_ph], map_location="cpu",
+                                weights_only=False)["std_obs_sd"])
+    if _sd_ref is None:
+        _sd_ref = _sd
+    _d = float(np.abs(_sd - _sd_ref).max())
+    if _d > 1e-10:
+        raise RuntimeError(
+            f"phase {_ph} was standardized differently (max|sd-sd_ref|={_d:.3e}). "
+            "All phase models must share one z-space -- retrain with the Standardizer "
+            "fitted on the FULL dataset before filtering.")
+
+print("world models loaded:")
+for _ph in sorted(MODELS):
+    _mt = METAS[_ph]
+    _hi = "inf" if (_mt["phase_t_hi"] or 0) > 1e8 else f"{_mt['phase_t_hi']:.0f}"
+    print(f"  phase {_ph}: [{_mt['phase_t_lo']:.0f},{_hi}) h  "
+          f"train pts={MODELS[_ph].gp_inputs.shape[0]}  epochs={_mt['n_epoch']}  "
+          f"select={_mt['select_mode']}")
+print("  -> all models share one z-space (verified)")
+
+# policy basis must cover the UNION of the phases' state ranges (one policy, all phases)
+_all_states = torch.cat([POOLS[p] for p in sorted(POOLS)], dim=0)
+s_lo = _all_states.min(0).values
+s_hi = _all_states.max(0).values
+print(f"combined training state range: [{s_lo.min().item():.2f}, "
+      f"{s_hi.max().item():.2f}] (z-units)")
+
+
+def phase_of(t_hours):
+    """Which world model covers this expert time? Uses pdata.PHASES so the boundaries
+    cannot drift out of sync with the trainer."""
+    if not USE_PHASE_MODELS:
+        return -1
+    for ph in (0, 1, 2):
+        lo, hi = pdata.PHASES[ph]
+        if lo <= t_hours < hi:
+            return ph
+    return 2
 
 
 # =====================================================================================
@@ -175,6 +247,13 @@ EXPERT_EIGS = {round(float(t), 6):
                torch.linalg.eigvalsh(expert.at_time(t)[EXPERT_COV_KEY].detach())
                for t in EXPERT_TIMES}
 print(f"  done. example eigenvalues @75h: {EXPERT_EIGS[75.0].numpy()}", flush=True)
+
+# how many expert windows fall to each world model
+_cnt = {}
+for _t in EXPERT_TIMES:
+    _cnt[phase_of(float(_t))] = _cnt.get(phase_of(float(_t)), 0) + 1
+print("expert windows per world model: " +
+      "  ".join(f"phase {k}: {v}" for k, v in sorted(_cnt.items())))
 
 
 # =====================================================================================
@@ -262,10 +341,11 @@ print(f"EPISODIC: T={STEPS_PER_EXPERT} steps ({EXPERT_DT} h) per window, "
       f"{WINDOWS_PER_ITER*N_ITERS} policy updates")
 print(f"objective: E_s(E_a|s(W2))  states={NUM_STATES} x actions={K_ACTIONS} "
       f"= {NUM_PARTICLES} particles;  means EXCLUDED (cross_dim)")
+print(f"world models: {'PHASE-SPECIFIC (3)' if USE_PHASE_MODELS else 'SINGLE (all data)'}")
 
 # sanity: replicas of one state must get DIFFERENT actions or E_{a|s} is degenerate
 with torch.no_grad():
-    _st = state_pool[:1].expand(K_ACTIONS, -1).contiguous()
+    _st = POOLS[sorted(POOLS)[0]][:1].expand(K_ACTIONS, -1).contiguous()
     _sp = policy(states=_st, t=0, p_dropout=P_DROPOUT).std(0).mean().item()
 print(f"action spread across {K_ACTIONS} replicas of ONE state: {_sp:.3e}"
       f"{'   <-- WARNING: ~0 means E_a|s is degenerate' if _sp < 1e-4 else '   (ok)'}")
@@ -306,16 +386,22 @@ hist = []
 for it in range(N_ITERS):
     order = rng.permutation(len(EXPERT_TIMES))[:WINDOWS_PER_ITER]
     losses, gnorms, smax, amax = [], [], [], []
+    per_phase = {p: [] for p in MODELS}
 
     for idx in order:
         t_h = float(EXPERT_TIMES[idx])
         _current_eig = EXPERT_EIGS[round(t_h, 6)]
 
-        s_states = sample_initial_particles(state_pool, NUM_STATES, generator=rng,
+        # the expert time selects the world model AND the start-state pool, so the
+        # particles begin inside the region that model was trained on
+        ph = phase_of(t_h)
+        mdl, pool = MODELS[ph], POOLS[ph]
+
+        s_states = sample_initial_particles(pool, NUM_STATES, generator=rng,
                                             dtype=dtype, device=device)
         s0 = s_states.repeat_interleave(K_ACTIONS, dim=0)
 
-        out = gp_rollout(model=model, policy=policy, s0=s0, T=STEPS_PER_EXPERT,
+        out = gp_rollout(model=mdl, policy=policy, s0=s0, T=STEPS_PER_EXPERT,
                          p_dropout=P_DROPOUT, particle_pred=True,
                          loss_fn=window_loss, graph_mode="full")
 
@@ -330,6 +416,7 @@ for it in range(N_ITERS):
         losses.append(loss.item()); gnorms.append(gn)
         smax.append(out["S"].detach().abs().max().item())
         amax.append(out["A"].detach().abs().max().item())
+        per_phase[ph].append(loss.item())
 
     L, G, S, A = map(np.array, (losses, gnorms, smax, amax))
     hist.append(L.mean())
@@ -341,17 +428,24 @@ for it in range(N_ITERS):
           f"(data {s_hi.max().item():.2f})   |a|max={A.max():.4f}"
           f"{f' (limit {U_MAX_Z.max():.4f})' if ENFORCE_ACTION_LIMITS else ''}",
           flush=True)
+    print("          per-phase W2: " + "  ".join(
+        f"ph{p}={np.mean(v):.4e}(n={len(v)})" for p, v in sorted(per_phase.items()) if v),
+        flush=True)
 
     if it % 5 == 0:
         torch.save({"policy_state_dict": policy.state_dict(), "iter": it,
                     "loss": float(L.mean()), "hist": hist,
-                    "u_max_z": U_MAX_Z, "centers_init": centers_init},
+                    "u_max_z": U_MAX_Z, "centers_init": centers_init,
+                    "use_phase_models": USE_PHASE_MODELS},
                    os.path.join(SAVE_DIR, f"cdil_policy_it{it}.pt"))
 
 os.makedirs(SAVE_DIR, exist_ok=True)
-_out = os.path.join(SAVE_DIR, "cdil_policy.pt")
+_tag = "phasemodels" if USE_PHASE_MODELS else "allmodel"
+_out = os.path.join(SAVE_DIR, f"cdil_policy_{_tag}.pt")
 torch.save({"policy_state_dict": policy.state_dict(), "hist": hist,
             "u_max_z": U_MAX_Z, "centers_init": centers_init,
+            "use_phase_models": USE_PHASE_MODELS,
+            "model_paths": _paths,
             "std_act_mu": stats["std_act_mu"], "std_act_sd": stats["std_act_sd"],
             "std_obs_mu": stats["std_obs_mu"], "std_obs_sd": stats["std_obs_sd"]}, _out)
 print(f"\nsaved -> {_out}")
