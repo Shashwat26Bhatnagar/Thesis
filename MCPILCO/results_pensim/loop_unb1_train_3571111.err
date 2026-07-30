@@ -1,0 +1,36 @@
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/mzutils/torch_funcs.py:97: FutureWarning: `torch.cuda.amp.custom_fwd(args...)` is deprecated. Please use `torch.amp.custom_fwd(args..., device_type='cuda')` instead.
+  def forward(ctx, input, min, max):
+/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/mzutils/torch_funcs.py:102: FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.
+  def backward(ctx, grad_output):
+/home/s2892016/Thesis/MCPILCO/gpr_lib/GP_prior/GP_prior.py:106: UserWarning: torch.cholesky is deprecated in favor of torch.linalg.cholesky and will be removed in a future PyTorch release.
+L = torch.cholesky(A)
+should be replaced with
+L = torch.linalg.cholesky(A)
+and
+U = torch.cholesky(A, upper=True)
+should be replaced with
+U = torch.linalg.cholesky(A).mH
+This transform will produce equivalent results for all valid (symmetric positive definite) inputs. (Triggered internally at /__w/pytorch/pytorch/aten/src/ATen/native/BatchLinearAlgebra.cpp:1765.)
+  U = torch.cholesky(K_X, upper=True)
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/train_rbf_pensim.py", line 163, in <module>
+    model.reinforce_model([dict(opt) for _ in range(STATE_DIM)])
+  File "/home/s2892016/Thesis/MCPILCO/model_learning/Model_learning.py", line 158, in reinforce_model
+    self.train_gp(gp_index=gp_index, optimization_opt_dict=optimization_opt_list[gp_index])
+  File "/home/s2892016/Thesis/MCPILCO/model_learning/Model_learning.py", line 385, in train_gp
+    self.train_gp_likelihood(gp_index, optimization_opt_dict)
+  File "/home/s2892016/Thesis/MCPILCO/model_learning/Model_learning.py", line 415, in train_gp_likelihood
+    self.gp_list[gp_index].fit_model(
+  File "/home/s2892016/Thesis/MCPILCO/gpr_lib/GP_prior/GP_prior.py", line 209, in fit_model
+    out_GP_priors = self(inputs)
+  File "/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1778, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1789, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "/home/s2892016/Thesis/MCPILCO/gpr_lib/GP_prior/GP_prior.py", line 106, in forward
+    U = torch.cholesky(K_X, upper=True)
+torch._C._LinAlgError: cholesky: The factorization could not be completed because the input is not positive-definite (the leading minor of order 1 is not positive-definite).

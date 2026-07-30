@@ -1,0 +1,53 @@
+=== training world model: phase=-1 (unb_iter1)  n_keep=800  n_epoch=2001  select=pivchol ===
+[pensim] dataset folder (PENSIM_DATA_DIR): /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_unb  (22 CSVs)
+max observations: [2.76000000e+02 8.05261517e+00 3.62841400e+02 6.85863686e+00
+ 2.70000000e+02 1.80000012e+03 9.46039368e+02 1.26920055e+05
+ 2.39494171e+01]
+min observations: [1.6000001e-01 4.5955915e+00 2.3797954e+02 0.0000000e+00 0.0000000e+00
+ 0.0000000e+00 0.0000000e+00 5.0006516e+04 2.3598127e+00]
+dataset max observations: [ 230.               nan         nan    5.200512  225.       1500.
+ 1373.5076           nan         nan]
+dataset min observations: [0.e+00    nan    nan 0.e+00 0.e+00 1.e-04 1.e-04    nan    nan]
+max actions: [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+min actions: [ 0.   7.  21.  29.   0.5  0. ]
+dataset max actions: [4.0945591e+03 1.4810912e+02 3.5800999e+01 7.6000000e+01 1.2000000e+00
+ 5.0384000e+02]
+dataset min actions: [ 0.     7.361 21.    29.636  0.545  0.   ]
+normalize: True
+using max/min observations and actions.
+[std:obs]
+     0 pH             mean=         nan  std=        nan   <-- ZERO VARIANCE
+     1 T              mean=         nan  std=        nan   <-- ZERO VARIANCE
+     2 Fa             mean=    -0.99497  std=   0.052213
+     3 Fb             mean=    -0.20947  std=   0.466532
+     4 Fc             mean=    -0.89000  std=   0.197495
+     5 Fh             mean=    -0.95393  std=   0.102699
+     6 Wt             mean=         nan  std=        nan   <-- ZERO VARIANCE
+     7 DO2            mean=         nan  std=        nan   <-- ZERO VARIANCE
+[std:act]
+     0 discharge      mean=    -0.93627  std=   0.314338
+     1 sugar          mean=     0.05026  std=   0.356840
+     2 soilbean       mean=    -0.36749  std=   0.522318
+     3 aeration       mean=     0.47165  std=   0.374523
+     4 backpressure   mean=     0.13730  std=   0.358855
+     5 waterinj       mean=    -0.49508  std=   0.474890
+[pensim] 24626 transitions | obs 8d act 6d
+[pensim] obs per-dim std: [nan nan  1.  1.  1.  1. nan nan]
+[pensim] act per-dim std: [1. 1. 1. 1. 1. 1.]
+[pensim] time range: -0.32 .. 459.95 h
+[pensim]   phase 0 [0, 35) h: 1936 transitions
+[pensim]   phase 1 [35, 51) h: 880 transitions
+[pensim]   phase 2 [51, inf) h: 21800 transitions
+[pensim] phase -1: t in [0, inf) h  ->  24616 of 24626 transitions (100.0%)
+[pivchol] selected 800/24416 points  (residual trace nan)
+train N=800   test N=200   gp input dim=14   num_gp=8
+training-set time span: 79.33 .. 79.33 h
+EXACT GP INFERENCE SELECTED
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)

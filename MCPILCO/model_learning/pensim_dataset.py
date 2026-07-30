@@ -79,13 +79,20 @@ def phase_tag(phase):
     return "all" if phase == -1 else f"phase{phase}"
 
 def default_dataset_folder():
-    """CSV batches -- hardcoded to the smpl SOURCE repo, which holds all 12 batches.
-    The site-packages copy only ever received the original 2."""
+    """CSV batches. PENSIM_DATA_DIR overrides everything -- the Dyna loop uses it to
+    give each variant (bounded / unbounded) its own accumulating dataset, so the two
+    chains never train on each other's trajectories."""
+    env_dir = os.environ.get("PENSIM_DATA_DIR")
+    if env_dir:
+        n = len([f for f in os.listdir(env_dir) if f.endswith(".csv")]) \
+            if os.path.isdir(env_dir) else 0
+        print(f"[pensim] dataset folder (PENSIM_DATA_DIR): {env_dir}  ({n} CSVs)")
+        return env_dir
     folder = "/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv"
-    n = len([f for f in os.listdir(folder) if f.endswith(".csv")]) if os.path.isdir(folder) else 0
+    n = len([f for f in os.listdir(folder) if f.endswith(".csv")]) \
+        if os.path.isdir(folder) else 0
     print(f"[pensim] dataset folder: {folder}  ({n} CSVs)")
     return folder
-
 
 def drop_time(obs):
     """Remove the time channel from a (N, 9) observation array -> (N, 8).

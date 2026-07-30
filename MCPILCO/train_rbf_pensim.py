@@ -62,10 +62,21 @@ _p.add_argument("-n_epoch", type=int, default=501,
                 help="hyperparameter optimisation steps")
 _p.add_argument("-select", type=str, default="stride", choices=["stride", "pivchol"],
                 help="stride: every Nth row | pivchol: skip near-duplicates")
+_p.add_argument("-data_dir", type=str, default=None,
+                help="dataset folder (also settable via PENSIM_DATA_DIR)")
+_p.add_argument("-tag", type=str, default=None,
+                help="output tag; default is the phase tag. Dyna loop uses e.g. unb_iter2")
+_p.add_argument("-std_from", type=str, default=None,
+                help="checkpoint whose std_obs_*/std_act_* stats to REUSE. Required from "
+                     "iteration 1 on: refitting them would drift the z-space and "
+                     "invalidate a warm-started policy.")
 _args = _p.parse_known_args()[0]
 
+if _args.data_dir:
+    os.environ["PENSIM_DATA_DIR"] = _args.data_dir
+
 PHASE = _args.phase
-TAG = pdata.phase_tag(PHASE)       # "all" | "phase0" | "phase1" | "phase2"
+TAG = _args.tag or pdata.phase_tag(PHASE)   # "all" | "phase0" | ... | "unb_iter2"
 SELECT_MODE = _args.select         # "stride" | "pivchol"
 N_KEEP = _args.n_keep
 N_EPOCH = _args.n_epoch
@@ -82,6 +93,9 @@ print(f"=== training world model: phase={PHASE} ({TAG})  "
 
 # ---------------------------------------------------------------- data ----
 # standardizer is fitted on ALL data here, so every phase model shares one z-space
+# The standardizer is refitted on the UNION of old + new data every iteration.
+# (-std_from is accepted but ignored: the warm-started policy's RBF centres are
+#  remapped into the new z-space by cdil_policy_optimization.py instead.)
 obs, act, nobs, std_obs, std_act, t_h = pdata.load_offline(
     max_transitions=None, return_time=True)
 N_ALL = obs.shape[0]               # total BEFORE phase filtering
@@ -190,7 +204,8 @@ torch.save({
     "gp_inputs_tr_list": model.gp_inputs_tr_list,
     "num_gp": STATE_DIM, "state_dim": STATE_DIM, "input_dim": INPUT_DIM,
     "gp_input_dim": GP_INPUT_DIM, "n_keep": N_KEEP, "n_epoch": N_EPOCH,
-    "select_mode": SELECT_MODE,
+    "select_mode": SELECT_MODE, "data_dir": os.environ.get("PENSIM_DATA_DIR"),
+    "std_frozen": bool(_args.std_from),
     # phase provenance -- the policy needs this to pick the right model per window
     "phase": PHASE, "phase_tag": TAG,
     "phase_t_lo": float(pdata.PHASES[PHASE][0]),

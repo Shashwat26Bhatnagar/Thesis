@@ -84,6 +84,8 @@ for _cand in (
 else:
     raise FileNotFoundError("penicillin-dcfba not found -- set the path manually")
 
+import argparse
+
 import model_learning.Model_learning as ML
 import model_learning.pensim_dataset as pdata
 import policy_learning.Policy as Policy
@@ -97,12 +99,24 @@ np.random.seed(0); torch.manual_seed(0)
 
 SAVE_DIR = os.path.join(_REPO, "results_pensim")
 
+_ap = argparse.ArgumentParser("CDIL policy optimization")
+_ap.add_argument("-model", type=str, default=None,
+                 help="single world-model checkpoint (Dyna loop). Omit to use the "
+                      "three phase models.")
+_ap.add_argument("-init_policy", type=str, default=None,
+                 help="warm-start from this policy checkpoint (Dyna loop). The RBF "
+                      "CENTRES are taken from it too -- regenerating them would make "
+                      "the loaded weights meaningless.")
+_ap.add_argument("-out", type=str, default=None, help="output policy path")
+_ap.add_argument("-iters", type=int, default=None, help="override N_ITERS")
+_args = _ap.parse_known_args()[0]
+
 # --- world models: one per fermentation phase, or a single all-data model ---
-USE_PHASE_MODELS = True
+USE_PHASE_MODELS = _args.model is None
 MODEL_PATHS = {0: os.path.join(SAVE_DIR, "rbf_model_phase0.pt"),
                1: os.path.join(SAVE_DIR, "rbf_model_phase1.pt"),
                2: os.path.join(SAVE_DIR, "rbf_model_phase2.pt")}
-ALL_MODEL_PATH = os.path.join(SAVE_DIR, "rbf_model_all.pt")
+ALL_MODEL_PATH = _args.model or os.path.join(SAVE_DIR, "rbf_model_all.pt")
 
 STATE_DIM = pdata.OBS_DIM          # 8
 INPUT_DIM = pdata.ACT_DIM          # 6
@@ -310,13 +324,46 @@ class BoundedPolicy(torch.nn.Module):
 # (Random within the range -- NOT sampled from data points.)
 # Conversions go via python lists: torch->numpy buffer sharing trips the
 # duplicate-numpy ABI mismatch present in this environment.
-_lo = np.array([float(x) * CENTER_RANGE_PAD for x in s_lo.tolist()], dtype=np.float64)
-_hi = np.array([float(x) * CENTER_RANGE_PAD for x in s_hi.tolist()], dtype=np.float64)
-_span = _hi - _lo
-centers_init = np.array(
-    [[_lo[j] + _span[j] * float(np.random.rand()) for j in range(STATE_DIM)]
-     for _ in range(NUM_BASIS)], dtype=np.float64)
-lengthscales_init = np.array([float(v) / 4.0 for v in _span], dtype=np.float64)
+_warm = None
+if _args.init_policy and os.path.exists(_args.init_policy):
+    _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
+    centers_init = np.array(np.asarray(_warm["centers_init"]).tolist(), dtype=np.float64)
+
+    # The standardizer is refitted on the UNION each iteration, so the same physical
+    # state maps to a DIFFERENT z. The loaded weights describe a function of the OLD
+    # z, so the centres are remapped into the new z-space:
+    #     centres_new = (centres_old * sd_old + mu_old - mu_new) / sd_new
+    # This preserves the policy's behaviour in PHYSICAL units. Without it the warm
+    # start would silently describe a different function.
+    _mu_old = np.array(np.asarray(_warm["std_obs_mu"]).tolist(), dtype=np.float64)
+    _sd_old = np.array(np.asarray(_warm["std_obs_sd"]).tolist(), dtype=np.float64)
+    _mu_new = np.array(np.asarray(stats["std_obs_mu"]).tolist(), dtype=np.float64)
+    _sd_new = np.array(np.asarray(stats["std_obs_sd"]).tolist(), dtype=np.float64)
+    _shift = float(np.abs((_mu_old - _mu_new) / _sd_new).max())
+    _scale = float(np.abs(_sd_old / _sd_new - 1.0).max())
+    centers_init = (centers_init * _sd_old + _mu_old - _mu_new) / _sd_new
+
+    _ls_old = np.array(np.asarray(_warm.get("lengthscales_init",
+                                            np.ones(STATE_DIM))).tolist(),
+                       dtype=np.float64)
+    lengthscales_init = _ls_old * _sd_old / _sd_new
+
+    print(f"[loop] warm-starting policy from {_args.init_policy}")
+    print(f"[loop] z-space drift since that policy: max mean-shift={_shift:.3f} sigma, "
+          f"max scale change={100*_scale:.1f}%")
+    print(f"[loop] centres and lengthscales remapped into the new z-space")
+    if _scale > 0.5:
+        print("[loop] WARNING: >50% scale change -- the ACTION space rescaled too, and "
+              "the output squashing makes that non-invertible. The warm start is "
+              "approximate on the action side.")
+else:
+    _lo = np.array([float(x) * CENTER_RANGE_PAD for x in s_lo.tolist()], dtype=np.float64)
+    _hi = np.array([float(x) * CENTER_RANGE_PAD for x in s_hi.tolist()], dtype=np.float64)
+    _span = _hi - _lo
+    centers_init = np.array(
+        [[_lo[j] + _span[j] * float(np.random.rand()) for j in range(STATE_DIM)]
+         for _ in range(NUM_BASIS)], dtype=np.float64)
+    lengthscales_init = np.array([float(v) / 4.0 for v in _span], dtype=np.float64)
 
 _u_max_base = 1.0 if ENFORCE_ACTION_LIMITS else U_MAX_FLAT
 base_policy = Policy.Sum_of_gaussians(
@@ -328,6 +375,10 @@ base_policy = Policy.Sum_of_gaussians(
     weight_init=0.1 * np.random.randn(INPUT_DIM, NUM_BASIS),
     dtype=dtype, device=device)
 policy = BoundedPolicy(base_policy, U_MAX_Z) if ENFORCE_ACTION_LIMITS else base_policy
+if _warm is not None:
+    policy.load_state_dict(_warm["policy_state_dict"])
+    print(f"[loop] loaded policy weights (previous final W2 = "
+          f"{_warm.get('hist', [float('nan')])[-1]:.4f})")
 
 print(f"\npolicy {type(base_policy).__name__}"
       f"{' (per-channel bounded)' if ENFORCE_ACTION_LIMITS else f' (flat u_max={U_MAX_FLAT})'}: "
@@ -350,6 +401,8 @@ with torch.no_grad():
 print(f"action spread across {K_ACTIONS} replicas of ONE state: {_sp:.3e}"
       f"{'   <-- WARNING: ~0 means E_a|s is degenerate' if _sp < 1e-4 else '   (ok)'}")
 
+if _args.iters:
+    N_ITERS = _args.iters
 optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
@@ -441,9 +494,10 @@ for it in range(N_ITERS):
 
 os.makedirs(SAVE_DIR, exist_ok=True)
 _tag = "phasemodels" if USE_PHASE_MODELS else "allmodel"
-_out = os.path.join(SAVE_DIR, f"cdil_policy_{_tag}.pt")
+_out = _args.out or os.path.join(SAVE_DIR, f"cdil_policy_{_tag}.pt")
 torch.save({"policy_state_dict": policy.state_dict(), "hist": hist,
             "u_max_z": U_MAX_Z, "centers_init": centers_init,
+            "lengthscales_init": lengthscales_init,
             "use_phase_models": USE_PHASE_MODELS,
             "model_paths": _paths,
             "std_act_mu": stats["std_act_mu"], "std_act_sd": stats["std_act_sd"],

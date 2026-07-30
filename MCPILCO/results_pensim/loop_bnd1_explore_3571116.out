@@ -1,0 +1,28 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[policy] /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_bnd_iter1.pt
+[policy] basis=200 state_dim=8 u_max=3.0 | final training W2 = 0.7905
+[action] recipe setpoint (physical): [190.981  79.359  25.659  65.009   0.965 157.617]
+[action] clipping to +/-10%: ON
+
+collecting 10 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd
+  episode 0: 1150 steps, final t=229.8 h, total yield=3263.1745  ->  bnd_iter1_batch_0.csv
+  episode 1: 1150 steps, final t=229.8 h, total yield=3359.1459  ->  bnd_iter1_batch_1.csv
+  episode 2: 1150 steps, final t=229.8 h, total yield=3278.3123  ->  bnd_iter1_batch_2.csv
+  episode 3: 1150 steps, final t=229.8 h, total yield=3606.2702  ->  bnd_iter1_batch_3.csv
+  episode 4: 1150 steps, final t=229.8 h, total yield=3748.2761  ->  bnd_iter1_batch_4.csv
+  episode 5: 1150 steps, final t=229.8 h, total yield=3471.2275  ->  bnd_iter1_batch_5.csv
+  episode 6: 1150 steps, final t=229.8 h, total yield=3448.7189  ->  bnd_iter1_batch_6.csv
+  episode 7: 1150 steps, final t=229.8 h, total yield=3704.5065  ->  bnd_iter1_batch_7.csv
+  episode 8: 1150 steps, final t=229.8 h, total yield=3524.3948  ->  bnd_iter1_batch_8.csv
+  episode 9: 1150 steps, final t=229.8 h, total yield=3113.4626  ->  bnd_iter1_batch_9.csv
+
+summary:
+  episodes written: 10/10
+  total yield  mean=3451.7489  min=3113.4626  max=3748.2761
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.
