@@ -68,6 +68,7 @@ if _REPO not in sys.path:
 
 import model_learning.pensim_dataset as pdata
 import policy_learning.Policy as Policy
+from policy_learning.policy_variants import rebuild_policy
 
 from pensimpy.examples.recipe import Recipe, RecipeCombo
 from pensimpy.data.constants import FS, FOIL, FG, PRES, DISCHARGE, WATER, PAA
@@ -152,25 +153,25 @@ def act_z_to_phys(a_z):
 
 
 # ================================================================== policy ====
-centers_init = np.array(np.asarray(ck["centers_init"]).tolist(), dtype=np.float64)
-n_basis, state_dim = centers_init.shape
-# take the basis widths from the checkpoint: hardcoding ones would give a DIFFERENT
-# function from the one that was trained if log_lengthscales is not in the state dict
-_ls = ck.get("lengthscales_init")
-lengthscales_init = (np.array(np.asarray(_ls).tolist(), dtype=np.float64)
-                     if _ls is not None else np.ones(state_dim))
-policy = Policy.Sum_of_gaussians(
-    state_dim=state_dim, input_dim=pdata.ACT_DIM, num_basis=n_basis,
-    u_max=U_MAX_FLAT, flg_squash=True, flg_drop=True,
-    centers_init=centers_init,
-    lengthscales_init=lengthscales_init,
-    weight_init=np.zeros((pdata.ACT_DIM, n_basis)),
-    dtype=dtype, device=device)
+# Rebuild whatever architecture the checkpoint records. Older checkpoints predate
+# policy_meta and are always Sum_of_gaussians, so fall back to that.
+_meta = ck.get("policy_meta")
+if _meta is None:
+    centers_init = np.array(np.asarray(ck["centers_init"]).tolist(), dtype=np.float64)
+    n_basis, state_dim = centers_init.shape
+    _ls = ck.get("lengthscales_init")
+    _meta = {"kind": "rbf", "state_dim": state_dim, "input_dim": pdata.ACT_DIM,
+             "u_max": U_MAX_FLAT, "num_basis": n_basis,
+             "centers_init": centers_init.tolist(),
+             "lengthscales_init": (np.asarray(_ls).tolist() if _ls is not None
+                                   else np.ones(state_dim).tolist())}
+policy = rebuild_policy(_meta, dtype=dtype, device=device)
 policy.load_state_dict(ck["policy_state_dict"])
 policy.eval()
+state_dim = _meta["state_dim"]
 _hist = ck.get("hist", [])
 print(f"[policy] {args.policy}")
-print(f"[policy] basis={n_basis} state_dim={state_dim} u_max={U_MAX_FLAT}"
+print(f"[policy] kind={_meta['kind']} state_dim={state_dim} u_max={U_MAX_FLAT}"
       + (f" | final training W2 = {_hist[-1]:.4f}" if _hist else ""))
 
 # +/-10% band around the recipe setpoint, in PHYSICAL units
@@ -298,4 +299,3 @@ print(f"  files written to {args.out}")
 print("\nNOTE: this folder is NOT the one the trainer reads "
       f"({pdata.default_dataset_folder()}).\n"
       "      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.")
-

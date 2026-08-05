@@ -1,0 +1,64 @@
+=== training world model: phase=-1 (bnd_kan_iter6)  n_keep=800  n_epoch=2001  select=pivchol ===
+[pensim] dataset folder (PENSIM_DATA_DIR): /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd_kan  (22 CSVs)
+max observations: [2.76000000e+02 8.05261517e+00 3.62841400e+02 6.85863686e+00
+ 2.70000000e+02 1.80000012e+03 9.46039368e+02 1.26920055e+05
+ 2.39494171e+01]
+min observations: [1.6000001e-01 4.5955915e+00 2.3797954e+02 0.0000000e+00 0.0000000e+00
+ 0.0000000e+00 0.0000000e+00 5.0006516e+04 2.3598127e+00]
+dataset max observations: [2.3000000e+02 6.6794639e+00 3.0153406e+02 4.6791539e+00 2.2500000e+02
+ 1.5000000e+03 1.3656814e+03 1.1904432e+05 1.9388021e+01]
+dataset min observations: [0.0000000e+00 5.8690138e+00 2.9747641e+02 0.0000000e+00 0.0000000e+00
+ 9.9999997e-05 9.9999997e-05 6.1145668e+04 9.0607529e+00]
+max actions: [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+min actions: [ 0.   7.  21.  29.   0.5  0. ]
+dataset max actions: [4.094559e+03 1.470660e+02 3.580100e+01 7.514100e+01 1.132000e+00
+ 5.038400e+02]
+dataset min actions: [ 0.     7.361 21.249 29.636  0.545  0.   ]
+normalize: True
+using max/min observations and actions.
+[std:obs]
+     0 pH             mean=     0.09621  std=   0.037067
+     1 T              mean=    -0.03809  std=   0.003361
+     2 Fa             mean=    -0.99418  std=   0.049634
+     3 Fb             mean=    -0.15147  std=   0.313771
+     4 Fc             mean=    -0.89969  std=   0.179559
+     5 Fh             mean=    -0.95391  std=   0.101951
+     6 Wt             mean=    -0.06192  std=   0.331249
+     7 DO2            mean=     0.28436  std=   0.176579
+[std:act]
+     0 discharge      mean=    -0.90023  std=   0.307519
+     1 sugar          mean=     0.02624  std=   0.251885
+     2 soilbean       mean=    -0.48883  std=   0.521303
+     3 aeration       mean=     0.39249  std=   0.345545
+     4 backpressure   mean=     0.36129  std=   0.307744
+     5 waterinj       mean=    -0.37256  std=   0.439800
+[pensim] 25290 transitions | obs 8d act 6d
+[pensim] obs per-dim std: [1. 1. 1. 1. 1. 1. 1. 1.]
+[pensim] act per-dim std: [1. 1. 1. 1. 1. 1.]
+[pensim] time range: -0.32 .. 459.95 h
+[pensim]   phase 0 [0, 35) h: 1936 transitions
+[pensim]   phase 1 [35, 51) h: 880 transitions
+[pensim]   phase 2 [51, inf) h: 22464 transitions
+[pensim] phase -1: t in [0, inf) h  ->  25280 of 25290 transitions (100.0%)
+[pivchol] selected 800/25080 points  (residual trace 1.274e+04)
+train N=800   test N=200   gp input dim=14   num_gp=8
+training-set time span: 0.08 .. 459.95 h
+EXACT GP INFERENCE SELECTED
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100,
+        0.0100, 0.0100, 0.0100, 0.0100, 0.0100], dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 139.75987362742202
+Time elapsed: 1.5331430435180664

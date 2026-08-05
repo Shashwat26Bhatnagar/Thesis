@@ -1,0 +1,113 @@
+EXACT GP INFERENCE SELECTED
+world models loaded:
+  phase -1: [0,inf) h  train pts=800  epochs=2001  select=pivchol
+  -> all models share one z-space (verified)
+combined training state range: [-8.59, 36.23] (z-units)
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1.0..150.0 h) ...
+  done. example eigenvalues @75h: [0.00018914 0.00684495 0.04047211]
+expert windows per world model: phase -1: 150
+
+per-channel action limits (+/-10% of setpoint):
+    discharge      setpoint=   185.916   u_max_z=0.0356
+    sugar          setpoint=    80.592   u_max_z=0.5216
+    soilbean       setpoint=    25.398   u_max_z=0.7456
+    aeration       setpoint=    63.232   u_max_z=0.9131
+    backpressure   setpoint=     0.982   u_max_z=1.0873
+    waterinj       setpoint=   153.405   u_max_z=0.1643
+  (previous flat u_max was 3.0 -> [84.4  5.8  4.   3.3  2.8 18.3]x too wide per channel)
+[loop] warm-starting policy from /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_bnd_iter0.pt
+[loop] z-space drift since that policy: max mean-shift=0.863 sigma, max scale change=64.6%
+[loop] centres and lengthscales remapped into the new z-space
+[loop] WARNING: >50% scale change -- the ACTION space rescaled too, and the output squashing makes that non-invertible. The warm start is approximate on the action side.
+[loop] loaded policy weights (previous final W2 = 0.2488)
+
+policy Sum_of_gaussians (flat u_max=3.0): in=8 out=6 params=2808
+  centres span per-dim [-5.85, 39.69] (data [-8.59, 36.23])
+  lengthscales: [2.062 2.805 9.988 1.443 1.251 2.687 0.825 1.739]
+EPISODIC: T=5 steps (1.0 h) per window, 150 windows/iter x 20 iters = 3000 policy updates
+objective: E_s(E_a|s(W2))  states=100 x actions=5 = 500 particles;  means EXCLUDED (cross_dim)
+world models: SINGLE (all data)
+action spread across 5 replicas of ONE state: 8.497e-02   (ok)
+iter   0  W2 mean=1.777568e-01 min=5.9999e-02 max=3.0388e-01
+          |grad| med=2.230e-01 max=1.415e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=40.61 max=60.26 (data 36.23)   |a|max=2.9999
+          per-phase W2: ph-1=1.7776e-01(n=150)
+iter   1  W2 mean=1.547011e-01 min=6.3310e-02 max=2.5013e-01
+          |grad| med=1.876e-01 max=1.539e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.00 max=63.09 (data 36.23)   |a|max=2.9983
+          per-phase W2: ph-1=1.5470e-01(n=150)
+iter   2  W2 mean=1.468346e-01 min=5.5258e-02 max=2.4073e-01
+          |grad| med=1.802e-01 max=2.276e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.69 max=62.53 (data 36.23)   |a|max=2.9988
+          per-phase W2: ph-1=1.4683e-01(n=150)
+iter   3  W2 mean=1.453054e-01 min=6.0462e-02 max=2.6466e-01
+          |grad| med=1.839e-01 max=1.105e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=38.80 max=66.60 (data 36.23)   |a|max=2.9996
+          per-phase W2: ph-1=1.4531e-01(n=150)
+iter   4  W2 mean=1.356903e-01 min=5.6822e-02 max=2.3469e-01
+          |grad| med=1.821e-01 max=1.428e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.81 max=59.49 (data 36.23)   |a|max=2.9965
+          per-phase W2: ph-1=1.3569e-01(n=150)
+iter   5  W2 mean=1.359199e-01 min=6.0669e-02 max=2.3088e-01
+          |grad| med=1.813e-01 max=2.313e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=41.37 max=63.42 (data 36.23)   |a|max=2.9989
+          per-phase W2: ph-1=1.3592e-01(n=150)
+iter   6  W2 mean=1.373099e-01 min=5.8519e-02 max=2.3412e-01
+          |grad| med=1.797e-01 max=1.148e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.59 max=60.45 (data 36.23)   |a|max=2.9986
+          per-phase W2: ph-1=1.3731e-01(n=150)
+iter   7  W2 mean=1.340477e-01 min=5.6938e-02 max=2.2477e-01
+          |grad| med=1.880e-01 max=8.412e-01  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.86 max=61.00 (data 36.23)   |a|max=2.9986
+          per-phase W2: ph-1=1.3405e-01(n=150)
+iter   8  W2 mean=1.349157e-01 min=4.6967e-02 max=2.1584e-01
+          |grad| med=1.800e-01 max=2.221e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.77 max=64.35 (data 36.23)   |a|max=2.9989
+          per-phase W2: ph-1=1.3492e-01(n=150)
+iter   9  W2 mean=1.371446e-01 min=5.8190e-02 max=2.1737e-01
+          |grad| med=1.982e-01 max=4.917e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=40.95 max=67.13 (data 36.23)   |a|max=2.9998
+          per-phase W2: ph-1=1.3714e-01(n=150)
+iter  10  W2 mean=1.297034e-01 min=4.1832e-02 max=2.3465e-01
+          |grad| med=1.818e-01 max=1.071e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=40.61 max=66.40 (data 36.23)   |a|max=2.9993
+          per-phase W2: ph-1=1.2970e-01(n=150)
+iter  11  W2 mean=1.310357e-01 min=3.9904e-02 max=2.1987e-01
+          |grad| med=1.931e-01 max=4.282e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.00 max=61.55 (data 36.23)   |a|max=2.9988
+          per-phase W2: ph-1=1.3104e-01(n=150)
+iter  12  W2 mean=1.308282e-01 min=5.7814e-02 max=2.1235e-01
+          |grad| med=2.141e-01 max=1.379e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=38.75 max=66.35 (data 36.23)   |a|max=2.9990
+          per-phase W2: ph-1=1.3083e-01(n=150)
+iter  13  W2 mean=1.286486e-01 min=5.0923e-02 max=2.2573e-01
+          |grad| med=2.256e-01 max=1.457e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=41.69 max=65.55 (data 36.23)   |a|max=2.9994
+          per-phase W2: ph-1=1.2865e-01(n=150)
+iter  14  W2 mean=1.385263e-01 min=6.4106e-02 max=2.4014e-01
+          |grad| med=1.966e-01 max=1.651e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=40.27 max=70.53 (data 36.23)   |a|max=2.9999
+          per-phase W2: ph-1=1.3853e-01(n=150)
+iter  15  W2 mean=1.308979e-01 min=4.7073e-02 max=2.2144e-01
+          |grad| med=1.949e-01 max=1.289e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.09 max=54.67 (data 36.23)   |a|max=2.9998
+          per-phase W2: ph-1=1.3090e-01(n=150)
+iter  16  W2 mean=1.273780e-01 min=4.6949e-02 max=2.1877e-01
+          |grad| med=1.855e-01 max=1.756e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.64 max=59.17 (data 36.23)   |a|max=2.9997
+          per-phase W2: ph-1=1.2738e-01(n=150)
+iter  17  W2 mean=1.267581e-01 min=4.5187e-02 max=2.1768e-01
+          |grad| med=1.942e-01 max=1.861e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=41.19 max=58.05 (data 36.23)   |a|max=2.9998
+          per-phase W2: ph-1=1.2676e-01(n=150)
+iter  18  W2 mean=1.241084e-01 min=3.8727e-02 max=2.3277e-01
+          |grad| med=2.091e-01 max=9.745e-01  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=40.48 max=60.15 (data 36.23)   |a|max=2.9999
+          per-phase W2: ph-1=1.2411e-01(n=150)
+iter  19  W2 mean=1.227848e-01 min=5.1753e-02 max=1.9019e-01
+          |grad| med=2.045e-01 max=1.601e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=39.37 max=61.23 (data 36.23)   |a|max=2.9995
+          per-phase W2: ph-1=1.2278e-01(n=150)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_bnd_iter1.pt

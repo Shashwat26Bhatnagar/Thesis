@@ -1,0 +1,39 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[policy] /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_bnd_iter5.pt
+[policy] basis=200 state_dim=8 u_max=3.0 | final training W2 = 0.1492
+[action] recipe setpoint (physical): [179.757  81.219  25.323  63.254   0.981 150.284]
+[action] clipping to +/-10%: ON
+
+collecting 10 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd
+    dropped terminal error_reward row at t=229.8 h
+  episode 0: 1149 steps, final t=229.6 h, total yield=3523.1814  ->  bnd_iter5_batch_0.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 1: 1149 steps, final t=229.6 h, total yield=3542.4080  ->  bnd_iter5_batch_1.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 2: 1149 steps, final t=229.6 h, total yield=3526.0397  ->  bnd_iter5_batch_2.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 3: 1149 steps, final t=229.6 h, total yield=3828.9316  ->  bnd_iter5_batch_3.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 4: 1149 steps, final t=229.6 h, total yield=4034.8381  ->  bnd_iter5_batch_4.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 5: 1149 steps, final t=229.6 h, total yield=3168.0123  ->  bnd_iter5_batch_5.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 6: 1149 steps, final t=229.6 h, total yield=3601.1831  ->  bnd_iter5_batch_6.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 7: 1149 steps, final t=229.6 h, total yield=3750.5923  ->  bnd_iter5_batch_7.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 8: 1149 steps, final t=229.6 h, total yield=3708.8012  ->  bnd_iter5_batch_8.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 9: 1149 steps, final t=229.6 h, total yield=3336.7115  ->  bnd_iter5_batch_9.csv
+
+summary:
+  episodes written: 10/10
+  total yield  mean=3602.0699  min=3168.0123  max=4034.8381
+  yield/step   mean=3.1350  min=2.7572  max=3.5116   (SMPL paper baseline: 3.3071)
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.

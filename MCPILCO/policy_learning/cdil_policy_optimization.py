@@ -91,6 +91,8 @@ import model_learning.pensim_dataset as pdata
 import policy_learning.Policy as Policy
 from policy_learning.gp_particle_rollout import gp_rollout, sample_initial_particles
 from policy_learning.wasserstein_loss import w2_cross_dim_torch
+from policy_learning.policy_variants import build_policy
+from policy_learning.chance_constraints import action_chance_penalty, phi_inv
 from dcfba_pen.flgfn.pf_query import PFQuery
 
 torch.set_num_threads(1)
@@ -109,6 +111,12 @@ _ap.add_argument("-init_policy", type=str, default=None,
                       "the loaded weights meaningless.")
 _ap.add_argument("-out", type=str, default=None, help="output policy path")
 _ap.add_argument("-iters", type=int, default=None, help="override N_ITERS")
+_ap.add_argument("-policy_kind", type=str, default=None,
+                 choices=["rbf", "mlp", "kan"],
+                 help="policy architecture (default: POLICY_KIND below). "
+                      "rbf = Sum_of_gaussians (joint Gaussian basis, MC-PILCO's own); "
+                      "mlp = feed-forward; "
+                      "kan = Kolmogorov-Arnold with radial-basis edge functions")
 _args = _ap.parse_known_args()[0]
 
 # --- world models: one per fermentation phase, or a single all-data model ---
@@ -140,8 +148,27 @@ CLIP = 10.0
 
 EXPERT_COV_KEY = "cov_n"
 
+# --- soft chance constraints on ACTIONS (Tan et al., Eqs. 8-9) -----------------
+# The CDIL objective is covariance-only, so nothing in it constrains what the actions
+# DO: the policy discharged ~200 L/h for the entire batch while the reference recipe
+# discharges 0 for ~97% of it. This adds the paper's soft chance constraint
+#     s >= mu + Phi^-1(eps)*sigma - hi ,  s >= 0 ,  cost += alpha * s
+# per action channel, so the policy is penalised for actions whose DISTRIBUTION
+# (not just mean) leaves the safe box.
+USE_CHANCE_CONSTRAINT = True
+CC_EPS = 0.95            # paper: 95% confidence  -> Phi^-1 = 1.6449
+CC_ALPHA = 1000.0        # paper: soft-constraint weight alpha = 1000
+CC_BOUNDS = "env"        # "env"    : physical action limits (loose, always valid)
+                         # "recipe" : +/-10% of the TIME-VARYING recipe profile (tight)
+
 # --- policy ---
-NUM_BASIS = 200
+# --- policy architecture (ablation: rbf | mlp | kan, matched to ~2808 params) ---
+POLICY_KIND = "rbf"
+MLP_HIDDEN = (48, 48)          # 3078 params
+KAN_HIDDEN, KAN_GRID = 10, 20  # 2956 params
+KAN_RANGE = (-3.0, 3.0)        # grid span in Z-SCORED units
+
+NUM_BASIS = 200                # rbf: 2808 params
 ACTION_LIMIT_FRAC = 0.10           # reference only -- see the note above
 U_MAX_FLAT = 3.0                   # actually used (baseline value)
 ENFORCE_ACTION_LIMITS = False      # True -> per-channel +/-10% bounds
@@ -325,16 +352,25 @@ class BoundedPolicy(torch.nn.Module):
 # Conversions go via python lists: torch->numpy buffer sharing trips the
 # duplicate-numpy ABI mismatch present in this environment.
 _warm = None
+POLICY_KIND = _args.policy_kind or POLICY_KIND
+_warm_meta = None
 if _args.init_policy and os.path.exists(_args.init_policy):
     _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
-    centers_init = np.array(np.asarray(_warm["centers_init"]).tolist(), dtype=np.float64)
+    _warm_meta = _warm.get("policy_meta")
+    if _warm_meta and _warm_meta.get("kind") != POLICY_KIND:
+        raise RuntimeError(
+            f"warm start mismatch: checkpoint is '{_warm_meta['kind']}' but "
+            f"POLICY_KIND is '{POLICY_KIND}'. Architectures are not interchangeable.")
 
+centers_init = lengthscales_init = None
+if POLICY_KIND == "rbf" and _warm_meta is not None:
     # The standardizer is refitted on the UNION each iteration, so the same physical
     # state maps to a DIFFERENT z. The loaded weights describe a function of the OLD
-    # z, so the centres are remapped into the new z-space:
+    # z, so the centres are remapped:
     #     centres_new = (centres_old * sd_old + mu_old - mu_new) / sd_new
-    # This preserves the policy's behaviour in PHYSICAL units. Without it the warm
-    # start would silently describe a different function.
+    # preserving the policy's behaviour in PHYSICAL units.
+    centers_init = np.array(np.asarray(_warm_meta["centers_init"]).tolist(),
+                            dtype=np.float64)
     _mu_old = np.array(np.asarray(_warm["std_obs_mu"]).tolist(), dtype=np.float64)
     _sd_old = np.array(np.asarray(_warm["std_obs_sd"]).tolist(), dtype=np.float64)
     _mu_new = np.array(np.asarray(stats["std_obs_mu"]).tolist(), dtype=np.float64)
@@ -342,67 +378,70 @@ if _args.init_policy and os.path.exists(_args.init_policy):
     _shift = float(np.abs((_mu_old - _mu_new) / _sd_new).max())
     _scale = float(np.abs(_sd_old / _sd_new - 1.0).max())
     centers_init = (centers_init * _sd_old + _mu_old - _mu_new) / _sd_new
-
-    _ls_old = np.array(np.asarray(_warm.get("lengthscales_init",
-                                            np.ones(STATE_DIM))).tolist(),
-                       dtype=np.float64)
-    lengthscales_init = _ls_old * _sd_old / _sd_new
-
-    print(f"[loop] warm-starting policy from {_args.init_policy}")
-    print(f"[loop] z-space drift since that policy: max mean-shift={_shift:.3f} sigma, "
-          f"max scale change={100*_scale:.1f}%")
-    print(f"[loop] centres and lengthscales remapped into the new z-space")
+    lengthscales_init = (np.array(np.asarray(_warm_meta["lengthscales_init"]).tolist(),
+                                  dtype=np.float64) * _sd_old / _sd_new)
+    print(f"[loop] z-space drift: max mean-shift={_shift:.3f} sigma, "
+          f"max scale change={100*_scale:.1f}%  -> centres remapped")
     if _scale > 0.5:
-        print("[loop] WARNING: >50% scale change -- the ACTION space rescaled too, and "
-              "the output squashing makes that non-invertible. The warm start is "
+        print("[loop] WARNING: >50% scale change; the ACTION space rescaled too and "
+              "the output squashing makes that non-invertible -- warm start is "
               "approximate on the action side.")
-else:
-    _lo = np.array([float(x) * CENTER_RANGE_PAD for x in s_lo.tolist()], dtype=np.float64)
-    _hi = np.array([float(x) * CENTER_RANGE_PAD for x in s_hi.tolist()], dtype=np.float64)
-    _span = _hi - _lo
-    centers_init = np.array(
-        [[_lo[j] + _span[j] * float(np.random.rand()) for j in range(STATE_DIM)]
-         for _ in range(NUM_BASIS)], dtype=np.float64)
-    lengthscales_init = np.array([float(v) / 4.0 for v in _span], dtype=np.float64)
+elif _warm_meta is not None:
+    # MLP/KAN operate on z directly; their weights are NOT remappable when the
+    # z-space shifts. The warm start is therefore approximate for these variants.
+    print(f"[loop] warm start for '{POLICY_KIND}': weights loaded as-is. Unlike the "
+          f"rbf centres, these cannot be remapped when the standardizer refits, so "
+          f"the transfer is approximate.")
 
-_u_max_base = 1.0 if ENFORCE_ACTION_LIMITS else U_MAX_FLAT
-base_policy = Policy.Sum_of_gaussians(
-    state_dim=STATE_DIM, input_dim=INPUT_DIM, num_basis=NUM_BASIS,
-    u_max=_u_max_base,
-    flg_squash=True, flg_drop=True,
-    centers_init=centers_init,
+policy, policy_meta = build_policy(
+    POLICY_KIND, STATE_DIM, INPUT_DIM,
+    u_max=(1.0 if ENFORCE_ACTION_LIMITS else U_MAX_FLAT),
+    dtype=dtype, device=device, rng=np.random.default_rng(0),
+    num_basis=NUM_BASIS, centers_init=centers_init,
     lengthscales_init=lengthscales_init,
-    weight_init=0.1 * np.random.randn(INPUT_DIM, NUM_BASIS),
-    dtype=dtype, device=device)
-policy = BoundedPolicy(base_policy, U_MAX_Z) if ENFORCE_ACTION_LIMITS else base_policy
+    s_lo=s_lo.tolist(), s_hi=s_hi.tolist(), center_range_pad=CENTER_RANGE_PAD,
+    mlp_hidden=MLP_HIDDEN,
+    kan_hidden=KAN_HIDDEN, kan_grid=KAN_GRID, kan_range=KAN_RANGE)
+
+if ENFORCE_ACTION_LIMITS:
+    policy = BoundedPolicy(policy, U_MAX_Z)
+
 if _warm is not None:
     policy.load_state_dict(_warm["policy_state_dict"])
-    print(f"[loop] loaded policy weights (previous final W2 = "
-          f"{_warm.get('hist', [float('nan')])[-1]:.4f})")
+    _h = _warm.get("hist", [float("nan")])
+    print(f"[loop] warm-started from {_args.init_policy} (previous final W2 = {_h[-1]:.4f})")
 
-print(f"\npolicy {type(base_policy).__name__}"
-      f"{' (per-channel bounded)' if ENFORCE_ACTION_LIMITS else f' (flat u_max={U_MAX_FLAT})'}: "
-      f"in={STATE_DIM} out={INPUT_DIM} "
-      f"params={sum(p.numel() for p in policy.parameters() if p.requires_grad)}")
-print(f"  centres span per-dim [{centers_init.min():.2f}, {centers_init.max():.2f}] "
-      f"(data [{s_lo.min().item():.2f}, {s_hi.max().item():.2f}])")
-print(f"  lengthscales: {np.round(lengthscales_init, 3)}")
+print(f"\npolicy '{POLICY_KIND}': in={STATE_DIM} out={INPUT_DIM} "
+      f"params={policy_meta['n_params']}"
+      f"{'  (per-channel bounded)' if ENFORCE_ACTION_LIMITS else f'  u_max={U_MAX_FLAT}'}")
 print(f"EPISODIC: T={STEPS_PER_EXPERT} steps ({EXPERT_DT} h) per window, "
       f"{WINDOWS_PER_ITER} windows/iter x {N_ITERS} iters = "
       f"{WINDOWS_PER_ITER*N_ITERS} policy updates")
 print(f"objective: E_s(E_a|s(W2))  states={NUM_STATES} x actions={K_ACTIONS} "
       f"= {NUM_PARTICLES} particles;  means EXCLUDED (cross_dim)")
-print(f"world models: {'PHASE-SPECIFIC (3)' if USE_PHASE_MODELS else 'SINGLE (all data)'}")
+print(f"world models: {'PHASE-SPECIFIC (3)' if USE_PHASE_MODELS else 'SINGLE'}")
 
-# sanity: replicas of one state must get DIFFERENT actions or E_{a|s} is degenerate
+# E_{a|s} is only meaningful if replicas of one state draw DIFFERENT actions
 with torch.no_grad():
     _st = POOLS[sorted(POOLS)[0]][:1].expand(K_ACTIONS, -1).contiguous()
     _sp = policy(states=_st, t=0, p_dropout=P_DROPOUT).std(0).mean().item()
 print(f"action spread across {K_ACTIONS} replicas of ONE state: {_sp:.3e}"
       f"{'   <-- WARNING: ~0 means E_a|s is degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-if _args.iters:
-    N_ITERS = _args.iters
+# Action bounds in Z-SCORED units -- the space the policy outputs in.
+#   physical -> smpl min-max -> z-score   (same chain as explore_with_policy.py)
+_amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
+_amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
+_mu_a = np.asarray(stats["std_act_mu"], dtype=np.float64)
+_sd_a = np.asarray(stats["std_act_sd"], dtype=np.float64)
+CC_LO = torch.tensor((_amin - _mu_a) / _sd_a, dtype=dtype, device=device)
+CC_HI = torch.tensor((_amax - _mu_a) / _sd_a, dtype=dtype, device=device)
+if USE_CHANCE_CONSTRAINT:
+    print(f"\nchance constraints ON  (Tan et al. Eq. 9): eps={CC_EPS} "
+          f"-> Phi^-1={phi_inv(CC_EPS):.4f}, alpha={CC_ALPHA}, bounds='{CC_BOUNDS}'")
+    for i, nm in enumerate(pdata.ACT_NAMES):
+        print(f"    {nm:14s} z-box [{CC_LO[i].item():7.3f}, {CC_HI[i].item():7.3f}]")
+
 optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
@@ -412,6 +451,8 @@ rng = np.random.default_rng(0)
 # =====================================================================================
 _acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
 _current_eig = None
+_acc_actions = []          # actions seen in the current window (for the chance constraint)
+_cc_log = []               # per-window penalty, for logging
 
 
 def window_loss(t, s, a, mu, cov, s_next):
@@ -421,6 +462,7 @@ def window_loss(t, s, a, mu, cov, s_next):
                 "s_start": s, "t_start": t}
     _acc["mean"] = _acc["mean"] + (mu - s)
     _acc["var"] = _acc["var"] + cov
+    _acc_actions.append(a)
 
     if (t - _acc["t_start"] + 1) < STEPS_PER_EXPERT:
         return torch.zeros((), dtype=mu.dtype, device=mu.device)
@@ -429,7 +471,24 @@ def window_loss(t, s, a, mu, cov, s_next):
     _acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
 
     d_all = w2_cross_dim_torch(var_1h, _current_eig)               # (P,)
-    return d_all.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()    # E_a|s then E_s
+    w2 = d_all.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+
+    # --- soft chance constraint on the ACTIONS taken in this window (Eq. 9) ---
+    # sigma is the spread across the K dropout samples drawn for the same state, i.e.
+    # the policy's own uncertainty -- the analogue of the GP predictive variance the
+    # paper backs off from.
+    if USE_CHANCE_CONSTRAINT and _acc_actions:
+        a_all = torch.cat(_acc_actions, dim=0)                     # (STEPS*P, da)
+        n_rep = a_all.shape[0] // (NUM_STATES * K_ACTIONS)
+        pen = action_chance_penalty(a_all, CC_LO, CC_HI,
+                                    num_states=NUM_STATES * n_rep,
+                                    k_actions=K_ACTIONS,
+                                    eps=CC_EPS, alpha=CC_ALPHA)
+        _cc_log.append(float(pen.detach()))
+        _acc_actions.clear()
+        return w2 + pen
+    _acc_actions.clear()
+    return w2
 
 
 # =====================================================================================
@@ -481,6 +540,10 @@ for it in range(N_ITERS):
           f"(data {s_hi.max().item():.2f})   |a|max={A.max():.4f}"
           f"{f' (limit {U_MAX_Z.max():.4f})' if ENFORCE_ACTION_LIMITS else ''}",
           flush=True)
+    if _cc_log:
+        _cc = np.array(_cc_log); _cc_log.clear()
+        print(f"          chance penalty: mean={_cc.mean():.4e} max={_cc.max():.4e}  "
+              f"windows with violation={int((_cc > 0).sum())}/{len(_cc)}", flush=True)
     print("          per-phase W2: " + "  ".join(
         f"ph{p}={np.mean(v):.4e}(n={len(v)})" for p, v in sorted(per_phase.items()) if v),
         flush=True)
@@ -488,7 +551,8 @@ for it in range(N_ITERS):
     if it % 5 == 0:
         torch.save({"policy_state_dict": policy.state_dict(), "iter": it,
                     "loss": float(L.mean()), "hist": hist,
-                    "u_max_z": U_MAX_Z, "centers_init": centers_init,
+                    "u_max_z": U_MAX_Z, "policy_meta": policy_meta,
+                    "policy_kind": POLICY_KIND,
                     "use_phase_models": USE_PHASE_MODELS},
                    os.path.join(SAVE_DIR, f"cdil_policy_it{it}.pt"))
 
@@ -496,8 +560,8 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 _tag = "phasemodels" if USE_PHASE_MODELS else "allmodel"
 _out = _args.out or os.path.join(SAVE_DIR, f"cdil_policy_{_tag}.pt")
 torch.save({"policy_state_dict": policy.state_dict(), "hist": hist,
-            "u_max_z": U_MAX_Z, "centers_init": centers_init,
-            "lengthscales_init": lengthscales_init,
+            "u_max_z": U_MAX_Z, "policy_meta": policy_meta,
+            "policy_kind": POLICY_KIND,
             "use_phase_models": USE_PHASE_MODELS,
             "model_paths": _paths,
             "std_act_mu": stats["std_act_mu"], "std_act_sd": stats["std_act_sd"],

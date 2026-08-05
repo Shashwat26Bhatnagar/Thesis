@@ -1,0 +1,39 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[policy] /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_bnd_kan_iter1.pt
+[policy] kind=kan state_dim=8 u_max=3.0 | final training W2 = 1.0650
+[action] recipe setpoint (physical): [204.526  80.89   24.834  61.723   0.976 159.997]
+[action] clipping to +/-10%: ON
+
+collecting 10 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd_kan
+    dropped terminal error_reward row at t=229.8 h
+  episode 0: 1149 steps, final t=229.6 h, total yield=3197.9525  ->  bnd_kan_iter1_batch_0.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 1: 1149 steps, final t=229.6 h, total yield=3439.7671  ->  bnd_kan_iter1_batch_1.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 2: 1149 steps, final t=229.6 h, total yield=3475.4420  ->  bnd_kan_iter1_batch_2.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 3: 1149 steps, final t=229.6 h, total yield=3544.7452  ->  bnd_kan_iter1_batch_3.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 4: 1149 steps, final t=229.6 h, total yield=3638.4332  ->  bnd_kan_iter1_batch_4.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 5: 1149 steps, final t=229.6 h, total yield=3173.9455  ->  bnd_kan_iter1_batch_5.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 6: 1149 steps, final t=229.6 h, total yield=3347.3849  ->  bnd_kan_iter1_batch_6.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 7: 1149 steps, final t=229.6 h, total yield=3556.3935  ->  bnd_kan_iter1_batch_7.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 8: 1149 steps, final t=229.6 h, total yield=3684.4360  ->  bnd_kan_iter1_batch_8.csv
+    dropped terminal error_reward row at t=229.8 h
+  episode 9: 1149 steps, final t=229.6 h, total yield=3293.2279  ->  bnd_kan_iter1_batch_9.csv
+
+summary:
+  episodes written: 10/10
+  total yield  mean=3435.1728  min=3173.9455  max=3684.4360
+  yield/step   mean=2.9897  min=2.7624  max=3.2066   (SMPL paper baseline: 3.3071)
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd_kan
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.

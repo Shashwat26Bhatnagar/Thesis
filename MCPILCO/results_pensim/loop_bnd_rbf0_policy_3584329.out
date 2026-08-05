@@ -1,0 +1,134 @@
+EXACT GP INFERENCE SELECTED
+world models loaded:
+  phase -1: [0,inf) h  train pts=800  epochs=2001  select=pivchol
+  -> all models share one z-space (verified)
+combined training state range: [-15.77, 32.69] (z-units)
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1.0..150.0 h) ...
+  done. example eigenvalues @75h: [0.00018914 0.00684495 0.04047211]
+expert windows per world model: phase -1: 150
+
+per-channel action limits (+/-10% of setpoint):
+    discharge      setpoint=   200.059   u_max_z=0.0234
+    sugar          setpoint=    77.410   u_max_z=0.3228
+    soilbean       setpoint=    25.803   u_max_z=0.5242
+    aeration       setpoint=    63.991   u_max_z=0.6396
+    backpressure   setpoint=     0.939   u_max_z=0.7269
+    waterinj       setpoint=   154.953   u_max_z=0.1024
+  (previous flat u_max was 3.0 -> [127.9   9.3   5.7   4.7   4.1  29.3]x too wide per channel)
+
+policy 'rbf': in=8 out=6 params=2808  u_max=3.0
+EPISODIC: T=5 steps (1.0 h) per window, 150 windows/iter x 20 iters = 3000 policy updates
+objective: E_s(E_a|s(W2))  states=100 x actions=5 = 500 particles;  means EXCLUDED (cross_dim)
+world models: SINGLE
+action spread across 5 replicas of ONE state: 5.278e-04   (ok)
+
+chance constraints ON  (Tan et al. Eq. 9): eps=0.95 -> Phi^-1=1.6449, alpha=1000.0, bounds='env'
+    discharge      z-box [ -0.234,   4.571]
+    sugar          z-box [ -2.936,   3.069]
+    soilbean       z-box [ -0.976,   2.071]
+    aeration       z-box [ -3.497,   1.200]
+    backpressure   z-box [ -3.397,   2.024]
+    waterinj       z-box [ -1.024,   2.346]
+iter   0  W2 mean=6.540840e-01 min=4.5608e-01 max=8.5042e-01
+          |grad| med=3.113e-01 max=4.126e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=44.45 max=69.37 (data 32.69)   |a|max=1.8253
+          chance penalty: mean=8.7521e-03 max=1.0837e-01  windows with violation=85/150
+          per-phase W2: ph-1=6.5408e-01(n=150)
+iter   1  W2 mean=5.819886e-01 min=4.4398e-01 max=7.7221e-01
+          |grad| med=5.513e-01 max=3.942e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=45.12 max=81.03 (data 32.69)   |a|max=2.5870
+          chance penalty: mean=1.3152e-02 max=1.0126e-01  windows with violation=111/150
+          per-phase W2: ph-1=5.8199e-01(n=150)
+iter   2  W2 mean=5.463784e-01 min=4.0957e-01 max=8.4266e-01
+          |grad| med=6.449e-01 max=4.227e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=44.78 max=67.29 (data 32.69)   |a|max=2.8921
+          chance penalty: mean=1.3201e-02 max=2.2126e-01  windows with violation=118/150
+          per-phase W2: ph-1=5.4638e-01(n=150)
+iter   3  W2 mean=5.108130e-01 min=3.7762e-01 max=6.7299e-01
+          |grad| med=7.596e-01 max=3.246e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=43.01 max=69.42 (data 32.69)   |a|max=2.9168
+          chance penalty: mean=1.2808e-02 max=1.0446e-01  windows with violation=129/150
+          per-phase W2: ph-1=5.1081e-01(n=150)
+iter   4  W2 mean=5.085304e-01 min=3.6215e-01 max=6.9305e-01
+          |grad| med=7.487e-01 max=1.102e+01  DEAD(<1e-12)=0/150  CLIPPED=1/150
+          |s|max med=42.33 max=69.47 (data 32.69)   |a|max=2.7449
+          chance penalty: mean=1.2529e-02 max=1.2306e-01  windows with violation=108/150
+          per-phase W2: ph-1=5.0853e-01(n=150)
+iter   5  W2 mean=5.110004e-01 min=3.5071e-01 max=6.9616e-01
+          |grad| med=7.555e-01 max=6.149e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.27 max=70.67 (data 32.69)   |a|max=2.7028
+          chance penalty: mean=1.2124e-02 max=1.4596e-01  windows with violation=110/150
+          per-phase W2: ph-1=5.1100e-01(n=150)
+iter   6  W2 mean=4.787421e-01 min=3.3762e-01 max=6.1656e-01
+          |grad| med=7.505e-01 max=7.756e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.45 max=71.70 (data 32.69)   |a|max=2.7961
+          chance penalty: mean=1.1384e-02 max=1.2614e-01  windows with violation=126/150
+          per-phase W2: ph-1=4.7874e-01(n=150)
+iter   7  W2 mean=4.795296e-01 min=3.6605e-01 max=6.6286e-01
+          |grad| med=8.261e-01 max=6.107e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.90 max=70.86 (data 32.69)   |a|max=2.6538
+          chance penalty: mean=1.2912e-02 max=1.5376e-01  windows with violation=117/150
+          per-phase W2: ph-1=4.7953e-01(n=150)
+iter   8  W2 mean=4.652131e-01 min=3.3182e-01 max=6.2161e-01
+          |grad| med=8.805e-01 max=4.202e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.49 max=63.23 (data 32.69)   |a|max=2.7622
+          chance penalty: mean=1.3397e-02 max=9.6190e-02  windows with violation=136/150
+          per-phase W2: ph-1=4.6521e-01(n=150)
+iter   9  W2 mean=4.541468e-01 min=3.3219e-01 max=5.8732e-01
+          |grad| med=9.314e-01 max=4.499e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.13 max=64.73 (data 32.69)   |a|max=2.7150
+          chance penalty: mean=1.4468e-02 max=9.6910e-02  windows with violation=128/150
+          per-phase W2: ph-1=4.5415e-01(n=150)
+iter  10  W2 mean=4.418374e-01 min=3.1461e-01 max=5.9165e-01
+          |grad| med=8.127e-01 max=3.645e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=41.93 max=67.93 (data 32.69)   |a|max=2.7625
+          chance penalty: mean=1.2199e-02 max=8.5070e-02  windows with violation=132/150
+          per-phase W2: ph-1=4.4184e-01(n=150)
+iter  11  W2 mean=4.591588e-01 min=3.0594e-01 max=6.3288e-01
+          |grad| med=8.478e-01 max=9.398e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=43.11 max=61.53 (data 32.69)   |a|max=2.7161
+          chance penalty: mean=1.2936e-02 max=1.2954e-01  windows with violation=125/150
+          per-phase W2: ph-1=4.5916e-01(n=150)
+iter  12  W2 mean=4.429093e-01 min=2.8128e-01 max=5.8871e-01
+          |grad| med=8.543e-01 max=7.162e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.83 max=68.53 (data 32.69)   |a|max=2.8629
+          chance penalty: mean=1.3129e-02 max=1.0730e-01  windows with violation=134/150
+          per-phase W2: ph-1=4.4291e-01(n=150)
+iter  13  W2 mean=4.501791e-01 min=2.9521e-01 max=6.8400e-01
+          |grad| med=9.038e-01 max=4.817e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=41.45 max=66.54 (data 32.69)   |a|max=2.9463
+          chance penalty: mean=1.5945e-02 max=1.7291e-01  windows with violation=119/150
+          per-phase W2: ph-1=4.5018e-01(n=150)
+iter  14  W2 mean=4.347451e-01 min=3.0717e-01 max=5.8471e-01
+          |grad| med=8.845e-01 max=6.396e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=42.53 max=64.77 (data 32.69)   |a|max=2.7830
+          chance penalty: mean=1.3544e-02 max=9.5703e-02  windows with violation=134/150
+          per-phase W2: ph-1=4.3475e-01(n=150)
+iter  15  W2 mean=4.260526e-01 min=2.9536e-01 max=5.5807e-01
+          |grad| med=8.794e-01 max=4.976e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=40.83 max=68.22 (data 32.69)   |a|max=2.8148
+          chance penalty: mean=1.2633e-02 max=7.6786e-02  windows with violation=132/150
+          per-phase W2: ph-1=4.2605e-01(n=150)
+iter  16  W2 mean=4.205168e-01 min=3.1360e-01 max=5.5673e-01
+          |grad| med=8.985e-01 max=4.599e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=41.80 max=61.36 (data 32.69)   |a|max=2.7778
+          chance penalty: mean=1.3263e-02 max=1.0757e-01  windows with violation=133/150
+          per-phase W2: ph-1=4.2052e-01(n=150)
+iter  17  W2 mean=4.281261e-01 min=3.1663e-01 max=6.0445e-01
+          |grad| med=9.838e-01 max=1.089e+01  DEAD(<1e-12)=0/150  CLIPPED=2/150
+          |s|max med=41.65 max=72.43 (data 32.69)   |a|max=2.8676
+          chance penalty: mean=1.5186e-02 max=1.7324e-01  windows with violation=127/150
+          per-phase W2: ph-1=4.2813e-01(n=150)
+iter  18  W2 mean=4.161691e-01 min=2.6991e-01 max=5.4287e-01
+          |grad| med=8.429e-01 max=4.249e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=41.02 max=67.45 (data 32.69)   |a|max=2.8650
+          chance penalty: mean=1.2591e-02 max=8.3102e-02  windows with violation=140/150
+          per-phase W2: ph-1=4.1617e-01(n=150)
+iter  19  W2 mean=4.123910e-01 min=2.9048e-01 max=5.7109e-01
+          |grad| med=8.738e-01 max=3.379e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=40.81 max=68.98 (data 32.69)   |a|max=2.8552
+          chance penalty: mean=1.2631e-02 max=6.5401e-02  windows with violation=133/150
+          per-phase W2: ph-1=4.1239e-01(n=150)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_bnd_rbf_iter0.pt
