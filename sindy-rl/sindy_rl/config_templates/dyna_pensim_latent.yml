@@ -1,0 +1,158 @@
+# --------------------------------------------------------
+# SINDy-RL on PenSim in the LEARNED LATENT STATE SPACE.
+#
+# The only differences from dyna_pensim.yml are:
+#   * real_env class -> PenSimLatentEnv (projects observations)
+#   * obs_dim / obs_bounds -> latent dimension and empirical latent bounds
+#   * feature_library n_state -> latent dimension
+#   * off_policy buffer -> the transformed (latent) pickle
+#
+# The dynamics model, ensemble settings, optimiser and policy algorithm are
+# untouched: they simply see a lower-dimensional state.
+#
+# BEFORE RUNNING, replace every value marked <<FILL>> using the output of
+#   python -u latent_repr/latent_transform_buffer.py ...
+# which prints obs_bounds and the latent dimension. They cannot be guessed --
+# the latent scale is entirely determined by the learned W.
+# --------------------------------------------------------
+
+exp_dir: pensim_sindy_latent
+n_train_iter: 2000
+dyn_fit_freq: 200
+fcnet_hiddens: [64, 64]
+use_pbt: False
+
+real_env:
+  class: PenSimLatentEnv
+  config: &env_cfg
+    dataset_folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_sindy
+    setpoint_csv: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_sindy/random_batch_0.csv
+    encoder_checkpoint: /home/s2892016/Thesis/sindy-rl/runs/latent_d4/best.pt
+    latent_clip: True
+    latent_bounds: &latent_bounds
+      - [-13.4707, 13.5584]
+      - [-5.1178, 10.7763]
+      - [-8.9037, 10.1913]
+      - [-11.5205, 12.2105]
+    action_band: 0.1
+    max_episode_steps: 1150
+    normalize: True        # keep True: the encoder consumes the [-1,1] repr
+    include_time: False
+    obs_clip: 2.0
+
+drl:
+  class: PPO
+  config:
+    training:
+      gamma: 0.999
+      lr: 3.0e-4
+      lambda_: 0.95
+      vf_loss_coeff: 0.5
+      vf_clip_param: 10.0     # raised: PenSim episode returns reach ~3700
+      clip_param: 0.2
+      grad_clip: 0.5
+      train_batch_size: 4600
+    environment:
+      env:
+      env_config:
+        init_real_on_start: False
+        reset_from_buffer: True
+        max_episode_steps: 1150
+        real_env_class: PenSimLatentEnv
+        real_env_config: *env_cfg
+        ensemble_modes:
+          dyn: median
+          rew: median
+        init_weights: True
+        act_dim: 6
+        obs_dim: 4                      # <<FILL>> = latent_dim
+        act_bounds:
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+        obs_bounds: *latent_bounds      # same bounds as the real env
+    framework: torch
+    evaluation:
+      evaluation_interval: 10
+      evaluation_duration: 3
+      evaluation_duration_unit: "episodes"
+      always_attach_evaluation_results: True
+
+# Produced by latent_transform_buffer.py from data/pensim_offpi.pkl
+off_policy_buffer:
+  config:
+    max_traj:
+    max_samples:
+  init:
+    type: file
+    kwargs:
+      fname: /home/s2892016/Thesis/sindy-rl/data/pensim_offpi_latent_d4.pkl
+
+on_policy_buffer:
+  config:
+    max_traj:
+    max_samples: 23000
+  collect:
+    n_steps: 1150
+    n_steps_reset: 1150
+
+dynamics_model:
+  class: EnsembleSINDyDynamicsModel
+  config:
+    'dt': 1
+    'discrete': True
+    'optimizer':
+      'base_optimizer':
+        'name': 'STLSQ'
+        'kwargs':
+          'alpha': 1.0e-5
+          'threshold': 1.0e-4      # lower than the 8-D config: latent
+                                   # coordinates have a different scale, so
+                                   # the old threshold may zero real terms
+      'ensemble':
+        'bagging': True
+        'library_ensemble': True
+        'n_models': 20
+    'feature_library':
+      name: affine
+      kwargs:
+        poly_deg: 2
+        n_state: 4                 # <<FILL>> = latent_dim
+        n_control: 6
+        poly_int: True
+        tensor: False
+
+rew_model:
+  class: EnsembleSparseRewardModel
+  config:
+    'use_control': True
+    'optimizer':
+        'base_optimizer':
+            'name': 'STLSQ'
+            'kwargs':
+                'alpha': 1.0e-5
+                'threshold': 1.0e-4
+        'ensemble':
+            'bagging': True
+            'library_ensemble': True
+            'n_models': 20
+    'feature_library':
+        name: PolynomialLibrary
+        kwargs:
+            degree: 2
+            include_bias: True
+            include_interaction: True
+
+ray_config:
+    run_config:
+        name: "dyna_pensim_latent_d4"
+        stop:
+            num_env_steps_sampled: 2.0e+6
+        log_to_file: True
+        verbose: 2
+    tune_config:
+        num_samples: 4
+    checkpoint_freq: 10

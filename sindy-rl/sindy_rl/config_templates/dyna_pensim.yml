@@ -1,0 +1,154 @@
+# --------------------------------------------------------
+# SINDy-RL on the SMPL PenSim (penicillin fermentation) benchmark.
+# For use with `pbt_dyna.py`.
+#
+# Scale note: one batch is 1150 steps at 0.2h. The real env is cheap
+# relative to the fluids cases, so `dyn_fit_freq` can be low.
+# --------------------------------------------------------
+
+exp_dir: pensim_sindy
+n_train_iter: 2
+dyn_fit_freq: 1
+fcnet_hiddens: [64, 64]
+use_pbt: False
+
+real_env:
+  class: PenSimGymEnv
+  config:
+    dataset_folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_sindy
+    setpoint_csv: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_sindy/random_batch_0.csv
+    action_band: 0.1
+    max_episode_steps: 1150
+    normalize: True
+    include_time: False
+    obs_clip: 2.0
+
+drl:
+  class: PPO
+  config:
+    training:
+      gamma: 0.999          # 1150-step episode, terminal-ish yield accumulation
+      lr: 3.0e-4
+      lambda_: 0.95
+      vf_loss_coeff: 0.5
+      vf_clip_param: 0.2
+      clip_param: 0.2
+      grad_clip: 0.5
+      train_batch_size: 4600
+    environment:
+      env:
+      env_config:
+        init_real_on_start: False
+        reset_from_buffer: True
+        max_episode_steps: 1150
+        real_env_class: PenSimGymEnv
+        real_env_config:
+          dataset_folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_sindy
+          setpoint_csv: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_sindy/random_batch_0.csv
+          action_band: 0.1
+          max_episode_steps: 1150
+          normalize: True
+          include_time: False
+          obs_clip: 2.0
+        ensemble_modes:
+          dyn: median
+          rew: median
+        init_weights: True
+        act_dim: 6
+        obs_dim: 8
+        act_bounds:
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+          - [-1.0, 1.0]
+        obs_bounds:
+          - [-2.0, 2.0]
+          - [-2.0, 2.0]
+          - [-2.0, 2.0]
+          - [-2.0, 2.0]
+          - [-2.0, 2.0]
+          - [-2.0, 2.0]
+          - [-2.0, 2.0]
+          - [-2.0, 2.0]
+    framework: torch
+    evaluation:
+      evaluation_interval: 10
+      evaluation_duration: 3
+      evaluation_duration_unit: "episodes"
+      always_attach_evaluation_results: True
+
+# Seeded from the 12 shipped batches via scripts/pensim_offpolicy_data.py
+off_policy_buffer:
+  config:
+    max_traj:
+    max_samples:
+  init:
+    type: file
+    kwargs:
+      fname: /home/s2892016/Thesis/sindy-rl/data/pensim_offpi.pkl
+
+on_policy_buffer:
+  config:
+    max_traj:
+    max_samples: 23000       # ~20 batches
+  collect:
+    n_steps: 1150            # one batch of fresh on-policy data per refit
+    n_steps_reset: 1150
+
+dynamics_model:
+  class: EnsembleSINDyDynamicsModel
+  config:
+    'dt': 1
+    'discrete': True
+    'optimizer':
+      'base_optimizer':
+        'name': 'STLSQ'
+        'kwargs':
+          'alpha': 1.0e-5
+          'threshold': 1.0e-3
+      'ensemble':
+        'bagging': True
+        'library_ensemble': True
+        'n_models': 20
+    'feature_library':
+      name: affine
+      kwargs:
+        poly_deg: 2
+        n_state: 8
+        n_control: 6
+        poly_int: True
+        tensor: False
+
+rew_model:
+  class: EnsembleSparseRewardModel
+  config:
+    'use_control': True
+    'optimizer':
+        'base_optimizer':
+            'name': 'STLSQ'
+            'kwargs':
+                'alpha': 1.0e-5
+                'threshold': 1.0e-4
+        'ensemble':
+            'bagging': True
+            'library_ensemble': True
+            'n_models': 20
+    'feature_library':
+        name: PolynomialLibrary
+        kwargs:
+            degree: 2
+            include_bias: True
+            include_interaction: True
+
+ray_config:
+    run_config:
+        name: "dyna_pensim_refit=10_collect=1batch"
+        stop:
+            num_env_steps_sampled: 2.0e+6
+        log_to_file: True
+        verbose: 2
+    tune_config:
+        num_samples: 1
+    checkpoint_freq: 10

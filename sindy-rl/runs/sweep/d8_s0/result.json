@@ -1,0 +1,40 @@
+{
+  "latent_dim": 8,
+  "best_epoch": 100,
+  "best_val_loss": 0.05977947780619497,
+  "final_val_loss": 0.05977947780619497,
+  "baseline_val_loss": 0.9425841569900513,
+  "baseline_train_loss": 1.0,
+  "beats_baseline": true,
+  "mae_physical": 0.23735520274696728,
+  "rmse_physical": 0.3461606286315245,
+  "r2": 0.9365745417687305,
+  "effective_rank": 8,
+  "row_norms": [
+    1.147707223892212,
+    1.1161644458770752,
+    1.128278136253357,
+    1.1413474082946777,
+    1.1656590700149536,
+    1.2405736446380615,
+    1.1247308254241943,
+    1.160377025604248
+  ],
+  "elapsed_sec": 14.347458124160767,
+  "config": {
+    "latent_dim": 8,
+    "hidden_sizes": [
+      64,
+      64
+    ],
+    "activation": "relu",
+    "dropout": 0.0,
+    "bias": true,
+    "init": "orthogonal",
+    "reward_mode": "step",
+    "lr": 0.001,
+    "batch_size": 256,
+    "epochs": 100,
+    "seed": 0
+  }
+}
