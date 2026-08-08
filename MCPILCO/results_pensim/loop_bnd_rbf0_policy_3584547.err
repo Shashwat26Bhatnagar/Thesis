@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/cdil_policy_optimization.py", line 579, in <module>
+    out = gp_rollout(model=mdl, policy=policy, s0=s0, T=STEPS_PER_EXPERT,
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/gp_particle_rollout.py", line 121, in gp_rollout
+    loss_t = loss_fn(t=t, s=s, a=a, mu=mu_next, cov=cov_next, s_next=s_next)
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/cdil_policy_optimization.py", line 514, in window_loss
+    t_hours = step_to_hours(_acc["t_start"])       # this window's expert time
+NameError: name 'step_to_hours' is not defined

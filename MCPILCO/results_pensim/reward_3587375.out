@@ -1,0 +1,74 @@
+=== training REWARD model: tag=base  n_keep=800  n_epoch=2001  select=pivchol ===
+[reward] 12 CSVs -> 13800 transitions (0 error_reward rows dropped)
+[reward] yield/step  mean=3.2279  std=1.4090  min=0.0000  max=6.7462
+[pivchol] selected 800/13600 points  (residual trace 3.837e+03)
+train N=800   test N=200   gp input dim=14
+EXACT GP INFERENCE SELECTED
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100,
+        0.0100, 0.0100, 0.0100, 0.0100, 0.0100], dtype=torch.float64)
+- log_lambda_par : tensor([0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 521.1894741938899
+Time elapsed: 1.4531371593475342
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-1.9131], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 1.7903,  3.7259,  2.9643,  1.7011,  1.7548,  3.8698, -1.1988,  0.9698,
+         0.3007,  2.1490,  2.9137,  0.3909,  1.3525,  0.6632],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.0139], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -531.607063696702
+Time elapsed: 327.04212856292725
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-3.1616], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 0.9016,  5.4794,  2.9380,  1.7567,  5.5106,  5.7871, -1.3711,  0.3919,
+         0.5103,  2.3462,  3.0417,  0.5843,  1.0069,  0.3783],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.0429], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -600.1911981370995
+Time elapsed: 330.5197470188141
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-3.1616], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 0.9016,  5.4794,  2.9380,  1.7567,  5.5106,  5.7871, -1.3711,  0.3919,
+         0.5103,  2.3462,  3.0417,  0.5843,  1.0069,  0.3783],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.0429], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 0:  tensor(0.0003, dtype=torch.float64)
+
+Trained hyperparameters:
+GP 1:
+ parameters:
+- sigma_n_log : tensor([-3.1616], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 0.9016,  5.4794,  2.9380,  1.7567,  5.5106,  5.7871, -1.3711,  0.3919,
+         0.5103,  2.3462,  3.0417,  0.5843,  1.0069,  0.3783],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.0429], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+held-out reward prediction:
+  MSE (z)      1.244093e-01   predict-the-mean baseline 8.708790e-01
+  R^2          0.8571
+  RMSE (yield/step, physical units)  0.4970   (target std 1.4090)
+  mean predictive std  0.1530 (z)
+
+saved -> results_pensim/reward_model_base.pt

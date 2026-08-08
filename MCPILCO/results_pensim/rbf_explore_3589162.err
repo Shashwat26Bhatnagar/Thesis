@@ -1,0 +1,12 @@
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/mzutils/torch_funcs.py:97: FutureWarning: `torch.cuda.amp.custom_fwd(args...)` is deprecated. Please use `torch.amp.custom_fwd(args..., device_type='cuda')` instead.
+  def forward(ctx, input, min, max):
+/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/mzutils/torch_funcs.py:102: FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.
+  def backward(ctx, grad_output):
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/explore_with_policy.py", line 193, in <module>
+    centers_init = np.array(np.asarray(ck["centers_init"]).tolist(), dtype=np.float64)
+KeyError: 'centers_init'

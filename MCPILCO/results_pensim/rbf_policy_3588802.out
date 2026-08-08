@@ -1,0 +1,35 @@
+EXACT GP INFERENCE SELECTED
+world models loaded:
+  phase -1: [0,inf) h  train pts=800  epochs=2001  select=pivchol
+  -> all models share one z-space (verified)
+combined training state range: [-15.34, 32.24] (z-units)
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1.0..150.0 h) ...
+  done. example eigenvalues @75h: [0.00018914 0.00684495 0.04047211]
+expert windows per world model: phase -1: 150
+
+per-channel action limits (+/-10% of setpoint):
+    discharge      setpoint=   353.551   u_max_z=0.0343
+    sugar          setpoint=    74.711   u_max_z=0.2721
+    soilbean       setpoint=    26.072   u_max_z=0.6180
+    aeration       setpoint=    58.622   u_max_z=0.4787
+    backpressure   setpoint=     0.895   u_max_z=0.6383
+    waterinj       setpoint=   165.051   u_max_z=0.0967
+  (previous flat u_max was 3.0 -> [87.4 11.   4.9  6.3  4.7 31. ]x too wide per channel)
+
+policy 'rbf': in=8 out=6 params=2808  u_max=3.0
+EPISODIC: T=5 steps (1.0 h) per window, 150 windows/iter x 20 iters = 3000 policy updates
+objective: E_s(E_a|s(W2))  states=100 x actions=5 = 500 particles;  means EXCLUDED (cross_dim)
+world models: SINGLE
+action spread across 5 replicas of ONE state: 3.195e-03   (ok)
+
+chance constraints ON (Tan et al. Eq. 9): eps=0.95 -> Phi^-1=1.6449
+  static box   : ON  alpha=1000.0
+  recipe band  : off  alpha=1000.0  +/-10% of profile, floor 5% of span, smoothed +/-2.0 h
+    discharge      static z-box [ -0.343,   3.639]
+    sugar          static z-box [ -2.466,   2.779]
+    soilbean       static z-box [ -1.202,   2.353]
+    aeration       static z-box [ -2.419,   1.419]
+    backpressure   static z-box [ -2.817,   2.176]
+    waterinj       static z-box [ -0.967,   2.020]
+  state floor  : ON  alpha=1000.0  Wt >= 50000 physical = -1.419 z  (channel 6)

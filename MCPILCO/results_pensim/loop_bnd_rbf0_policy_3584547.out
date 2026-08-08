@@ -1,0 +1,34 @@
+EXACT GP INFERENCE SELECTED
+world models loaded:
+  phase -1: [0,inf) h  train pts=800  epochs=2001  select=pivchol
+  -> all models share one z-space (verified)
+combined training state range: [-9.85, 40.03] (z-units)
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1.0..150.0 h) ...
+  done. example eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+expert windows per world model: phase -1: 150
+
+per-channel action limits (+/-10% of setpoint):
+    discharge      setpoint=   191.149   u_max_z=0.0303
+    sugar          setpoint=    79.641   u_max_z=0.4376
+    soilbean       setpoint=    25.869   u_max_z=0.6639
+    aeration       setpoint=    64.226   u_max_z=0.8181
+    backpressure   setpoint=     0.964   u_max_z=0.9257
+    waterinj       setpoint=   154.435   u_max_z=0.1376
+  (previous flat u_max was 3.0 -> [98.9  6.9  4.5  3.7  3.2 21.8]x too wide per channel)
+
+policy 'rbf': in=8 out=6 params=2808  u_max=3.0
+EPISODIC: T=5 steps (1.0 h) per window, 150 windows/iter x 20 iters = 3000 policy updates
+objective: E_s(E_a|s(W2))  states=100 x actions=5 = 500 particles;  means EXCLUDED (cross_dim)
+world models: SINGLE
+action spread across 5 replicas of ONE state: 2.580e-04   (ok)
+
+chance constraints ON (Tan et al. Eq. 9): eps=0.95 -> Phi^-1=1.6449
+  static box   : ON  alpha=1000.0
+  recipe band  : ON  alpha=1000.0  +/-10% of profile, floor 5% of span, smoothed +/-2.0 h
+    discharge      static z-box [ -0.303,   6.201]   t=   10h [-0.303,  0.022]   t=  110h [ 5.408,  6.201]
+    sugar          static z-box [ -3.991,   3.921]   t=   10h [-3.991, -3.464]   t=  110h [ 1.360,  2.635]
+    soilbean       static z-box [ -1.250,   2.600]   t=   10h [-1.250, -0.428]   t=  110h [ 0.059,  1.548]
+    aeration       static z-box [ -4.487,   1.500]   t=   10h [-4.487, -3.977]   t=  110h [-1.303,  0.226]
+    backpressure   static z-box [ -4.456,   2.266]   t=   10h [-4.071, -2.919]   t=  110h [ 0.249,  2.266]
+    waterinj       static z-box [ -1.376,   3.169]   t=   10h [-1.376, -1.149]   t=  110h [ 2.634,  3.169]

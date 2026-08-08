@@ -1,0 +1,157 @@
+EXACT GP INFERENCE SELECTED
+world models loaded:
+  phase -1: [0,inf) h  train pts=800  epochs=2001  select=pivchol
+  -> all models share one z-space (verified)
+combined training state range: [-9.85, 40.03] (z-units)
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1.0..150.0 h) ...
+  done. example eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+expert windows per world model: phase -1: 150
+
+per-channel action limits (+/-10% of setpoint):
+    discharge      setpoint=   191.149   u_max_z=0.0303
+    sugar          setpoint=    79.641   u_max_z=0.4376
+    soilbean       setpoint=    25.869   u_max_z=0.6639
+    aeration       setpoint=    64.226   u_max_z=0.8181
+    backpressure   setpoint=     0.964   u_max_z=0.9257
+    waterinj       setpoint=   154.435   u_max_z=0.1376
+  (previous flat u_max was 3.0 -> [98.9  6.9  4.5  3.7  3.2 21.8]x too wide per channel)
+
+policy 'rbf': in=8 out=6 params=2808  u_max=3.0
+EPISODIC: T=5 steps (1.0 h) per window, 150 windows/iter x 20 iters = 3000 policy updates
+objective: E_s(E_a|s(W2))  states=100 x actions=5 = 500 particles;  means EXCLUDED (cross_dim)
+world models: SINGLE
+action spread across 5 replicas of ONE state: 2.580e-04   (ok)
+
+chance constraints ON (Tan et al. Eq. 9): eps=0.95 -> Phi^-1=1.6449
+  static box   : ON  alpha=1000.0
+  recipe band  : ON  alpha=1000.0  +/-10% of profile, floor 5% of span, smoothed +/-2.0 h
+    discharge      static z-box [ -0.303,   6.201]   t=   10h [-0.303,  0.022]   t=  110h [ 5.408,  6.201]
+    sugar          static z-box [ -3.991,   3.921]   t=   10h [-3.991, -3.464]   t=  110h [ 1.360,  2.635]
+    soilbean       static z-box [ -1.250,   2.600]   t=   10h [-1.250, -0.428]   t=  110h [ 0.059,  1.548]
+    aeration       static z-box [ -4.487,   1.500]   t=   10h [-4.487, -3.977]   t=  110h [-1.303,  0.226]
+    backpressure   static z-box [ -4.456,   2.266]   t=   10h [-4.071, -2.919]   t=  110h [ 0.249,  2.266]
+    waterinj       static z-box [ -1.376,   3.169]   t=   10h [-1.376, -1.149]   t=  110h [ 2.634,  3.169]
+  state floor  : ON  alpha=1000.0  Wt >= 50000 physical = -2.143 z  (channel 6)
+iter   0  W2 mean=1.520610e+03 min=3.1912e+02 max=2.0039e+03
+          |grad| med=2.797e+01 max=6.491e+02  DEAD(<1e-12)=0/150  CLIPPED=80/150
+          |s|max med=45.91 max=75.86 (data 40.03)   |a|max=3.0000
+          chance penalty: total=1.520e+03 static=1.435e+01 recipe=1.506e+03 state=0.000e+00
+          windows violating: static=69/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=1.5206e+03(n=150)
+iter   1  W2 mean=2.904538e+02 min=2.7741e+02 max=3.1709e+02
+          |grad| med=1.873e+02 max=8.306e+02  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=47.36 max=81.78 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.897e+02 static=4.604e+00 recipe=2.851e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.9045e+02(n=150)
+iter   2  W2 mean=2.845384e+02 min=2.7145e+02 max=3.1952e+02
+          |grad| med=4.886e+02 max=1.785e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=46.07 max=86.29 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.838e+02 static=6.251e+00 recipe=2.775e+02 state=0.000e+00
+          windows violating: static=143/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.8454e+02(n=150)
+iter   3  W2 mean=2.855195e+02 min=2.6948e+02 max=3.1766e+02
+          |grad| med=5.564e+02 max=1.142e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=46.36 max=72.95 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.847e+02 static=7.685e+00 recipe=2.771e+02 state=0.000e+00
+          windows violating: static=143/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.8552e+02(n=150)
+iter   4  W2 mean=2.716408e+02 min=2.6574e+02 max=2.7772e+02
+          |grad| med=4.688e+02 max=9.215e+02  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.42 max=76.70 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.709e+02 static=3.228e+00 recipe=2.677e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.7164e+02(n=150)
+iter   5  W2 mean=2.691840e+02 min=2.6423e+02 max=2.7786e+02
+          |grad| med=5.219e+02 max=9.939e+02  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.84 max=81.50 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.684e+02 static=3.436e+00 recipe=2.650e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6918e+02(n=150)
+iter   6  W2 mean=2.670680e+02 min=2.6234e+02 max=2.7545e+02
+          |grad| med=5.398e+02 max=1.043e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.63 max=67.01 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.663e+02 static=2.913e+00 recipe=2.634e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6707e+02(n=150)
+iter   7  W2 mean=2.659087e+02 min=2.6123e+02 max=2.7407e+02
+          |grad| med=5.634e+02 max=1.069e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.15 max=73.04 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.651e+02 static=2.844e+00 recipe=2.623e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6591e+02(n=150)
+iter   8  W2 mean=2.648823e+02 min=2.5994e+02 max=2.7477e+02
+          |grad| med=5.694e+02 max=1.212e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.69 max=79.75 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.641e+02 static=2.559e+00 recipe=2.616e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6488e+02(n=150)
+iter   9  W2 mean=2.642021e+02 min=2.5975e+02 max=2.7237e+02
+          |grad| med=5.979e+02 max=1.220e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=44.65 max=78.11 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.634e+02 static=2.690e+00 recipe=2.607e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6420e+02(n=150)
+iter  10  W2 mean=2.635486e+02 min=2.5964e+02 max=2.6955e+02
+          |grad| med=5.975e+02 max=1.135e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.77 max=78.84 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.628e+02 static=2.232e+00 recipe=2.606e+02 state=0.000e+00
+          windows violating: static=148/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6355e+02(n=150)
+iter  11  W2 mean=2.633474e+02 min=2.5892e+02 max=2.7274e+02
+          |grad| med=6.291e+02 max=1.249e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=47.07 max=68.24 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.626e+02 static=2.498e+00 recipe=2.601e+02 state=0.000e+00
+          windows violating: static=149/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6335e+02(n=150)
+iter  12  W2 mean=2.632839e+02 min=2.5863e+02 max=2.7389e+02
+          |grad| med=6.219e+02 max=1.344e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=46.37 max=76.10 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.625e+02 static=2.394e+00 recipe=2.601e+02 state=0.000e+00
+          windows violating: static=146/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6328e+02(n=150)
+iter  13  W2 mean=2.645764e+02 min=2.5786e+02 max=3.1630e+02
+          |grad| med=6.656e+02 max=2.318e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.89 max=71.64 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.638e+02 static=3.085e+00 recipe=2.607e+02 state=0.000e+00
+          windows violating: static=145/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6458e+02(n=150)
+iter  14  W2 mean=2.743950e+02 min=2.5786e+02 max=3.5761e+02
+          |grad| med=8.570e+02 max=1.960e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=47.84 max=79.10 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.736e+02 static=5.001e+00 recipe=2.686e+02 state=8.698e-04
+          windows violating: static=145/150 recipe=150/150 state=1/150
+          per-phase W2: ph-1=2.7440e+02(n=150)
+iter  15  W2 mean=2.642194e+02 min=2.5817e+02 max=2.7952e+02
+          |grad| med=5.639e+02 max=1.695e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=46.78 max=73.75 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.634e+02 static=2.429e+00 recipe=2.610e+02 state=0.000e+00
+          windows violating: static=149/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6422e+02(n=150)
+iter  16  W2 mean=2.646056e+02 min=2.5717e+02 max=3.6678e+02
+          |grad| med=3.530e+02 max=1.948e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=47.83 max=81.41 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.638e+02 static=2.625e+00 recipe=2.612e+02 state=0.000e+00
+          windows violating: static=148/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6461e+02(n=150)
+iter  17  W2 mean=2.585921e+02 min=2.5608e+02 max=2.6264e+02
+          |grad| med=4.824e+02 max=1.076e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=47.70 max=69.48 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.578e+02 static=1.145e+00 recipe=2.567e+02 state=0.000e+00
+          windows violating: static=150/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.5859e+02(n=150)
+iter  18  W2 mean=2.629952e+02 min=2.5581e+02 max=2.8473e+02
+          |grad| med=6.721e+02 max=1.671e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=46.40 max=76.33 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.622e+02 static=2.494e+00 recipe=2.597e+02 state=0.000e+00
+          windows violating: static=138/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6300e+02(n=150)
+iter  19  W2 mean=2.629173e+02 min=2.5689e+02 max=2.7563e+02
+          |grad| med=7.648e+02 max=1.646e+03  DEAD(<1e-12)=0/150  CLIPPED=150/150
+          |s|max med=45.88 max=68.25 (data 40.03)   |a|max=3.0000
+          chance penalty: total=2.621e+02 static=2.781e+00 recipe=2.594e+02 state=0.000e+00
+          windows violating: static=135/150 recipe=150/150 state=0/150
+          per-phase W2: ph-1=2.6292e+02(n=150)
+
+saved -> results_pensim/cdil_policy_bnd_rbf_iter0.pt

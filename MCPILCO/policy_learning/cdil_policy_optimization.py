@@ -61,6 +61,23 @@ POLICY:
     Covariance-spectrum matching needs the policy to move the state appreciably, and
     +/-10% does not. Flat u_max = 3.0 is therefore retained here; ACTION_LIMIT_FRAC
     below is kept for reference/experimentation.
+
+L_PHYSICS (added in this revision)
+    W2-on-states cannot see "cancellation" actions: flooding sugar feed + water
+    injection while draining hard can land on almost the same next state as the
+    baseline's near-zero action, because W2 only compares state distributions, not
+    the actions that produced them. This is the control-allocation null-space
+    problem (over-actuated system, redundant actuators producing the same net
+    effect) -- the standard fix is a minimum-effort norm on the action itself,
+    independent of whether it moved the state. Added below as
+        L_physics = PHYS_L2_FRAC * w2.detach() * mean(||a_t_z||^2)
+    added directly into the per-window loss, weighted as a FRACTION of that window's
+    own (detached) W2 value -- L_physics = PHYS_L2_FRAC * w2.detach() * mean(||a_z||^2)
+    -- so it auto-scales with training and is capped at PHYS_L2_FRAC of W2's
+    contribution by construction; physics only breaks ties among actions landing on
+    ~the same next state, it cannot out-compete W2 for search direction. This
+    REPLACES a previously-referenced CC_PHYS_C / CC_ALPHA_PHYS / CC_PHYS_TOL mass-
+    balance constraint that was never actually defined in this file (dead code).
 """
 import os
 import sys
@@ -92,7 +109,9 @@ import policy_learning.Policy as Policy
 from policy_learning.gp_particle_rollout import gp_rollout, sample_initial_particles
 from policy_learning.wasserstein_loss import w2_cross_dim_torch
 from policy_learning.policy_variants import build_policy
-from policy_learning.chance_constraints import action_chance_penalty, phi_inv
+from policy_learning.chance_constraints import (action_chance_penalty, phi_inv,
+                                                RecipeBounds, state_chance_penalty,
+                                                action_violation_multiplier)
 from dcfba_pen.flgfn.pf_query import PFQuery
 
 torch.set_num_threads(1)
@@ -136,6 +155,7 @@ K_ACTIONS = 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
 # --- episodic structure ---
+T_START_HOURS = 0.0            # rollout t=0 corresponds to this expert time
 HOURS_PER_STEP = 0.2
 EXPERT_DT = 1.0
 STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))     # = 5 = episode length T
@@ -158,8 +178,79 @@ EXPERT_COV_KEY = "cov_n"
 USE_CHANCE_CONSTRAINT = True
 CC_EPS = 0.95            # paper: 95% confidence  -> Phi^-1 = 1.6449
 CC_ALPHA = 1000.0        # paper: soft-constraint weight alpha = 1000
-CC_BOUNDS = "env"        # "env"    : physical action limits (loose, always valid)
-                         # "recipe" : +/-10% of the TIME-VARYING recipe profile (tight)
+# TWO constraints, both active:
+#   static : the physical action box (MIN_ACT/MAX_ACT). Rules out impossible actions.
+#   recipe : +/-10% of the TIME-VARYING recipe profile at this window's time. Rules out
+#            actions that are physically possible but far from the recipe at that point
+#            in the batch -- e.g. DISCHARGE_DEFAULT_PROFILE is 0 until t=100 h, so
+#            discharging 200 L/h during growth is a violation the static box cannot see.
+CC_USE_STATIC = True
+CC_USE_RECIPE = False     # REVERTED: the time-varying band drained the vessel
+                          # (episode ended at t=122 h). Exploration is back on -clip10.
+CC_RECIPE_FRAC = 0.10        # +/-10% of setpoint, per the SMPL docs
+CC_RECIPE_FLOOR = 0.05       # min half-width as a fraction of the channel span:
+                             # +/-10% of a ZERO setpoint would be unsatisfiable
+CC_RECIPE_SMOOTH_H = 2.0     # average the profile over +/-2 h: it steps 0->4000 within
+                             # 2 h, and an unsmoothed edge gives a huge spurious penalty
+CC_ALPHA_RECIPE = 1000.0
+
+# --- STATE chance constraint: the vessel must not be drained -------------------
+# A per-timestep ACTION bound cannot express an accumulation limit. Over t=100..130 h
+# the reference controller and the learned policy reach almost the same PEAK discharge
+# (3705 vs 3600), but the reference averages 245 L/h while the policy averages 3237:
+# the recipe's 4000 is a ceiling it touches briefly, and the +/-10% band turns that
+# ceiling into a permitted operating point. Every action is individually legal; the
+# accumulation drained the vessel 62900 -> 25436 and terminated the episode at t=122 h.
+# Constraining the PREDICTED VESSEL WEIGHT states the real requirement directly, and is
+# the form Tan et al. actually use (they constrain states, not actions).
+CC_USE_STATE = True
+CC_STATE_CHANNEL = "Wt"      # vessel weight
+CC_WT_MIN_PHYS = 50000.0     # minimum working volume. Reference runs stay above 91000
+                             # and batches start near 62500, so 50000 is a floor that
+                             # is clearly unsafe to cross without being restrictive.
+CC_ALPHA_STATE = 1000.0
+
+# --- multiplicative action-violation penalty -----------------------------------
+# The objective becomes  W2 * (1 + beta * v)  where v is the normalised amount by
+# which actions leave the static +/-10% box. In-bounds actions pay exactly W2; an
+# out-of-bounds one pays many times over, so the policy cannot buy a better W2 by
+# leaving the safe region -- however tempting the W2 term is.
+#
+# Calibrated on bnd_iter6_batch_7.csv (discharge out of band 91.3% of steps, sugar
+# 31.9%, mean normalised excess 0.0107): beta=1000 gives ~12x on average and ~36x at
+# worst. beta=10 gives only 1.1x, far too weak to deter.
+USE_ACTION_MULTIPLIER = True
+AM_BETA = 1000.0
+AM_CAP = 100.0             # bound the multiplier so one wild action cannot blow up
+                           # the gradient
+
+# --- L_physics: minimum-effort actuator regularizer, weighted AS A FRACTION OF W2 --
+# W2-on-states cannot see a "cancellation" action: flooding sugar feed and water
+# injection while draining hard can land on almost the same next state (and even a
+# BETTER total reward -- confirmed on real data: bnd_iter6_batch_7.csv holds discharge
+# non-zero for 100% of the batch vs GPEI's 94.8% zero, and still out-scores GPEI
+# 3956 vs 3835 total yield) as the baseline's near-zero action. This is the control-
+# allocation null-space problem from over-actuated systems (redundant actuators
+# producing the same net effect): the fix is a minimum-effort norm on the action
+# itself, independent of whether it moved the state.
+#
+# Unlike a fixed PHYS_W_L2, the weight here is PROPORTIONAL to the window's own W2
+# value:  coefficient = PHYS_L2_FRAC * w2.detach() . This auto-scales as training
+# progresses (no need to re-tune a fixed constant against a moving W2 baseline) and
+# guarantees, by construction, that L_physics can never be more than PHYS_L2_FRAC of
+# W2's contribution to the loss for that window -- it can break ties between
+# same-state actions, but it cannot out-compete W2 for search direction.
+#
+# w2 MUST be detached before scaling: coefficient is meant to be a scalar multiplier
+# that TRACKS w2's current magnitude, not a differentiable function of it. Without
+# .detach(), backprop would add a second, unwanted gradient path from w2 through the
+# coefficient into L_physics, coupling the two terms' gradients in a way that has
+# nothing to do with the intended "penalize large actions" signal.
+#
+# Replaces a previously-referenced CC_PHYS_C / CC_ALPHA_PHYS / CC_PHYS_TOL mass-
+# balance constraint that was never defined anywhere in this file (dead code).
+PHYS_L2_FRAC = 0.10        # L_physics <= 10% of this window's own W2 value
+
 
 # --- policy ---
 # --- policy architecture (ablation: rbf | mlp | kan, matched to ~2808 params) ---
@@ -436,11 +527,57 @@ _mu_a = np.asarray(stats["std_act_mu"], dtype=np.float64)
 _sd_a = np.asarray(stats["std_act_sd"], dtype=np.float64)
 CC_LO = torch.tensor((_amin - _mu_a) / _sd_a, dtype=dtype, device=device)
 CC_HI = torch.tensor((_amax - _mu_a) / _sd_a, dtype=dtype, device=device)
+RECIPE_BOUNDS = None
+if USE_CHANCE_CONSTRAINT and CC_USE_RECIPE:
+    from pensimpy.examples.recipe import Recipe, RecipeCombo
+    from pensimpy.data.constants import (
+        FS, FOIL, FG, PRES, DISCHARGE, WATER,
+        FS_DEFAULT_PROFILE, FOIL_DEFAULT_PROFILE, FG_DEFAULT_PROFILE,
+        PRESS_DEFAULT_PROFILE, DISCHARGE_DEFAULT_PROFILE, WATER_DEFAULT_PROFILE)
+    # action order is [discharge, sugar, soilbean, aeration, backpressure, waterinj]
+    _keys = [DISCHARGE, FS, FOIL, FG, PRES, WATER]
+    _rc = RecipeCombo(recipe_dict={
+        DISCHARGE: Recipe(DISCHARGE_DEFAULT_PROFILE, DISCHARGE),
+        FS:        Recipe(FS_DEFAULT_PROFILE, FS),
+        FOIL:      Recipe(FOIL_DEFAULT_PROFILE, FOIL),
+        FG:        Recipe(FG_DEFAULT_PROFILE, FG),
+        PRES:      Recipe(PRESS_DEFAULT_PROFILE, PRES),
+        WATER:     Recipe(WATER_DEFAULT_PROFILE, WATER)})
+    RECIPE_BOUNDS = RecipeBounds(_rc, _keys, pdata.MIN_ACT, pdata.MAX_ACT,
+                                 _mu_a, _sd_a, frac=CC_RECIPE_FRAC,
+                                 floor_frac=CC_RECIPE_FLOOR,
+                                 smooth_h=CC_RECIPE_SMOOTH_H)
+
 if USE_CHANCE_CONSTRAINT:
-    print(f"\nchance constraints ON  (Tan et al. Eq. 9): eps={CC_EPS} "
-          f"-> Phi^-1={phi_inv(CC_EPS):.4f}, alpha={CC_ALPHA}, bounds='{CC_BOUNDS}'")
+    print(f"\nchance constraints ON (Tan et al. Eq. 9): eps={CC_EPS} "
+          f"-> Phi^-1={phi_inv(CC_EPS):.4f}")
+    print(f"  static box   : {'ON' if CC_USE_STATIC else 'off'}  alpha={CC_ALPHA}")
+    print(f"  recipe band  : {'ON' if CC_USE_RECIPE else 'off'}  alpha={CC_ALPHA_RECIPE}"
+          f"  +/-{100*CC_RECIPE_FRAC:.0f}% of profile, floor {100*CC_RECIPE_FLOOR:.0f}% "
+          f"of span, smoothed +/-{CC_RECIPE_SMOOTH_H} h")
     for i, nm in enumerate(pdata.ACT_NAMES):
-        print(f"    {nm:14s} z-box [{CC_LO[i].item():7.3f}, {CC_HI[i].item():7.3f}]")
+        line = f"    {nm:14s} static z-box [{CC_LO[i].item():7.3f}, {CC_HI[i].item():7.3f}]"
+        if RECIPE_BOUNDS is not None:
+            for _t in (10.0, 110.0):
+                _l, _h = RECIPE_BOUNDS.at(_t)
+                line += f"   t={_t:5.0f}h [{_l[i]:6.3f}, {_h[i]:6.3f}]"
+        print(line)
+
+# vessel-weight floor in Z-SCORED units (the space the GP predicts in)
+CC_STATE_IDX = pdata.OBS_NAMES.index(CC_STATE_CHANNEL)
+_o_lo, _o_hi = pdata.MIN_OBS[CC_STATE_IDX], pdata.MAX_OBS[CC_STATE_IDX]
+_wt_smpl = 2.0 * (CC_WT_MIN_PHYS - _o_lo) / (_o_hi - _o_lo) - 1.0
+CC_WT_MIN_Z = float((_wt_smpl - np.asarray(stats["std_obs_mu"])[CC_STATE_IDX])
+                    / np.asarray(stats["std_obs_sd"])[CC_STATE_IDX])
+if USE_CHANCE_CONSTRAINT and CC_USE_STATE:
+    print(f"  state floor  : ON  alpha={CC_ALPHA_STATE}  "
+          f"{CC_STATE_CHANNEL} >= {CC_WT_MIN_PHYS:.0f} physical "
+          f"= {CC_WT_MIN_Z:.3f} z  (channel {CC_STATE_IDX})")
+
+# --- L_physics: minimum-effort actuator regularizer (replaces removed CC_PHYS_C) ---
+print(f"  physics      : ON  PHYS_L2_FRAC={PHYS_L2_FRAC}  "
+      f"(L_physics = {PHYS_L2_FRAC}*w2.detach() * mean(||a_t_z||^2), capped at "
+      f"{PHYS_L2_FRAC*100:.0f}% of each window's own W2 by construction)")
 
 optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
@@ -452,7 +589,10 @@ rng = np.random.default_rng(0)
 _acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
 _current_eig = None
 _acc_actions = []          # actions seen in the current window (for the chance constraint)
+_acc_mu, _acc_cov = [], []  # predicted next-state distribution, for the state constraint
 _cc_log = []               # per-window penalty, for logging
+_am_log = []               # per-window action-violation multiplier
+_phys_log = []              # per-window (l2_actions, coefficient, L_physics), for logging
 
 
 def window_loss(t, s, a, mu, cov, s_next):
@@ -463,15 +603,49 @@ def window_loss(t, s, a, mu, cov, s_next):
     _acc["mean"] = _acc["mean"] + (mu - s)
     _acc["var"] = _acc["var"] + cov
     _acc_actions.append(a)
+    _acc_mu.append(mu)          # predicted next-state mean, for the state constraint
+    _acc_cov.append(cov)        # and its (diagonal) variance
+
 
     if (t - _acc["t_start"] + 1) < STEPS_PER_EXPERT:
         return torch.zeros((), dtype=mu.dtype, device=mu.device)
 
     var_1h = _acc["var"]
+    # computed inline, NOT via step_to_hours(): window_loss is defined ABOVE
+    # that function, so the name is not bound when this runs
+    t_hours = T_START_HOURS + _acc["t_start"] * HOURS_PER_STEP
     _acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
 
     d_all = w2_cross_dim_torch(var_1h, _current_eig)               # (P,)
     w2 = d_all.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+
+    # scale W2 by how far the window's actions left the static box
+    _mult = 1.0
+    if USE_ACTION_MULTIPLIER and _acc_actions:
+        _a_w = torch.cat(_acc_actions, dim=0)
+        _mult = action_violation_multiplier(_a_w, CC_LO, CC_HI,
+                                            beta=AM_BETA, cap=AM_CAP)
+        _am_log.append(float(_mult.detach()))
+        w2 = w2 * _mult
+
+    # --- L_physics: minimum-effort actuator regularizer, weight = PHYS_L2_FRAC * w2 ---
+    # W2 (even multiplied by the box-violation term above) cannot see a "cancellation"
+    # action: flooding sugar+water while draining hard can land on ~the same next
+    # state as the baseline's near-zero action -- confirmed on real data to even
+    # score BETTER reward while doing it (bnd_iter6_batch_7 vs gpei_batch_7). This
+    # adds a direct penalty on actuator effort (z-scored action norm), independent
+    # of what the action did to the state -- the standard control-allocation fix for
+    # redundant actuators, sized as a fraction of THIS window's own W2 so it never
+    # needs re-tuning against a moving baseline.
+    if _acc_actions:
+        _l2 = sum((a_i ** 2).sum(dim=-1).mean() for a_i in _acc_actions) / len(_acc_actions)
+        _coef = PHYS_L2_FRAC * w2.detach()      # detach: scalar multiplier, not a
+                                                 # differentiable function of w2 --
+                                                 # see the comment at PHYS_L2_FRAC above
+        phys = _coef * _l2
+        _phys_log.append((float(_l2.detach()), float(_coef.detach()), float(phys.detach())))
+        w2 = w2 + phys
+    # --- end L_physics ---------------------------------------------------------
 
     # --- soft chance constraint on the ACTIONS taken in this window (Eq. 9) ---
     # sigma is the spread across the K dropout samples drawn for the same state, i.e.
@@ -480,14 +654,46 @@ def window_loss(t, s, a, mu, cov, s_next):
     if USE_CHANCE_CONSTRAINT and _acc_actions:
         a_all = torch.cat(_acc_actions, dim=0)                     # (STEPS*P, da)
         n_rep = a_all.shape[0] // (NUM_STATES * K_ACTIONS)
-        pen = action_chance_penalty(a_all, CC_LO, CC_HI,
-                                    num_states=NUM_STATES * n_rep,
-                                    k_actions=K_ACTIONS,
-                                    eps=CC_EPS, alpha=CC_ALPHA)
-        _cc_log.append(float(pen.detach()))
-        _acc_actions.clear()
+        pen = torch.zeros((), dtype=a_all.dtype, device=a_all.device)
+        p_static = p_recipe = 0.0
+
+        if CC_USE_STATIC:
+            ps = action_chance_penalty(a_all, CC_LO, CC_HI,
+                                       num_states=NUM_STATES * n_rep,
+                                       k_actions=K_ACTIONS,
+                                       eps=CC_EPS, alpha=CC_ALPHA)
+            pen = pen + ps
+            p_static = float(ps.detach())
+
+        if CC_USE_RECIPE and RECIPE_BOUNDS is not None:
+            # bounds at THIS window's time -- the whole point of the recipe constraint
+            _lo, _hi = RECIPE_BOUNDS.at(t_hours)
+            lo_t = torch.tensor(_lo, dtype=a_all.dtype, device=a_all.device)
+            hi_t = torch.tensor(_hi, dtype=a_all.dtype, device=a_all.device)
+            pr = action_chance_penalty(a_all, lo_t, hi_t,
+                                       num_states=NUM_STATES * n_rep,
+                                       k_actions=K_ACTIONS,
+                                       eps=CC_EPS, alpha=CC_ALPHA_RECIPE)
+            pen = pen + pr
+            p_recipe = float(pr.detach())
+
+        p_state = 0.0
+        if CC_USE_STATE and _acc_mu:
+            mu_all = torch.cat(_acc_mu, dim=0)
+            cov_all = torch.cat(_acc_cov, dim=0)
+            n_rep_s = mu_all.shape[0] // (NUM_STATES * K_ACTIONS)
+            pst = state_chance_penalty(mu_all, cov_all, CC_STATE_IDX,
+                                       lo=CC_WT_MIN_Z, hi=None,
+                                       num_states=NUM_STATES * n_rep_s,
+                                       k_actions=K_ACTIONS,
+                                       eps=CC_EPS, alpha=CC_ALPHA_STATE)
+            pen = pen + pst
+            p_state = float(pst.detach())
+
+        _cc_log.append((float(pen.detach()), p_static, p_recipe, p_state))
+        _acc_actions.clear(); _acc_mu.clear(); _acc_cov.clear()
         return w2 + pen
-    _acc_actions.clear()
+    _acc_actions.clear(); _acc_mu.clear(); _acc_cov.clear()
     return w2
 
 
@@ -540,10 +746,26 @@ for it in range(N_ITERS):
           f"(data {s_hi.max().item():.2f})   |a|max={A.max():.4f}"
           f"{f' (limit {U_MAX_Z.max():.4f})' if ENFORCE_ACTION_LIMITS else ''}",
           flush=True)
+    if _am_log:
+        _am = np.array(_am_log); _am_log.clear()
+        print(f"          action multiplier: mean={_am.mean():.3f} max={_am.max():.3f}  "
+              f"windows with violation={int((_am > 1.0 + 1e-9).sum())}/{len(_am)}",
+              flush=True)
+    if _phys_log:
+        _pl = np.array(_phys_log); _phys_log.clear()
+        print(f"          physics: mean ||a_z||^2={_pl[:,0].mean():.3e}  "
+              f"mean coef={_pl[:,1].mean():.3e}  "
+              f"mean L_physics={_pl[:,2].mean():.3e} "
+              f"({100*_pl[:,2].mean()/max(L.mean(),1e-12):.1f}% of window-mean W2)",
+              flush=True)
     if _cc_log:
         _cc = np.array(_cc_log); _cc_log.clear()
-        print(f"          chance penalty: mean={_cc.mean():.4e} max={_cc.max():.4e}  "
-              f"windows with violation={int((_cc > 0).sum())}/{len(_cc)}", flush=True)
+        print(f"          chance penalty: total={_cc[:,0].mean():.3e} "
+              f"static={_cc[:,1].mean():.3e} recipe={_cc[:,2].mean():.3e} "
+              f"state={_cc[:,3].mean():.3e}", flush=True)
+        print(f"          windows violating: static={int((_cc[:,1] > 0).sum())}/{len(_cc)} "
+              f"recipe={int((_cc[:,2] > 0).sum())}/{len(_cc)} "
+              f"state={int((_cc[:,3] > 0).sum())}/{len(_cc)}", flush=True)
     print("          per-phase W2: " + "  ".join(
         f"ph{p}={np.mean(v):.4e}(n={len(v)})" for p, v in sorted(per_phase.items()) if v),
         flush=True)

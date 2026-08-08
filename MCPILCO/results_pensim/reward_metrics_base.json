@@ -1,0 +1,13 @@
+{
+  "tag": "base",
+  "n_csvs": 12,
+  "n_transitions": 13800,
+  "n_train": 800,
+  "n_test": 200,
+  "n_error_rows_dropped": 0,
+  "reward_mu": 3.227946176560431,
+  "reward_sd": 1.409007298272082,
+  "held_out_mse_z": 0.12440933208448329,
+  "held_out_r2": 0.8571450949279534,
+  "rmse_physical": 0.49698092708371894
+}

@@ -32,6 +32,25 @@ ndarray of a FOREIGN type: multiplying it by a normal array raises a ufunc error
 numpy then crashes while formatting that error ("TypeError" from dtype_is_implied).
 Every torch->numpy hop therefore goes through .tolist().
 
+=== ACTION CLIPPING: STATIC vs TIME-VARYING (-clip10 vs -cliprecipe) ===
+-clip10 clips to +/-10% of the DATASET-MEAN action, one fixed band for all 230 h.
+That band is wrong, and measurably so. DISCHARGE_DEFAULT_PROFILE is a STEP function:
+0 until t=100 h, then pulses 0 <-> 4000 every 20 h. Its dataset mean is ~200 -- a value
+the recipe never actually holds. So the static band [180, 220] FORCES ~180 L/h of
+discharge during the first 100 h, when the correct action is 0.
+
+Measured in bnd_rbf_iter0_batch_2.csv: discharge sits at 180.05 (exactly 0.9*mean) for
+the whole second half of the batch, i.e. the policy wants to go LOWER and the clip
+stops it. Continuously draining ~180 L/h removes product that should be accumulating,
+which is consistent with the yield gap (gpei 3.30/step vs CDIL ~3.00).
+
+-cliprecipe instead clips to +/-10% of the recipe profile AT THE CURRENT TIME, read
+from RecipeCombo.get_values_dict_at(t). Two adjustments are needed because the profile
+is a step function:
+    floor    a zero setpoint gives a zero-width band, which is unsatisfiable
+    smooth   the profile jumps 0->4000 within 2 h; an unsmoothed edge makes the bound
+             discontinuous between consecutive 12-minute steps
+
 === ACTION MAGNITUDE WARNING ===
 The policy was trained with a flat u_max = 3.0 in z-units. The PenSim docs restrict
 the search space to +/-10% of the setpoint recipe, which in z-units is
@@ -69,6 +88,7 @@ if _REPO not in sys.path:
 import model_learning.pensim_dataset as pdata
 import policy_learning.Policy as Policy
 from policy_learning.policy_variants import rebuild_policy
+from policy_learning.chance_constraints import RecipeBounds
 
 from pensimpy.examples.recipe import Recipe, RecipeCombo
 from pensimpy.data.constants import FS, FOIL, FG, PRES, DISCHARGE, WATER, PAA
@@ -107,7 +127,20 @@ _p.add_argument("-seed", type=int, default=0)
 _p.add_argument("-p_dropout", type=float, default=0.0,
                 help="policy dropout during rollout; >0 gives more diverse exploration")
 _p.add_argument("-clip10", action="store_true",
-                help="clip actions to +/-10%% of the recipe setpoint (physically realistic)")
+                help="clip to +/-10%% of the DATASET-MEAN action (static band; note the "
+                     "recipe is a step function, so this forces discharge during the "
+                     "first 100 h when the correct action is 0)")
+_p.add_argument("-cliprecipe", action="store_true",
+                help="clip to +/-10%% of the RECIPE PROFILE at the current time "
+                     "(time-varying; the physically meaningful constraint)")
+_p.add_argument("-recipe_frac", type=float, default=0.10,
+                help="half-width of the recipe band, as a fraction of the setpoint")
+_p.add_argument("-recipe_floor", type=float, default=0.05,
+                help="minimum half-width as a fraction of the channel span, so a ZERO "
+                     "setpoint does not give a zero-width band")
+_p.add_argument("-recipe_smooth", type=float, default=2.0,
+                help="average the profile over +/-this many hours (it steps 0->4000 "
+                     "within 2 h)")
 _p.add_argument("-max_steps", type=int, default=None, help="cap steps (debug)")
 args = _p.parse_args()
 
@@ -179,7 +212,10 @@ SETPOINT_PHYS = (STD_ACT_MU + 1.0) / 2.0 * (PCD_MAX_ACT - PCD_MIN_ACT) + PCD_MIN
 LIM_LO = SETPOINT_PHYS * (1.0 - ACTION_LIMIT_FRAC)
 LIM_HI = SETPOINT_PHYS * (1.0 + ACTION_LIMIT_FRAC)
 print(f"[action] recipe setpoint (physical): {np.round(SETPOINT_PHYS, 3)}")
-print(f"[action] clipping to +/-10%: {'ON' if args.clip10 else 'OFF (env bounds only)'}")
+_modes = []
+if args.clip10: _modes.append("static +/-10% of dataset mean")
+if args.cliprecipe: _modes.append("time-varying +/-10% of recipe profile")
+print(f"[action] clipping: {' + '.join(_modes) if _modes else 'OFF (env bounds only)'}")
 
 
 # ===================================================================== env ====
@@ -209,6 +245,32 @@ def make_env(seed):
 
 
 env = make_env(args.seed)          # module-level instance: only used for action bounds
+ENV_MIN_ACT_ = np.array(np.asarray(env.min_actions).tolist(), dtype=np.float64)
+ENV_MAX_ACT_ = np.array(np.asarray(env.max_actions).tolist(), dtype=np.float64)
+
+# time-varying recipe band, in PHYSICAL units (the env is run with normalize=False).
+# The action vector order is [discharge, sugar, soilbean, aeration, backpressure,
+# waterinj]; PAA is in recipe_dict for the simulator but is not a policy action.
+RECIPE_BOUNDS = None
+if args.cliprecipe:
+    _keys = [DISCHARGE, FS, FOIL, FG, PRES, WATER]
+    _rc = RecipeCombo(recipe_dict={k: recipe_dict[k] for k in _keys})
+    # identity standardizer: we want the band in PHYSICAL units here, not z-scored
+    # RecipeBounds maps physical -> smpl min-max -> z. Passing mu=0, sd=1 leaves the
+    # result in smpl-normalised units, so it is converted back below.
+    _ident_mu = np.zeros(pdata.ACT_DIM)
+    _ident_sd = np.ones(pdata.ACT_DIM)
+    RECIPE_BOUNDS = RecipeBounds(_rc, _keys, ENV_MIN_ACT_, ENV_MAX_ACT_,
+                                 _ident_mu, _ident_sd,
+                                 frac=args.recipe_frac,
+                                 floor_frac=args.recipe_floor,
+                                 smooth_h=args.recipe_smooth)
+    print(f"[action] recipe band: +/-{100*args.recipe_frac:.0f}% of profile, "
+          f"floor {100*args.recipe_floor:.0f}% of span, smoothed +/-{args.recipe_smooth} h")
+    for _t in (10.0, 50.0, 110.0, 200.0):
+        _lo, _hi = RECIPE_BOUNDS.at(_t)
+        print(f"    t={_t:6.1f} h  discharge [{_lo[0]:9.2f}, {_hi[0]:9.2f}]   "
+              f"sugar [{_lo[1]:7.2f}, {_hi[1]:7.2f}]")
 ENV_MIN_ACT = np.array(np.asarray(env.min_actions).tolist(), dtype=np.float64)
 ENV_MAX_ACT = np.array(np.asarray(env.max_actions).tolist(), dtype=np.float64)
 
@@ -225,8 +287,16 @@ def run_episode(ep, seed):
                         t=t, p_dropout=args.p_dropout)
         a_z = _to_np(_a)
         a_phys = act_z_to_phys(a_z)
-        if args.clip10:
+        if args.clip10:                        # static band (dataset mean)
             a_phys = np.clip(a_phys, LIM_LO, LIM_HI)
+        if RECIPE_BOUNDS is not None:          # time-varying band (recipe profile)
+            t_h = float(o[pdata.TIME_INDEX])   # current time, physical hours
+            _lo_n, _hi_n = RECIPE_BOUNDS.at(t_h)
+            # RecipeBounds returns smpl-normalised units; convert back to physical
+            _span = ENV_MAX_ACT_ - ENV_MIN_ACT_
+            lo_p = (np.asarray(_lo_n) + 1.0) / 2.0 * _span + ENV_MIN_ACT_
+            hi_p = (np.asarray(_hi_n) + 1.0) / 2.0 * _span + ENV_MIN_ACT_
+            a_phys = np.clip(a_phys, lo_p, hi_p)
         a_phys = np.clip(a_phys, ENV_MIN_ACT, ENV_MAX_ACT)        # env bounds always
 
         step = env.step(a_phys)
