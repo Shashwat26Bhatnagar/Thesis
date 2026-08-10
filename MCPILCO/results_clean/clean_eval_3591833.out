@@ -1,0 +1,34 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+phase models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+expert: 150 hourly distributions (1..150 h)
+
+evaluating reference: clean_lam0.pt
+  W2 per hour: mean=0.11235  ||a||^2: mean=1.3397
+  clean_lam0p3.pt                          good= 95/150
+  clean_lam1.pt                            good= 87/150
+  clean_lam10.pt                           good= 81/150
+  clean_lam3.pt                            good= 81/150
+  clean_lam30.pt                           good= 81/150
+
+====================================================================================================
+policy                                    lambda  GOOD hrs   W2 ok  |a| ok   W2 /ref  |a|^2 /ref
+----------------------------------------------------------------------------------------------------
+REFERENCE (lambda=0)                         0.0         -       -       -     1.000       1.000
+clean_lam0p3.pt                              0.3        95      95     150     1.041       0.008
+clean_lam1.pt                                  1        87      87     150     1.053       0.001
+clean_lam10.pt                                10        81      81     150     1.062       0.000
+clean_lam3.pt                                  3        81      81     150     1.063       0.000
+clean_lam30.pt                                30        81      81     150     1.062       0.000
+
+SELECTED: lambda = 0.3  (95 good hours of 150, W2 1.041x reference, ||a||^2 0.008x reference)
+
+A 'good hour' means W2 within tol of the reference AND a smaller action
+norm -- counted per hour, so two modes cannot average into a third.
+selected policy copied -> /home/s2892016/Thesis/MCPILCO/results_clean/clean_best.pt
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_clean/clean_sweep.json

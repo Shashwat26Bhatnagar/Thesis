@@ -1,0 +1,9 @@
+{
+  "selected": "/home/s2892016/Thesis/MCPILCO/results_clean/clean_lam0p3.pt",
+  "lambda": 0.3,
+  "good_hours": 95,
+  "n_hours": 150,
+  "tol": 0.05,
+  "w2_rel": 1.0413417887371357,
+  "a2_rel": 0.008465566855464098
+}
