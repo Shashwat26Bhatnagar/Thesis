@@ -32,6 +32,56 @@ ndarray of a FOREIGN type: multiplying it by a normal array raises a ufunc error
 numpy then crashes while formatting that error ("TypeError" from dtype_is_implied).
 Every torch->numpy hop therefore goes through .tolist().
 
+=== DISCHARGE FROM A gpei CSV (-discharge_csv) ===
+Replays the discharge column of a recorded gpei batch, looked up by absolute time.
+
+USE THIS RATHER THAN -recipe_discharge. DISCHARGE_DEFAULT_PROFILE is a ZERO-ORDER
+HOLD: get_value_at returns 4000 continuously from t=102 h until the next entry at
+t=130 h, i.e. 28 hours at full rate, which drains the vessel and terminated the
+episode at ~122 h (yield 1744 over 614 steps). gpei's RECORDED actions are 2-hour
+pulses at 5.2% duty -- so gpei does not execute the raw profile, its controller
+modulates it. Only the recorded column reproduces what gpei actually did.
+
+=== RECIPE DISCHARGE ABLATION (-recipe_discharge) ===
+Overrides the discharge channel with the DEFAULT RECIPE PROFILE at the current time,
+while the loaded policy supplies channels 1..5. This is an ABLATION, not a policy:
+gpei's discharge is an open-loop schedule (0 until t=100 h, then 4000 held), so a run
+using it is not learned control on that channel.
+
+It answers one question: how much of the remaining yield gap is the valve?
+    ~3835 (gpei level) -> discharge was the whole gap; channels 1..5 are already
+                          reference-quality and the valve is the only thing missing
+    ~3345 (split level) -> discharge contributes nothing; the gap is elsewhere. The
+                          normalized-action deviations point at aeration (0.202) and
+                          back pressure (0.195), the two channels gpei ramps most
+                          (aeration 39->73, back pressure 0.66->1.19) and ours holds
+                          flat.
+
+Run with -p_dropout 0: the earlier 3735 figure came from dropout noise perturbing
+discharge, not from learned behaviour, so only a deterministic run is comparable.
+
+=== SPLIT POLICY (-valve_policy) ===
+With -valve_policy, discharge comes from a separately trained policy P_C and channels
+1..5 from the frozen policy given by -policy (P_B):
+
+    action = concat( P_C([state, hours_open]) , P_B(state)[1:] )
+
+P_C sees a 9th input, the hours the valve has been open, which is carried across the
+episode and reset at env.reset(). That input is the reason P_C can CLOSE the valve:
+the 8-D observation cannot distinguish "just opened" from "open for two hours", and
+discharging drives vessel weight monotonically further into the region that triggered
+the open, so every single-policy configuration opened at the right time (t=102.2 h
+against the recipe's 102.0) and then never closed.
+
+P_C emits GATE x MAGNITUDE -- a Bernoulli gate for open/shut and a continuous level
+for how far open -- because the reference valve is bimodal rather than binary: zero
+for 94.8% of steps, and 3705..4058 when open.
+
+DO NOT combine -valve_policy with -clip10. The static band is roughly [229, 280] for
+discharge, which crushes the gate's {0, ~4000} into a continuous mid-range value and
+silently undoes the whole mechanism -- that is exactly what happened on the first
+gated run.
+
 === ACTION CLIPPING: STATIC vs TIME-VARYING (-clip10 vs -cliprecipe) ===
 -clip10 clips to +/-10% of the DATASET-MEAN action, one fixed band for all 230 h.
 That band is wrong, and measurably so. DISCHARGE_DEFAULT_PROFILE is a STEP function:
@@ -141,6 +191,18 @@ _p.add_argument("-recipe_floor", type=float, default=0.05,
 _p.add_argument("-recipe_smooth", type=float, default=2.0,
                 help="average the profile over +/-this many hours (it steps 0->4000 "
                      "within 2 h)")
+_p.add_argument("-discharge_csv", type=str, default=None,
+                help="replay the discharge column of this CSV, looked up by time. "
+                     "Prefer this to -recipe_discharge: the raw profile is a "
+                     "zero-order hold that discharges for 28 h straight and empties "
+                     "the vessel, whereas the recorded gpei actions are 2-hour pulses.")
+_p.add_argument("-recipe_discharge", action="store_true",
+                help="ABLATION: take discharge from the recipe profile at the current "
+                     "time instead of from the policy. Isolates how much of the yield "
+                     "gap is the valve channel.")
+_p.add_argument("-valve_policy", type=str, default=None,
+                help="P_C checkpoint: a separate discharge policy. -policy then "
+                     "supplies channels 1..5 only.")
 _p.add_argument("-max_steps", type=int, default=None, help="cap steps (debug)")
 args = _p.parse_args()
 
@@ -202,6 +264,53 @@ policy = rebuild_policy(_meta, dtype=dtype, device=device)
 policy.load_state_dict(ck["policy_state_dict"])
 policy.eval()
 state_dim = _meta["state_dim"]
+# --- optional: replay a recorded discharge trace ---
+DISCH_TRACE = None
+if args.discharge_csv:
+    import csv as _csv
+    _h = [c.strip() for c in next(_csv.reader(open(args.discharge_csv)))]
+    _d = np.genfromtxt(args.discharge_csv, delimiter=",", skip_header=1)
+    _ti, _di = _h.index("Time Step"), _h.index("Discharge rate")
+    DISCH_TRACE = (np.asarray(_d[:, _ti], dtype=np.float64),
+                   np.asarray(_d[:, _di], dtype=np.float64))
+    _hi = DISCH_TRACE[1] > 0.5 * DISCH_TRACE[1].max()
+    print(f"[ablation] discharge replayed from {os.path.basename(args.discharge_csv)}: "
+          f"{len(_d)} steps, duty={100*_hi.mean():.1f}%, peak={DISCH_TRACE[1].max():.0f}, "
+          f"volume={(DISCH_TRACE[1]*0.2).sum():.0f}")
+
+# --- optional: discharge from the recipe profile (ablation) ---
+DISCH_RECIPE = None
+if args.recipe_discharge:
+    DISCH_RECIPE = Recipe(DISCHARGE_DEFAULT_PROFILE, DISCHARGE)
+    print("[ablation] discharge taken from DISCHARGE_DEFAULT_PROFILE, not the policy")
+    for _t in (10, 50, 90, 102, 150, 200):
+        print(f"    t={_t:4d} h -> {DISCH_RECIPE.get_value_at(_t):8.1f} L/h")
+    if args.valve_policy:
+        print("[ablation] WARNING: -recipe_discharge overrides -valve_policy")
+
+# --- optional split policy: P_C on discharge, the loaded policy on channels 1..5 ---
+VALVE = None
+if args.valve_policy:
+    _ckv = torch.load(args.valve_policy, map_location=device, weights_only=False)
+    _pc = rebuild_policy(_ckv["policy_meta"], dtype=dtype, device=device)
+    _pc.load_state_dict(_ckv["policy_state_dict"])
+    _pc.eval()
+    VALVE = {"pc": _pc,
+             "z_off": float(_ckv["z_off"]), "z_max": float(_ckv["z_max"]),
+             "gain": float(_ckv.get("gate_gain", 2.0)),
+             "thresh": float(_ckv.get("open_thresh_z",
+                                      _ckv["z_off"] + 0.5 * (_ckv["z_max"]
+                                                             - _ckv["z_off"]))),
+             "hours": None}
+    print(f"[valve] P_C: {os.path.basename(args.valve_policy)}  "
+          f"off={VALVE['z_off']:.3f} z  max={VALVE['z_max']:.3f} z  "
+          f"open_thresh={VALVE['thresh']:.3f} z")
+    print(f"[valve] trained against P_B={os.path.basename(str(_ckv.get('policy_actions')))}"
+          f"  target duty={_ckv.get('target_duty')}")
+    if args.clip10:
+        print("[valve] WARNING: -clip10 with -valve_policy crushes the gate's "
+              "{0, ~4000} into the static band and undoes the mechanism")
+
 _hist = ck.get("hist", [])
 print(f"[policy] {args.policy}")
 print(f"[policy] kind={_meta['kind']} state_dim={state_dim} u_max={U_MAX_FLAT}"
@@ -278,15 +387,38 @@ ENV_MAX_ACT = np.array(np.asarray(env.max_actions).tolist(), dtype=np.float64)
 # ================================================================ rollout ====
 def run_episode(ep, seed):
     env = make_env(seed)                       # fresh env -- no cross-episode leakage
+    if VALVE is not None:
+        VALVE["hours"] = 0.0                   # or the counter leaks between episodes
     o = np.array(np.asarray(env.reset()).reshape(-1).tolist(), dtype=np.float64)
     rows, total_yield, t = [], 0.0, 0
     while True:
         z = obs_phys_to_z(o)
         with torch.no_grad():
-            _a = policy(states=torch.tensor(z[None, :], dtype=dtype, device=device),
-                        t=t, p_dropout=args.p_dropout)
+            _s = torch.tensor(z[None, :], dtype=dtype, device=device)
+            _a = policy(states=_s, t=t, p_dropout=args.p_dropout)
+            if VALVE is not None:
+                # P_C sees [state, hours_open]; the counter is what lets it close
+                _sa = torch.cat([_s, torch.tensor([[VALVE["hours"]]], dtype=dtype,
+                                                  device=device)], dim=1)
+                _u = VALVE["pc"](states=_sa, t=t, p_dropout=args.p_dropout)
+                _pg = torch.sigmoid(VALVE["gain"] * _u[:, 0])
+                _gate = torch.bernoulli(_pg)
+                _lvl = VALVE["z_off"] + torch.sigmoid(_u[:, 1]) * (VALVE["z_max"]
+                                                                  - VALVE["z_off"])
+                _a = _a.clone()
+                _a[:, 0] = VALVE["z_off"] + _gate * (_lvl - VALVE["z_off"])
+                VALVE["hours"] = ((VALVE["hours"] + 0.2)
+                                  if float(_a[0, 0]) > VALVE["thresh"] else 0.0)
         a_z = _to_np(_a)
         a_phys = act_z_to_phys(a_z)
+        if DISCH_TRACE is not None:
+            # previous-value hold: linear interpolation would smear the 2-hour pulses
+            _tt, _dd = DISCH_TRACE
+            _k = int(np.searchsorted(_tt, float(o[pdata.TIME_INDEX]), side="right") - 1)
+            a_phys[0] = float(_dd[min(max(_k, 0), len(_dd) - 1)])
+        if DISCH_RECIPE is not None:
+            # the profile is a zero-order hold keyed on absolute batch time
+            a_phys[0] = float(DISCH_RECIPE.get_value_at(float(o[pdata.TIME_INDEX])))
         if args.clip10:                        # static band (dataset mean)
             a_phys = np.clip(a_phys, LIM_LO, LIM_HI)
         if RECIPE_BOUNDS is not None:          # time-varying band (recipe profile)
@@ -325,6 +457,15 @@ def run_episode(ep, seed):
             break
 
     rows = np.array(rows, dtype=np.float64)
+    if VALVE is not None and len(rows):
+        _d = rows[:, 1]
+        _hi = _d > 0.5 * max(_d.max(), 1e-9)
+        _tr = np.diff(_hi.astype(int))
+        # total volume matters as much as the duty cycle: a policy can satisfy a low
+        # duty by barely discharging at all, which looks valve-like and does nothing
+        print(f"    valve: duty={100*_hi.mean():5.1f}%  opens={int((_tr==1).sum())}  "
+              f"peak={_d.max():7.1f}  total volume={(_d*0.2).sum():9.0f}"
+              f"   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)", flush=True)
     # a diverged simulator writes non-finite observations, which then poison any model
     # trained on the file -- discard the whole episode instead
     if rows.size and not np.isfinite(rows).all():

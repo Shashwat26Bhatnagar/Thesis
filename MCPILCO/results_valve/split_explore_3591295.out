@@ -1,0 +1,51 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[valve] P_C: valve_policy.pt  off=-0.401 z  max=6.075 z  open_thresh=2.837 z
+[valve] trained against P_B=cdil_policy_bnd_rbf_iter0_lam0p01.pt  target duty=0.052
+[policy] results_pensim/cdil_policy_bnd_rbf_iter0_lam0p01.pt
+[policy] kind=rbf state_dim=8 u_max=3.0 | final training W2 = 0.2288
+[action] recipe setpoint (physical): [254.173  76.519  25.965  60.961   0.905 153.74 ]
+[action] clipping: OFF (env bounds only)
+
+collecting 10 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd_rbf
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty= 15.2%  opens=151  peak=  534.8  total volume=    51605   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 0: 1149 steps, final t=229.6 h, total yield=3339.5702  ->  bnd_rbf_split_batch_0.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty=  3.9%  opens=40  peak=  708.5  total volume=    51684   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 1: 1149 steps, final t=229.6 h, total yield=3421.5437  ->  bnd_rbf_split_batch_1.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty=  0.6%  opens=6  peak= 1010.7  total volume=    53261   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 2: 1149 steps, final t=229.6 h, total yield=3343.9625  ->  bnd_rbf_split_batch_2.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty= 14.6%  opens=137  peak=  542.4  total volume=    51674   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 3: 1149 steps, final t=229.6 h, total yield=3652.2201  ->  bnd_rbf_split_batch_3.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty=  7.2%  opens=73  peak=  612.3  total volume=    50962   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 4: 1149 steps, final t=229.6 h, total yield=3779.8451  ->  bnd_rbf_split_batch_4.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty= 18.1%  opens=161  peak=  527.1  total volume=    51607   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 5: 1149 steps, final t=229.6 h, total yield=3497.5393  ->  bnd_rbf_split_batch_5.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty=  0.7%  opens=7  peak=  804.1  total volume=    51698   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 6: 1149 steps, final t=229.6 h, total yield=3494.0861  ->  bnd_rbf_split_batch_6.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty=  5.0%  opens=51  peak=  645.2  total volume=    51526   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 7: 1149 steps, final t=229.6 h, total yield=3735.7845  ->  bnd_rbf_split_batch_7.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty= 15.6%  opens=145  peak=  568.0  total volume=    52337   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 8: 1149 steps, final t=229.6 h, total yield=3565.2030  ->  bnd_rbf_split_batch_8.csv
+    dropped terminal error_reward row at t=229.8 h
+    valve: duty=  1.4%  opens=15  peak= 1316.3  total volume=    62972   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)
+  episode 9: 1149 steps, final t=229.6 h, total yield=3225.8581  ->  bnd_rbf_split_batch_9.csv
+
+summary:
+  episodes written: 10/10
+  total yield  mean=3505.5613  min=3225.8581  max=3779.8451
+  yield/step   mean=3.0510  min=2.8075  max=3.2897   (SMPL paper baseline: 3.3071)
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd_rbf
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.

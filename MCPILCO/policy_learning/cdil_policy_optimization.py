@@ -105,6 +105,12 @@ np.random.seed(0); torch.manual_seed(0)
 SAVE_DIR = os.path.join(_REPO, "results_pensim")
 
 _ap = argparse.ArgumentParser("CDIL policy optimization")
+_ap.add_argument("-discharge_csv", type=str, default=None,
+                 help="replay this CSV's discharge column during the ROLLOUT, so the "
+                      "policy trains under the same discharge regime it deploys "
+                      "under. Discharge is then excluded from the policy's loss "
+                      "entirely -- it emits the channel but the value is discarded, "
+                      "so that head receives no gradient.")
 _ap.add_argument("-phase_prefix", type=str, default=None,
                  help="use THREE phase models named <prefix>_phase{0,1,2}.pt, selected "
                       "per window by the expert time. Ignored if -model is given.")
@@ -253,6 +259,8 @@ LAMBDA_A = 0.0             # set per run with -lam; 0.0 = the reference policy
 # PRE-SIGMOID head output, so it pulls the open-PROBABILITY toward its mean rather
 # than penalising flow magnitude -- which should discourage the gate from saturating.
 L2_CHANNEL_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+# ...but with -discharge_csv the discharge weight is forced to 0: that channel is
+# supplied externally, so penalising the policy's (discarded) output would be noise.
 
 # --- Bernoulli gate on the discharge channel (Seyde et al., NeurIPS 2021) ----------
 # Discharge is a VALVE: the gpei reference holds it at zero for 94.8% of steps and
@@ -533,6 +541,16 @@ elif _warm_meta is not None:
           f"the transfer is approximate.")
 
 # gate levels: PHYSICAL -> smpl min-max -> z, the same chain as everything else
+# The gate and its sparsity KL both act on discharge. With -discharge_csv that
+# channel is supplied externally, so both are switched off HERE -- before the policy
+# is constructed, since the gate is baked in at build time and disabling the flag
+# afterwards would leave the wrapper in place (and gate_prob undefined on it).
+if _args.discharge_csv and (USE_BERNOULLI_GATE or USE_GATE_SPARSITY_KL):
+    print("\n[override] discharge comes from a trace -> disabling the Bernoulli gate "
+          "and the ASRE sparsity KL; neither has anything left to act on")
+    USE_BERNOULLI_GATE = False
+    USE_GATE_SPARSITY_KL = False
+
 _g_off, _g_on = [], []
 if USE_BERNOULLI_GATE:
     _mu_g = np.asarray(stats["std_act_mu"], dtype=np.float64)
@@ -551,6 +569,47 @@ if USE_BERNOULLI_GATE:
               f"({_g_on[i]:7.3f} z)")
 
 _GATE_TGT = torch.tensor(GATE_TARGET_DUTY, dtype=dtype, device=device)
+
+
+class DischargeOverride(torch.nn.Module):
+    """Replaces the policy's discharge with a recorded trace, looked up by ABSOLUTE
+    batch time.
+
+    WHY: exploration replays gpei's discharge, so the policy never deploys its own.
+    Training it against its own discharge would optimise under a regime it will not
+    experience -- the rollout's states would reflect a discharge the real run does not
+    use. Overriding here makes training and deployment consistent.
+
+    The replaced channel receives no gradient, so that head simply stays at its
+    initial value. It is excluded from the L2 term for the same reason.
+
+    NOTE the raw DISCHARGE_DEFAULT_PROFILE is NOT usable for this: it is a zero-order
+    hold that returns 4000 continuously from t=102 h to t=130 h, which empties the
+    vessel (an episode so driven terminated at 122 h). gpei's RECORDED actions are
+    2-hour pulses at 5.2% duty, so only the recorded column reproduces its behaviour.
+    """
+
+    def __init__(self, base, t_hours, values, idx=0):
+        super().__init__()
+        self.base = base
+        self.idx = idx
+        self.state_dim, self.input_dim = base.state_dim, base.input_dim
+        self.register_buffer("t_tr", torch.tensor(t_hours, dtype=dtype, device=device))
+        self.register_buffer("v_tr", torch.tensor(values, dtype=dtype, device=device))
+        self.window_t0 = 0.0            # absolute time of this window's first step
+
+    def value_at(self, t_abs):
+        # previous-value hold: interpolation would smear the pulses into ramps
+        k = int(torch.searchsorted(self.t_tr, torch.tensor(float(t_abs), dtype=dtype),
+                                   right=True).item()) - 1
+        return self.v_tr[min(max(k, 0), self.v_tr.numel() - 1)]
+
+    def forward(self, states, t=None, p_dropout=0.0):
+        a = self.base(states=states, t=t, p_dropout=p_dropout)
+        t_abs = self.window_t0 + (0 if t is None else float(t)) * HOURS_PER_STEP
+        cols = [a[:, j] for j in range(a.shape[1])]
+        cols[self.idx] = self.value_at(t_abs).expand(a.shape[0])
+        return torch.stack(cols, dim=1)
 
 policy, policy_meta = build_policy(
     POLICY_KIND, STATE_DIM, INPUT_DIM,
@@ -682,6 +741,27 @@ print(f"\naction L2: {'ON' if (USE_ACTION_L2 and LAMBDA_A > 0) else 'off'}"
 if USE_ACTION_L2 and LAMBDA_A > 0:
     print(f"           channel weights: {L2_CHANNEL_WEIGHTS}"
           + (f"   exempt: {', '.join(_exempt)}" if _exempt else "   (all channels)"))
+
+DISCH_OVERRIDE = None
+if _args.discharge_csv:
+    import csv as _csv
+    _hh = [c.strip() for c in next(_csv.reader(open(_args.discharge_csv)))]
+    _dd = np.genfromtxt(_args.discharge_csv, delimiter=",", skip_header=1)
+    _tt = np.asarray(_dd[:, _hh.index("Time Step")], dtype=np.float64)
+    _vv_phys = np.asarray(_dd[:, _hh.index("Discharge rate")], dtype=np.float64)
+    # physical -> smpl min-max -> z, the same chain as everywhere else
+    _lo_d, _hi_d = pdata.MIN_ACT[0], pdata.MAX_ACT[0]
+    _vv_z = (((2.0 * (_vv_phys - _lo_d) / (_hi_d - _lo_d) - 1.0)
+              - np.asarray(stats["std_act_mu"])[0]) / np.asarray(stats["std_act_sd"])[0])
+    DISCH_OVERRIDE = DischargeOverride(policy, _tt.tolist(), _vv_z.tolist(), idx=0)
+    policy = DISCH_OVERRIDE
+    L2_CHANNEL_WEIGHTS = [0.0] + list(L2_CHANNEL_WEIGHTS[1:])
+    _L2_W = torch.tensor(L2_CHANNEL_WEIGHTS, dtype=dtype, device=device)
+    _duty = float((_vv_phys > 0.5 * _vv_phys.max()).mean())
+    print(f"\ndischarge OVERRIDDEN from {os.path.basename(_args.discharge_csv)}: "
+          f"{len(_tt)} steps, duty={100*_duty:.1f}%, peak={_vv_phys.max():.0f} phys")
+    print(f"  the policy still emits channel 0 but the value is discarded, so that "
+          f"head gets no gradient; L2 weights now {L2_CHANNEL_WEIGHTS}")
 
 optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
@@ -828,6 +908,8 @@ for it in range(N_ITERS):
                                             dtype=dtype, device=device)
         s0 = s_states.repeat_interleave(K_ACTIONS, dim=0)
 
+        if DISCH_OVERRIDE is not None:
+            DISCH_OVERRIDE.window_t0 = t_h      # absolute time of this window
         out = gp_rollout(model=mdl, policy=policy, s0=s0, T=STEPS_PER_EXPERT,
                          p_dropout=P_DROPOUT, particle_pred=True,
                          loss_fn=window_loss, graph_mode="full")
