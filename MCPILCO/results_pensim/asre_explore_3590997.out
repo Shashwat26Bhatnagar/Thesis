@@ -1,0 +1,45 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[policy] /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_best.pt
+[policy] kind=rbf state_dim=8 u_max=3.0 | final training W2 = 0.3477
+[action] recipe setpoint (physical): [254.173  76.519  25.965  60.961   0.905 153.74 ]
+[action] clipping: OFF (env bounds only)
+
+collecting 10 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd_rbf
+    dropped terminal error_reward row at t=22.4 h
+  episode 0: 112 steps, final t=22.2 h, total yield=0.0578  ->  bnd_rbf_asre_batch_0.csv
+    dropped terminal error_reward row at t=24.8 h
+  episode 1: 124 steps, final t=24.6 h, total yield=0.0583  ->  bnd_rbf_asre_batch_1.csv
+    dropped terminal error_reward row at t=31.6 h
+  episode 2: 158 steps, final t=31.4 h, total yield=0.3136  ->  bnd_rbf_asre_batch_2.csv
+    dropped terminal error_reward row at t=24.2 h
+  episode 3: 121 steps, final t=24.0 h, total yield=0.0588  ->  bnd_rbf_asre_batch_3.csv
+    dropped terminal error_reward row at t=24.0 h
+  episode 4: 120 steps, final t=23.8 h, total yield=0.0588  ->  bnd_rbf_asre_batch_4.csv
+    dropped terminal error_reward row at t=26.8 h
+  episode 5: 134 steps, final t=26.6 h, total yield=0.1724  ->  bnd_rbf_asre_batch_5.csv
+    dropped terminal error_reward row at t=19.6 h
+  episode 6: aborted after 98 step(s) (yield=0.1) -- retrying with a new seed
+    dropped terminal error_reward row at t=19.2 h
+  episode 6: aborted after 96 step(s) (yield=0.1) -- retrying with a new seed
+    dropped terminal error_reward row at t=20.0 h
+  episode 6: 100 steps, final t=19.8 h, total yield=0.0587  ->  bnd_rbf_asre_batch_6.csv
+    dropped terminal error_reward row at t=21.4 h
+  episode 7: 107 steps, final t=21.2 h, total yield=0.0583  ->  bnd_rbf_asre_batch_7.csv
+    dropped terminal error_reward row at t=19.8 h
+  episode 8: aborted after 99 step(s) (yield=0.1) -- retrying with a new seed
+    dropped terminal error_reward row at t=21.8 h
+  episode 8: 109 steps, final t=21.6 h, total yield=0.0589  ->  bnd_rbf_asre_batch_8.csv
+    dropped terminal error_reward row at t=20.6 h
+  episode 9: 103 steps, final t=20.4 h, total yield=0.0588  ->  bnd_rbf_asre_batch_9.csv
+
+summary:
+  episodes written: 10/10
+  total yield  mean=0.0955  min=0.0578  max=0.3136
+  yield/step   mean=0.0007  min=0.0005  max=0.0020   (SMPL paper baseline: 3.3071)
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_bnd_rbf
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.

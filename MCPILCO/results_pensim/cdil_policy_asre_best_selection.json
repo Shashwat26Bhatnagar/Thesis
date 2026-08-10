@@ -1,0 +1,9 @@
+{
+  "selected": "/home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_lam0p01.pt",
+  "lambda": 0.01,
+  "good_hours": 150,
+  "n_hours": 150,
+  "tol": 0.05,
+  "w2_rel": 0.6431446557606981,
+  "a2_rel": 0.2225803498758651
+}

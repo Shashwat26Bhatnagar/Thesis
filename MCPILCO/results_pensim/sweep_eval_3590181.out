@@ -1,0 +1,6 @@
+EXACT GP INFERENCE SELECTED
+world model: rbf_model_bnd_rbf_iter0.pt  train pts=800
+expert: 150 hourly distributions (1..150 h)
+
+evaluating reference: cdil_policy_bnd_rbf_iter0_lam0.pt
+  W2 per hour: mean=0.12115  ||a||^2: mean=0.8445

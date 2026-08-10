@@ -1,0 +1,32 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+phase models:
+  phase 0: [0,35) h  train pts=800
+  phase 1: [35,51) h  train pts=800
+  phase 2: [51,inf) h  train pts=800
+expert: 150 hourly distributions (1..150 h)
+
+evaluating reference: cdil_policy_gate_lam0.pt
+  W2 per hour: mean=0.26263  ||a||^2: mean=18.3331
+  cdil_policy_gate_lam0p001.pt             good=119/150
+  cdil_policy_gate_lam0p01.pt              good=149/150
+  cdil_policy_gate_lam0p1.pt               good=150/150
+  cdil_policy_gate_lam1p0.pt               good=150/150
+
+====================================================================================================
+policy                                    lambda  GOOD hrs   W2 ok  |a| ok   W2 /ref  |a|^2 /ref
+----------------------------------------------------------------------------------------------------
+REFERENCE (lambda=0)                         0.0         -       -       -     1.000       1.000
+cdil_policy_gate_lam0p1.pt                   0.1       150     150     150     0.823       0.619
+cdil_policy_gate_lam1p0.pt                     1       150     150     150     0.759       0.561
+cdil_policy_gate_lam0p01.pt                 0.01       149     149     150     0.924       0.808
+cdil_policy_gate_lam0p001.pt               0.001       119     147     122     0.911       0.966
+
+SELECTED: lambda = 0.1  (150 good hours of 150, W2 0.823x reference, ||a||^2 0.619x reference)
+
+A 'good hour' means W2 within tol of the reference AND a smaller action
+norm -- counted per hour, so two modes cannot average into a third.
+selected policy copied -> /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_gate_best.pt
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_pensim/lambda_sweep_gate.json

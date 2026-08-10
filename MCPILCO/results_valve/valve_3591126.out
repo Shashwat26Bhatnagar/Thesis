@@ -1,0 +1,62 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+
+valve levels: off=0 phys (-0.401 z)   max=4100 phys (6.075 z)
+vessel floor: Wt >= 50000 phys (-1.534 z), channel 6
+
+frozen policies:
+  P_B  -> channels 1..5      cdil_policy_bnd_rbf_iter0_lam0p01.pt     kind=rbf
+  P_A  -> state target only  cdil_policy_bnd_rbf_iter0.pt             kind=rbf
+
+trainable P_C: in=9 (state + hours_open) out=2 (gate, level)  params=2209
+
+objective:  1.0 * ||S_cand(end) - S_ref(end)||^2  +  0.1 * KL(gate || 0.052)  +  1.0 * vessel floor
+windows/iter=150  iters=20  particles=500  window=5 steps (1.0 h)
+iter   0  loss=5.2083e+00  state_err=5.1272e+00  duty=0.3431 (target 0.052)
+          |grad| med=1.268e-02 max=1.333e+01  DEAD=0/150
+iter   1  loss=4.7303e+00  state_err=4.6492e+00  duty=0.2143 (target 0.052)
+          |grad| med=1.376e-02 max=3.136e+01  DEAD=0/150
+iter   2  loss=5.2390e+00  state_err=5.1578e+00  duty=0.1637 (target 0.052)
+          |grad| med=5.084e-03 max=4.388e+00  DEAD=0/150
+iter   3  loss=4.7263e+00  state_err=4.6452e+00  duty=0.1560 (target 0.052)
+          |grad| med=1.192e-02 max=2.637e+00  DEAD=0/150
+iter   4  loss=5.1155e+00  state_err=5.0346e+00  duty=0.1615 (target 0.052)
+          |grad| med=2.402e-02 max=2.244e+00  DEAD=0/150
+iter   5  loss=4.8324e+00  state_err=4.7517e+00  duty=0.1547 (target 0.052)
+          |grad| med=4.367e-02 max=3.651e+01  DEAD=0/150
+iter   6  loss=4.8469e+00  state_err=4.7663e+00  duty=0.0473 (target 0.052)
+          |grad| med=3.420e-01 max=5.929e+02  DEAD=0/150
+iter   7  loss=4.0521e+00  state_err=3.9891e+00  duty=0.0000 (target 0.052)
+          |grad| med=3.153e+00 max=2.236e+03  DEAD=0/150
+iter   8  loss=3.7222e+00  state_err=3.6428e+00  duty=0.0000 (target 0.052)
+          |grad| med=2.707e+00 max=1.386e+03  DEAD=0/150
+iter   9  loss=3.8455e+00  state_err=3.8023e+00  duty=0.0000 (target 0.052)
+          |grad| med=3.115e+00 max=2.789e+03  DEAD=0/150
+iter  10  loss=3.6442e+00  state_err=3.5765e+00  duty=0.0000 (target 0.052)
+          |grad| med=1.254e+00 max=8.571e+02  DEAD=0/150
+iter  11  loss=2.7770e+00  state_err=2.6568e+00  duty=0.0000 (target 0.052)
+          |grad| med=1.211e+00 max=3.253e+02  DEAD=0/150
+iter  12  loss=2.7500e+00  state_err=2.5914e+00  duty=0.0000 (target 0.052)
+          |grad| med=9.947e-01 max=2.503e+02  DEAD=0/150
+iter  13  loss=2.5017e+00  state_err=2.3430e+00  duty=0.0000 (target 0.052)
+          |grad| med=9.414e-01 max=2.309e+02  DEAD=0/150
+iter  14  loss=2.3926e+00  state_err=2.1633e+00  duty=0.0000 (target 0.052)
+          |grad| med=5.802e-01 max=1.642e+03  DEAD=0/150
+iter  15  loss=2.3689e+00  state_err=2.1075e+00  duty=0.0000 (target 0.052)
+          |grad| med=6.178e-01 max=5.269e+02  DEAD=0/150
+iter  16  loss=2.4259e+00  state_err=2.1543e+00  duty=0.0000 (target 0.052)
+          |grad| med=2.530e-01 max=1.052e+02  DEAD=0/150
+iter  17  loss=2.5772e+00  state_err=2.3062e+00  duty=0.0000 (target 0.052)
+          |grad| med=2.102e-01 max=2.796e+02  DEAD=0/150
+iter  18  loss=2.3066e+00  state_err=2.0570e+00  duty=0.0000 (target 0.052)
+          |grad| med=8.479e-01 max=3.712e+02  DEAD=0/150
+iter  19  loss=2.3430e+00  state_err=2.0773e+00  duty=0.0000 (target 0.052)
+          |grad| med=4.533e-01 max=5.155e+02  DEAD=0/150
+
+saved -> results_valve/valve_policy.pt
+NOTE: this is P_C ONLY. Deployment needs the SplitPolicy wrapper with the same frozen P_B for channels 1..5 (P_A is a training target only and is not needed at deployment).

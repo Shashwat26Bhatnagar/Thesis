@@ -1,0 +1,207 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models loaded:
+  phase 0: [0,48) h  train pts=800  epochs=2001  select=pivchol
+  phase 1: [48,72) h  train pts=800  epochs=2001  select=pivchol
+  phase 2: [72,inf) h  train pts=800  epochs=2001  select=pivchol
+  -> all models share one z-space (verified)
+combined training state range: [-10.41, 40.38] (z-units)
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1.0..150.0 h) ...
+  done. example eigenvalues @75h: [0.00018914 0.00684495 0.04047211]
+expert windows per world model: phase 0: 34  phase 1: 16  phase 2: 100
+
+per-channel action limits (+/-10% of setpoint):
+    discharge      setpoint=   254.173   u_max_z=0.0401
+    sugar          setpoint=    76.519   u_max_z=0.4255
+    soilbean       setpoint=    25.965   u_max_z=0.7110
+    aeration       setpoint=    60.961   u_max_z=0.7499
+    backpressure   setpoint=     0.905   u_max_z=0.8753
+    waterinj       setpoint=   153.740   u_max_z=0.1374
+  (previous flat u_max was 3.0 -> [74.7  7.1  4.2  4.   3.4 21.8]x too wide per channel)
+
+Bernoulli gate ON, channels ['discharge'] (straight-through estimator; the paper notes it is BIASED)
+    discharge    off=     0.0 phys ( -0.401 z)   on=  4000.0 phys (  5.917 z)
+
+policy 'rbf': in=8 out=6 params=2808  u_max=3.0
+EPISODIC: T=5 steps (1.0 h) per window, 150 windows/iter x 20 iters = 3000 policy updates
+objective: E_s(E_a|s(W2))  states=100 x actions=5 = 500 particles;  means EXCLUDED (cross_dim)
+world models: PHASE-SPECIFIC (3)
+action spread across 5 replicas of ONE state: 5.768e-01   (ok)
+
+chance constraints ON (Tan et al. Eq. 9): eps=0.95 -> Phi^-1=1.6449
+  static box   : ON  alpha=1000.0   EXEMPT (gated): discharge
+  recipe band  : off  alpha=1000.0  +/-10% of profile, floor 5% of span, smoothed +/-2.0 h
+    discharge      static z-box  EXEMPT (Bernoulli gate)
+    sugar          static z-box [ -3.865,   4.141]
+    soilbean       static z-box [ -1.360,   2.748]
+    aeration       static z-box [ -3.932,   1.850]
+    backpressure   static z-box [ -3.915,   2.859]
+    waterinj       static z-box [ -1.374,   3.185]
+  state floor  : ON  alpha=1.0  Wt >= 50000 physical = -1.534 z  (channel 6)
+                 training data below this floor: 0.0%   (z range -1.34 .. -0.62)
+
+action L2: off  lambda=0.0   multiplier: off   N_ITERS=20
+iter   0  W2 mean=4.582321e-01 min=4.6148e-05 max=6.6596e-01
+          |grad| med=2.227e-02 max=4.519e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=37.24 max=65.47 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.456   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.1384 max=0.8853   lambda*mean=0.0000e+00
+          chance penalty: total=3.846e-04 static=3.846e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=2/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=5.6677e-01(n=34)  ph1=3.4005e-04(n=16)  ph2=4.9459e-01(n=100)
+iter   1  W2 mean=4.315618e-01 min=1.0000e-06 max=5.9801e-01
+          |grad| med=5.270e-02 max=4.568e+00  DEAD(<1e-12)=1/150  CLIPPED=0/150
+          |s|max med=37.66 max=63.81 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.433   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.5488 max=0.9649   lambda*mean=0.0000e+00
+          chance penalty: total=1.194e-03 static=1.194e-03 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=5/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=5.3879e-01(n=34)  ph1=3.3715e-04(n=16)  ph2=4.6410e-01(n=100)
+iter   2  W2 mean=4.263585e-01 min=1.0000e-06 max=6.2872e-01
+          |grad| med=5.753e-02 max=1.408e+01  DEAD(<1e-12)=1/150  CLIPPED=1/150
+          |s|max med=36.14 max=61.30 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.472   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.5912 max=1.0811   lambda*mean=0.0000e+00
+          chance penalty: total=1.087e-03 static=1.087e-03 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=5/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=5.2589e-01(n=34)  ph1=3.4731e-04(n=16)  ph2=4.6068e-01(n=100)
+iter   3  W2 mean=4.397693e-01 min=2.4785e-05 max=6.1243e-01
+          |grad| med=5.522e-02 max=1.912e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=38.66 max=63.79 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.435   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.7067 max=1.4369   lambda*mean=0.0000e+00
+          chance penalty: total=1.107e-03 static=1.107e-03 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=8/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=5.4279e-01(n=34)  ph1=3.8322e-04(n=16)  ph2=4.7504e-01(n=100)
+iter   4  W2 mean=4.270042e-01 min=2.3616e-05 max=6.1727e-01
+          |grad| med=6.346e-02 max=4.817e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=37.48 max=61.83 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.397   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.7875 max=1.3009   lambda*mean=0.0000e+00
+          chance penalty: total=8.340e-05 static=8.340e-05 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=1/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=5.2481e-01(n=34)  ph1=2.6619e-04(n=16)  ph2=4.6203e-01(n=100)
+iter   5  W2 mean=4.180540e-01 min=1.0000e-06 max=6.4544e-01
+          |grad| med=6.040e-02 max=2.330e+00  DEAD(<1e-12)=2/150  CLIPPED=0/150
+          |s|max med=39.43 max=63.59 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.360   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.9320 max=1.3936   lambda*mean=0.0000e+00
+          chance penalty: total=1.413e-03 static=1.413e-03 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=2/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.8788e-01(n=34)  ph1=1.8749e-04(n=16)  ph2=4.6117e-01(n=100)
+iter   6  W2 mean=4.237169e-01 min=1.0000e-06 max=6.0741e-01
+          |grad| med=7.771e-02 max=7.836e+00  DEAD(<1e-12)=4/150  CLIPPED=0/150
+          |s|max med=37.85 max=71.61 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.348   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.9529 max=1.7934   lambda*mean=0.0000e+00
+          chance penalty: total=7.614e-04 static=7.614e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=6/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.9161e-01(n=34)  ph1=2.3318e-04(n=16)  ph2=4.6839e-01(n=100)
+iter   7  W2 mean=3.988300e-01 min=1.4719e-05 max=7.2578e-01
+          |grad| med=8.209e-02 max=4.452e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=37.04 max=69.11 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.316   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.4599 max=1.9985   lambda*mean=0.0000e+00
+          chance penalty: total=3.477e-03 static=3.477e-03 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.01x
+          windows violating: static=6/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.2863e-01(n=34)  ph1=2.5681e-04(n=16)  ph2=4.5247e-01(n=100)
+iter   8  W2 mean=3.828905e-01 min=1.0000e-06 max=5.4163e-01
+          |grad| med=8.541e-02 max=3.468e+00  DEAD(<1e-12)=2/150  CLIPPED=0/150
+          |s|max med=38.69 max=61.75 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.348   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.4738 max=2.1801   lambda*mean=0.0000e+00
+          chance penalty: total=4.194e-04 static=4.194e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=3/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.2762e-01(n=34)  ph1=2.0633e-03(n=16)  ph2=4.2861e-01(n=100)
+iter   9  W2 mean=3.871327e-01 min=1.0000e-06 max=5.4379e-01
+          |grad| med=7.652e-02 max=1.233e+01  DEAD(<1e-12)=3/150  CLIPPED=1/150
+          |s|max med=36.08 max=60.74 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.310   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.4318 max=3.3280   lambda*mean=0.0000e+00
+          chance penalty: total=9.666e-04 static=9.666e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=6/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.3279e-01(n=34)  ph1=2.7720e-04(n=16)  ph2=4.3351e-01(n=100)
+iter  10  W2 mean=3.931040e-01 min=1.0000e-06 max=5.5354e-01
+          |grad| med=6.386e-02 max=2.832e+00  DEAD(<1e-12)=4/150  CLIPPED=0/150
+          |s|max med=36.84 max=62.98 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.375   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.2224 max=1.7423   lambda*mean=0.0000e+00
+          chance penalty: total=0.000e+00 static=0.000e+00 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=0/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.4145e-01(n=34)  ph1=1.3410e-04(n=16)  ph2=4.3954e-01(n=100)
+iter  11  W2 mean=3.928512e-01 min=1.0000e-06 max=5.4143e-01
+          |grad| med=7.977e-02 max=2.605e+01  DEAD(<1e-12)=2/150  CLIPPED=1/150
+          |s|max med=38.32 max=59.02 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.255   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.5316 max=2.9361   lambda*mean=0.0000e+00
+          chance penalty: total=2.220e-04 static=2.220e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=1/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.4339e-01(n=34)  ph1=2.1113e-04(n=16)  ph2=4.3849e-01(n=100)
+iter  12  W2 mean=3.847576e-01 min=1.0000e-06 max=5.3892e-01
+          |grad| med=7.515e-02 max=6.713e+00  DEAD(<1e-12)=1/150  CLIPPED=0/150
+          |s|max med=37.86 max=56.56 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.408   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.4044 max=3.5763   lambda*mean=0.0000e+00
+          chance penalty: total=1.258e-04 static=1.258e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=2/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=3.9922e-01(n=34)  ph1=2.0142e-04(n=16)  ph2=4.4137e-01(n=100)
+iter  13  W2 mean=3.949438e-01 min=1.0000e-06 max=5.4801e-01
+          |grad| med=7.949e-02 max=7.105e+00  DEAD(<1e-12)=2/150  CLIPPED=0/150
+          |s|max med=36.75 max=61.00 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.342   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.3659 max=2.5512   lambda*mean=0.0000e+00
+          chance penalty: total=4.377e-04 static=4.377e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=4/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.4744e-01(n=34)  ph1=2.1085e-04(n=16)  ph2=4.4025e-01(n=100)
+iter  14  W2 mean=3.825966e-01 min=1.0000e-06 max=5.8262e-01
+          |grad| med=8.773e-02 max=4.741e+00  DEAD(<1e-12)=1/150  CLIPPED=0/150
+          |s|max med=36.86 max=64.57 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.324   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.6986 max=2.4733   lambda*mean=0.0000e+00
+          chance penalty: total=3.610e-04 static=3.610e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=1/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.2239e-01(n=34)  ph1=2.1662e-04(n=16)  ph2=4.3025e-01(n=100)
+iter  15  W2 mean=3.781157e-01 min=1.0000e-06 max=5.5007e-01
+          |grad| med=8.833e-02 max=1.923e+00  DEAD(<1e-12)=4/150  CLIPPED=0/150
+          |s|max med=38.03 max=64.74 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.332   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.8049 max=2.9664   lambda*mean=0.0000e+00
+          chance penalty: total=6.776e-04 static=6.776e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=3/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.1075e-01(n=34)  ph1=1.9597e-04(n=16)  ph2=4.2749e-01(n=100)
+iter  16  W2 mean=3.900751e-01 min=1.0000e-06 max=5.4043e-01
+          |grad| med=8.360e-02 max=7.787e+00  DEAD(<1e-12)=1/150  CLIPPED=0/150
+          |s|max med=35.60 max=68.63 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.395   (reference duty cycle ~0.05)
+          action ||a||^2: mean=1.4811 max=2.4731   lambda*mean=0.0000e+00
+          chance penalty: total=6.662e-04 static=6.662e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=5/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.2723e-01(n=34)  ph1=9.1183e-04(n=16)  ph2=4.3971e-01(n=100)
+iter  17  W2 mean=4.163322e-01 min=1.0000e-06 max=6.1833e-01
+          |grad| med=6.588e-02 max=1.061e+00  DEAD(<1e-12)=1/150  CLIPPED=0/150
+          |s|max med=37.66 max=61.98 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.424   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.8773 max=1.6560   lambda*mean=0.0000e+00
+          chance penalty: total=0.000e+00 static=0.000e+00 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=0/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=4.9966e-01(n=34)  ph1=3.3475e-04(n=16)  ph2=4.5456e-01(n=100)
+iter  18  W2 mean=4.301687e-01 min=1.0000e-06 max=6.2551e-01
+          |grad| med=6.631e-02 max=9.933e+00  DEAD(<1e-12)=1/150  CLIPPED=0/150
+          |s|max med=36.28 max=68.28 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.492   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.7475 max=1.6896   lambda*mean=0.0000e+00
+          chance penalty: total=9.382e-04 static=9.382e-04 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=2/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=5.4750e-01(n=34)  ph1=3.4395e-04(n=16)  ph2=4.5905e-01(n=100)
+iter  19  W2 mean=4.247194e-01 min=2.5930e-05 max=5.9985e-01
+          |grad| med=7.528e-02 max=4.038e+00  DEAD(<1e-12)=0/150  CLIPPED=0/150
+          |s|max med=37.82 max=61.46 (data 40.38)   |a|max=5.9168
+          gate open-prob: discharge=0.471   (reference duty cycle ~0.05)
+          action ||a||^2: mean=0.8949 max=1.9057   lambda*mean=0.0000e+00
+          chance penalty: total=1.199e-03 static=1.199e-03 recipe=0.000e+00 state=0.000e+00   penalty/W2=0.00x
+          windows violating: static=5/150 recipe=0/150 state=0/150
+          per-phase W2: ph0=5.3007e-01(n=34)  ph1=3.1846e-04(n=16)  ph2=4.5681e-01(n=100)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_gate_lam0.pt

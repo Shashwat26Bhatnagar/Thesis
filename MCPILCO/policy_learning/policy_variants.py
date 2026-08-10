@@ -150,6 +150,66 @@ class KANPolicy(nn.Module):
 
 
 # =====================================================================================
+class BernoulliGatePolicy(nn.Module):
+    """Wraps a policy and replaces selected action channels with a BERNOULLI GATE.
+
+    Following Seyde et al., "Is Bang-Bang Control All You Need?" (NeurIPS 2021): the
+    Gaussian head is replaced by a Bernoulli distribution over the extremes of the
+    action range, giving a bang-off-bang controller. Only the HEAD changes -- the RBF
+    basis, centres, lengthscales and linear layer are untouched.
+
+    WHY DISCHARGE SPECIFICALLY
+    Measured on the gpei reference: discharge is at ZERO for 94.8% of steps and pulses
+    to ~4000 otherwise, with nothing in between -- it is a valve, and intermediate flow
+    is not a control mode. A continuous head cannot represent that cleanly: with an L2
+    penalty (which pulls toward the dataset mean) the policy held ~720 L/h continuously,
+    opened at t=102.2 h and never closed, draining the vessel 61100 -> 25467 and
+    terminating the episode at 120.6 h instead of 230.
+    The paper's Section 3 explains this from Pontryagin's maximum principle: an L2
+    ("minimum energy") action cost provably yields NON bang-bang optima, while L1
+    ("minimum fuel") yields bang-off-bang. Gating makes the mode structural rather
+    than merely encouraged -- the intermediate value is no longer representable.
+
+    GRADIENTS
+    Sampling a Bernoulli is not differentiable, so the straight-through estimator
+    (Bengio et al. 2013) is used: the forward pass carries the HARD sample, the
+    backward pass carries d(sigmoid)/du. The paper notes this estimator is BIASED --
+    it selected MPO for its main analysis partly to avoid it -- so treat gated-channel
+    gradients as approximate.
+
+    LEVELS
+    Gates interpolate between z_off and z_on, both given in the policy's Z-SCORED
+    action units, so the caller decides what "closed" and "open" mean physically
+    (0 and ~4000 L/h here, matching the recipe).
+    """
+
+    def __init__(self, base, gate_channels, z_off, z_on, gain=2.0,
+                 dtype=torch.float64, device=torch.device("cpu")):
+        super().__init__()
+        self.base = base
+        self.state_dim, self.input_dim = base.state_dim, base.input_dim
+        self.gate_channels = list(gate_channels)
+        self.gain = float(gain)
+        self.register_buffer("z_off", torch.tensor(list(z_off), dtype=dtype, device=device))
+        self.register_buffer("z_on", torch.tensor(list(z_on), dtype=dtype, device=device))
+
+    def gate_prob(self, states, t=None, p_dropout=0.0):
+        """Open-probability per gated channel -- for logging/diagnostics."""
+        u = self.base(states=states, t=t, p_dropout=p_dropout)
+        return torch.sigmoid(self.gain * u[:, self.gate_channels])
+
+    def forward(self, states, t=None, p_dropout=0.0):
+        u = self.base(states=states, t=t, p_dropout=p_dropout)      # (P, da)
+        cols = [u[:, j] for j in range(u.shape[1])]                 # avoid in-place
+        for i, ch in enumerate(self.gate_channels):
+            p = torch.sigmoid(self.gain * u[:, ch])                 # open probability
+            hard = torch.bernoulli(p)                               # {0,1}, no grad
+            gate = hard + p - p.detach()                            # straight-through
+            cols[ch] = self.z_off[i] + gate * (self.z_on[i] - self.z_off[i])
+        return torch.stack(cols, dim=1)
+
+
+# =====================================================================================
 def build_policy(kind, state_dim, input_dim, u_max=3.0, dtype=torch.float64,
                  device=torch.device("cpu"), rng=None,
                  # --- rbf ---
@@ -158,7 +218,9 @@ def build_policy(kind, state_dim, input_dim, u_max=3.0, dtype=torch.float64,
                  # --- mlp ---
                  mlp_hidden=(48, 48),
                  # --- kan ---
-                 kan_hidden=10, kan_grid=20, kan_range=(-3.0, 3.0)):
+                 kan_hidden=10, kan_grid=20, kan_range=(-3.0, 3.0),
+                 # --- Bernoulli gate (bang-off-bang channels) ---
+                 gate_channels=None, gate_z_off=None, gate_z_on=None, gate_gain=2.0):
     """Construct a policy of the requested kind.
 
     Returns (policy, meta). `meta` records everything needed to rebuild the same
@@ -208,16 +270,32 @@ def build_policy(kind, state_dim, input_dim, u_max=3.0, dtype=torch.float64,
     else:
         raise ValueError(f"kind must be 'rbf', 'mlp' or 'kan', got {kind!r}")
 
+    if gate_channels:
+        policy = BernoulliGatePolicy(policy, gate_channels, gate_z_off, gate_z_on,
+                                     gain=gate_gain, dtype=dtype, device=device)
+        meta.update(gate_channels=list(gate_channels),
+                    gate_z_off=list(map(float, gate_z_off)),
+                    gate_z_on=list(map(float, gate_z_on)),
+                    gate_gain=float(gate_gain))
+
     meta["n_params"] = int(sum(p.numel() for p in policy.parameters()
                                if p.requires_grad))
     return policy, meta
 
 
 def rebuild_policy(meta, dtype=torch.float64, device=torch.device("cpu")):
-    """Rebuild a policy from saved meta (for warm start / evaluation)."""
+    """Rebuild a policy from saved meta (for warm start / evaluation).
+
+    The gate configuration is part of the meta, so a gated policy is reconstructed
+    identically -- otherwise explore_with_policy would load gated weights into a
+    continuous head and silently produce different actions.
+    """
     kind = meta["kind"]
     kw = dict(state_dim=meta["state_dim"], input_dim=meta["input_dim"],
-              u_max=meta.get("u_max", 3.0), dtype=dtype, device=device)
+              u_max=meta.get("u_max", 3.0), dtype=dtype, device=device,
+              gate_channels=meta.get("gate_channels"),
+              gate_z_off=meta.get("gate_z_off"), gate_z_on=meta.get("gate_z_on"),
+              gate_gain=meta.get("gate_gain", 2.0))
     if kind == "rbf":
         return build_policy("rbf",
                             centers_init=np.asarray(meta["centers_init"]),

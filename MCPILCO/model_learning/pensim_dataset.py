@@ -38,7 +38,13 @@ load_offline applies TWO transforms in sequence: smpl min-max, then z-score. The
 Standardizer statistics are therefore fitted in SMPL-NORMALIZED space, not physical
 space. std_obs.inverse_transform() returns you to smpl-normalized units, NOT to
 pH / Kelvin / kg. Use to_physical() / from_physical() below for the full round trip.
-The time array from return_time=True IS converted back to physical HOURS.
+
+=== TIME BOUNDS: PeniControlData != PenSimEnvGym ===
+PeniControlData normalises with ITS OWN bounds, which are exactly HALF PenSimEnvGym's
+defaults (time 276.0 vs 552.0). Inverting the time column with the env's constant
+produced a range of 0..460 h instead of 0..230, which in turn made every phase mask
+select the wrong rows (phase 0 captured only t < 17.5 h of real time). The bounds are
+therefore read off the PeniControlData INSTANCE at load time, never hardcoded.
 """
 import os
 import json
@@ -53,23 +59,30 @@ ACT_DIM = 6
 OBS_NAMES = ["pH", "T", "Fa", "Fb", "Fc", "Fh", "Wt", "DO2"]
 ACT_NAMES = ["discharge", "sugar", "soilbean", "aeration", "backpressure", "waterinj"]
 
-# PenSimEnvGym defaults -- the physical envelope smpl min-max scales against.
+# PenSimEnvGym defaults -- the physical envelope the ENV min-max scales against.
+# NOTE PeniControlData uses different (halved) bounds; see the docstring.
 _MAX_OBS_RAW = [552.0, 16.10523, 725.6828, 13.717274, 540.0, 3600.0002, 1892.07874,
                 253840.11, 47.898834]
 _MIN_OBS_RAW = [0.0, 0.0, 118.98977, 0.0, 0.0, 0.0, 0.0, 25003.258, 0.0]
-# time bounds, kept separately so the time column can be un-normalised to hours
-MAX_TIME = float(_MAX_OBS_RAW[TIME_INDEX])       # 552.0 h
-MIN_TIME = float(_MIN_OBS_RAW[TIME_INDEX])       # 0.0 h
+MAX_TIME = float(_MAX_OBS_RAW[TIME_INDEX])       # env default; NOT used for CSV data
+MIN_TIME = float(_MIN_OBS_RAW[TIME_INDEX])
 MAX_OBS = np.array(_MAX_OBS_RAW[1:], dtype=np.float64)      # (8,) time dropped
 MIN_OBS = np.array(_MIN_OBS_RAW[1:], dtype=np.float64)
 MAX_ACT = np.array([4100.0, 151.0, 36.0, 76.0, 1.2, 510.0], dtype=np.float64)
 MIN_ACT = np.array([0.0, 7.0, 21.0, 29.0, 0.5, 0.0], dtype=np.float64)
 
-# fermentation phases for piecewise world models (hours). -1 = use all data.
+# Fermentation phase boundaries, in hours. Override with e.g.
+#     export PENSIM_PHASE_BOUNDS="47.5,72.5"
+# The default 35/51 was an early guess; the causal-transition analysis of the
+# penicillin process reports 47.5 h and 72.5 h, so those are worth using if the split
+# is meant to follow that paper. Whichever is set is what the trained phase models --
+# and therefore the reported results -- will describe.
+_PB = os.environ.get("PENSIM_PHASE_BOUNDS", "35.0,51.0")
+_B0, _B1 = [float(x) for x in _PB.split(",")[:2]]
 PHASES = {
-    0: (0.0, 35.0),        # lag / early growth
-    1: (35.0, 51.0),       # transition
-    2: (51.0, 1e9),        # production
+    0: (0.0, _B0),         # lag / early growth
+    1: (_B0, _B1),         # transition
+    2: (_B1, 1e9),         # production
     -1: (0.0, 1e9),        # everything
 }
 
@@ -78,21 +91,29 @@ def phase_tag(phase):
     """Filename tag for a phase id."""
     return "all" if phase == -1 else f"phase{phase}"
 
+
 def default_dataset_folder():
-    """CSV batches. PENSIM_DATA_DIR overrides everything -- the Dyna loop uses it to
-    give each variant (bounded / unbounded) its own accumulating dataset, so the two
-    chains never train on each other's trajectories."""
+    """CSV batches.
+
+    PENSIM_DATA_DIR overrides everything: the Dyna loop sets it so each variant
+    (bounded/unbounded x rbf/mlp/kan) trains on its OWN accumulating dataset and the
+    chains never see each other's trajectories.
+    """
     env_dir = os.environ.get("PENSIM_DATA_DIR")
     if env_dir:
-        n = len([f for f in os.listdir(env_dir) if f.endswith(".csv")]) \
-            if os.path.isdir(env_dir) else 0
+        n = (len([f for f in os.listdir(env_dir) if f.endswith(".csv")])
+             if os.path.isdir(env_dir) else 0)
         print(f"[pensim] dataset folder (PENSIM_DATA_DIR): {env_dir}  ({n} CSVs)")
         return env_dir
-    folder = "/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv"
-    n = len([f for f in os.listdir(folder) if f.endswith(".csv")]) \
-        if os.path.isdir(folder) else 0
-    print(f"[pensim] dataset folder: {folder}  ({n} CSVs)")
-    return folder
+
+    for folder in ("/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv",
+                   os.path.expanduser("~/deps/smpl/smpl/configdata/pensimenv")):
+        if os.path.isdir(folder):
+            n = len([f for f in os.listdir(folder) if f.endswith(".csv")])
+            print(f"[pensim] dataset folder: {folder}  ({n} CSVs)")
+            return folder
+    raise FileNotFoundError("no pensimenv dataset folder found; set PENSIM_DATA_DIR")
+
 
 def drop_time(obs):
     """Remove the time channel from a (N, 9) observation array -> (N, 8).
@@ -105,11 +126,13 @@ def drop_time(obs):
     return obs
 
 
-def extract_time_hours(obs_raw, smpl_normalized=True):
-    """Pull column 0 out of a RAW (N, 9) observation array as PHYSICAL HOURS.
+def extract_time_hours(obs_raw, smpl_normalized=True, t_min=None, t_max=None):
+    """Pull column 0 out of a RAW (N, 9) array as PHYSICAL HOURS.
 
-    smpl's normalize maps physical -> [-1, 1], so it is inverted here. Returns None
-    if the array has already had the time channel dropped."""
+    t_min/t_max MUST be the bounds of whatever normalised the data. For CSVs loaded
+    through PeniControlData those are its own bounds (276.0), not PenSimEnvGym's
+    (552.0) -- using the wrong pair doubles every timestamp.
+    """
     obs_raw = np.asarray(obs_raw, dtype=np.float64)
     if obs_raw.ndim == 1:
         obs_raw = obs_raw.reshape(1, -1)
@@ -117,7 +140,9 @@ def extract_time_hours(obs_raw, smpl_normalized=True):
         return None
     t = obs_raw[:, TIME_INDEX].copy()
     if smpl_normalized:
-        t = (t + 1.0) / 2.0 * (MAX_TIME - MIN_TIME) + MIN_TIME
+        lo = MIN_TIME if t_min is None else float(t_min)
+        hi = MAX_TIME if t_max is None else float(t_max)
+        t = (t + 1.0) / 2.0 * (hi - lo) + lo
     return t
 
 
@@ -133,93 +158,23 @@ def phase_mask(t_hours, phase):
 def filter_by_phase(obs, act, nobs, t_hours, phase, verbose=True):
     """Restrict a loaded dataset to one fermentation phase.
 
-    Apply this AFTER load_offline so the Standardizer is fitted on the FULL dataset:
-    all phase models then share one z-space and their outputs stay comparable.
+    Apply AFTER load_offline so the Standardizer is fitted on the FULL dataset: all
+    phase models then share one z-space and their outputs stay comparable.
     """
     m = phase_mask(t_hours, phase)
     lo, hi = PHASES[phase]
     if verbose:
         hi_s = "inf" if hi > 1e8 else f"{hi:g}"
         print(f"[pensim] phase {phase}: t in [{lo:g}, {hi_s}) h  ->  "
-              f"{int(m.sum())} of {len(m)} transitions "
-              f"({100.0*m.mean():.1f}%)")
+              f"{int(m.sum())} of {len(m)} transitions ({100.0 * m.mean():.1f}%)")
         if m.sum() == 0:
             print("[pensim] WARNING: phase is EMPTY")
     return obs[m], act[m], nobs[m], t_hours[m]
-
-# =====================================================================================
-# APPEND THIS FUNCTION TO THE END OF  model_learning/pensim_dataset.py
-# (numpy is already imported there as np)
-# =====================================================================================
-
-
-def select_pivoted_cholesky(X, m, lengthscales=None, tol=1e-10, verbose=True):
-    """Greedy pivoted-Cholesky subset selection.
-
-    Picks the m points that contribute most to the RANK of the RBF kernel matrix,
-    skipping near-duplicates.
-
-    WHY: uniform 'stride' subsampling keeps redundant rows. In a narrow time window
-    (phase 1 spans 16 h of a 230 h batch) the process barely moves, so hundreds of
-    rows are near-identical in the 14-D input space. Then K(x_i,x_j) ~ K(x_i,x_i),
-    the kernel matrix is numerically rank-deficient, and torch.cholesky fails with
-        "the leading minor of order 229 is not positive-definite".
-    Pivoted Cholesky is the standard remedy: it selects a well-conditioned subset.
-
-    The residual trace printed at the end is diagnostic in its own right -- if it
-    drops below tol after k << m points, the data genuinely contains only ~k points'
-    worth of independent information, and no kernel choice or jitter changes that.
-
-    Parameters
-    ----------
-    X : (N, d) array -- the GP inputs, e.g. np.hstack([obs, act])
-    m : int         -- maximum number of points to select
-    lengthscales : (d,) or None -- per-dimension scaling before distances (default 1)
-    tol : float     -- stop when the largest residual variance falls below this
-
-    Returns
-    -------
-    idx : (k,) int array of selected row indices, k <= m
-    """
-    X = np.asarray(X, dtype=np.float64)
-    N, d = X.shape
-    ls = np.ones(d) if lengthscales is None else np.asarray(lengthscales, dtype=np.float64)
-    Xs = X / ls
-
-    m = int(min(m, N))
-    diag = np.ones(N)                      # RBF kernel diagonal is 1 everywhere
-    idx = []
-    L = np.zeros((m, N))
-
-    for k in range(m):
-        j = int(np.argmax(diag))
-        if diag[j] < tol:
-            if verbose:
-                print(f"[pivchol] residual below tol at k={k}: the data has only "
-                      f"~{k} independent directions")
-            break
-        idx.append(j)
-        d2 = ((Xs - Xs[j]) ** 2).sum(axis=1)
-        row = np.exp(-0.5 * d2)                       # k(x_j, .)
-        if k:
-            row = row - L[:k, :].T @ L[:k, j]
-        row = row / np.sqrt(max(diag[j], 1e-300))
-        L[k] = row
-        diag = np.maximum(diag - row ** 2, 0.0)
-
-    idx = np.array(sorted(idx), dtype=int)
-    if verbose:
-        print(f"[pivchol] selected {len(idx)}/{N} points  "
-              f"(residual trace {diag.sum():.3e})")
-    return idx
 
 
 # ------------------------------------------------------------- standardizer ---
 class Standardizer:
     """Per-variable z-scoring fitted on the dataset.
-
-    Statistics are kept in `self.stats`, keyed by variable name:
-        {"pH": {"index":0, "mean":..., "std":..., "min":..., "max":..., "live":True}, ...}
 
     Channels with std below `eps` are constant across the dataset; they are flagged
     live=False and left unscaled so the transform stays finite.
@@ -237,14 +192,34 @@ class Standardizer:
         self.max = X.max(0)
         self.live = self.sd > eps
         self.sd_safe = np.where(self.live, self.sd, 1.0)
-        self.names = list(names) if names is not None else [f"{name}{i}" for i in range(X.shape[1])]
-
+        self.names = (list(names) if names is not None
+                      else [f"{name}{i}" for i in range(X.shape[1])])
         self.stats = {
             nm: {"index": int(i), "mean": float(self.mu[i]), "std": float(self.sd[i]),
                  "min": float(self.min[i]), "max": float(self.max[i]),
                  "live": bool(self.live[i])}
             for i, nm in enumerate(self.names)
         }
+
+    @classmethod
+    def from_stats(cls, mu, sd, names=None, name="", eps=1e-10):
+        """Rebuild from SAVED mu/sd instead of fitting -- for reusing an earlier
+        iteration's z-space."""
+        o = cls.__new__(cls)
+        o.name, o.eps = name, eps
+        o.mu = np.asarray(mu, dtype=np.float64)
+        o.sd = np.asarray(sd, dtype=np.float64)
+        o.min = np.full_like(o.mu, np.nan)
+        o.max = np.full_like(o.mu, np.nan)
+        o.live = o.sd > eps
+        o.sd_safe = np.where(o.live, o.sd, 1.0)
+        o.names = (list(names) if names is not None
+                   else [f"{name}{i}" for i in range(len(o.mu))])
+        o.stats = {nm: {"index": int(i), "mean": float(o.mu[i]), "std": float(o.sd[i]),
+                        "min": float("nan"), "max": float("nan"),
+                        "live": bool(o.live[i])}
+                   for i, nm in enumerate(o.names)}
+        return o
 
     # -- states / actions: mean shift + scale --
     def transform(self, X):
@@ -281,7 +256,6 @@ class Standardizer:
 
 
 # --------------------------------------------- full physical <-> model units ---
-# smpl's normalize maps physical -> [-1, 1] via  2*(x - min)/(max - min) - 1.
 def _smpl_to_physical(x_norm, lo, hi):
     return (np.asarray(x_norm, dtype=np.float64) + 1.0) / 2.0 * (hi - lo) + lo
 
@@ -320,57 +294,63 @@ def load_stats(path):
 # ------------------------------------------------------------------- loading ---
 def load_offline(dataset_folder=None, smpl_normalize=True, max_transitions=None,
                  drop_time_channel=True, standardize=True, verbose=True,
-                 return_time=False):
+                 return_time=False, std_obs_stats=None, std_act_stats=None):
     """Load PeniControlData (reads every CSV batch in the folder).
 
-    Parameters
-    ----------
-    return_time : bool
-        If True, additionally return the per-transition time in PHYSICAL HOURS,
-        taken from raw observation column 0 BEFORE the time channel is dropped.
-        Use it with filter_by_phase() to train phase-specific world models.
+    return_time : also return per-transition time in PHYSICAL HOURS, taken from raw
+        column 0 BEFORE the time channel is dropped. Use with filter_by_phase().
+    std_obs_stats / std_act_stats : (mu, sd) pairs to REUSE instead of refitting.
 
-    Returns
-    -------
-    obs, act, nobs : (N, 8), (N, 6), (N, 8) float64 -- model units if standardize=True
-    std_obs, std_act : Standardizer or None
-    t_hours : (N,) float64 -- only when return_time=True
+    Returns obs (N,8), act (N,6), nobs (N,8), std_obs, std_act [, t_hours].
     """
     from smpl.envs.pensimenv import PeniControlData
 
     folder = dataset_folder or default_dataset_folder()
     if not os.path.isdir(folder):
         raise FileNotFoundError(f"dataset folder not found: {folder}")
-    d = PeniControlData(dataset_folder=folder, normalize=smpl_normalize).get_dataset()
+
+    _pcd = PeniControlData(dataset_folder=folder, normalize=smpl_normalize)
+    d = _pcd.get_dataset()
     if d is None:
         raise RuntimeError("get_dataset() returned None (no CSVs parsed?)")
+
+    # bounds read off the INSTANCE: PeniControlData's are half PenSimEnvGym's, and
+    # using the env's constants doubles every timestamp (0..460 h instead of 0..230)
+    _tmax = float(np.asarray(getattr(_pcd, "max_observations", _MAX_OBS_RAW))[TIME_INDEX])
+    _tmin = float(np.asarray(getattr(_pcd, "min_observations", _MIN_OBS_RAW))[TIME_INDEX])
 
     obs = np.asarray(d["observations"], dtype=np.float64)
     act = np.asarray(d["actions"], dtype=np.float64)
     nobs = np.asarray(d["next_observations"], dtype=np.float64)
     if max_transitions is not None:
-        obs = obs[:max_transitions]; act = act[:max_transitions]; nobs = nobs[:max_transitions]
+        obs, act, nobs = obs[:max_transitions], act[:max_transitions], nobs[:max_transitions]
 
-    # capture time (hours) BEFORE the channel is dropped
-    t_hours = extract_time_hours(obs, smpl_normalized=smpl_normalize)
+    t_hours = extract_time_hours(obs, smpl_normalized=smpl_normalize,
+                                 t_min=_tmin, t_max=_tmax)
 
     if drop_time_channel:
         obs, nobs = drop_time(obs), drop_time(nobs)
 
     std_obs = std_act = None
     if standardize:
-        std_obs = Standardizer(obs, names=OBS_NAMES, name="obs")
-        std_act = Standardizer(act, names=ACT_NAMES, name="act")
-        if verbose:
-            std_obs.report(); std_act.report()
+        if std_obs_stats is not None:
+            std_obs = Standardizer.from_stats(*std_obs_stats, names=OBS_NAMES, name="obs")
+            std_act = Standardizer.from_stats(*std_act_stats, names=ACT_NAMES, name="act")
+            if verbose:
+                print("[pensim] using SAVED standardizer statistics")
+        else:
+            std_obs = Standardizer(obs, names=OBS_NAMES, name="obs")
+            std_act = Standardizer(act, names=ACT_NAMES, name="act")
+            if verbose:
+                std_obs.report(); std_act.report()
         obs = std_obs.transform(obs)
         nobs = std_obs.transform(nobs)
         act = std_act.transform(act)
 
     if verbose:
+        print(f"[pensim] loader time bounds: [{_tmin:.2f}, {_tmax:.2f}] h")
         print(f"[pensim] {obs.shape[0]} transitions | obs {obs.shape[1]}d act {act.shape[1]}d")
         print(f"[pensim] obs per-dim std: {np.round(obs.std(0), 4)}")
-        print(f"[pensim] act per-dim std: {np.round(act.std(0), 4)}")
         if t_hours is not None:
             print(f"[pensim] time range: {t_hours.min():.2f} .. {t_hours.max():.2f} h")
             for ph in (0, 1, 2):
@@ -388,8 +368,8 @@ def collect_online(env, num_episodes=1, max_steps=None, policy=None, seed=0,
                    drop_time_channel=True, std_obs=None, std_act=None):
     """Roll the env; returns (obs, act, next_obs). Slow: 1150 ODE solves/episode.
 
-    Pass the EXISTING std_obs/std_act to standardize with the statistics the model was
-    trained on -- refitting on a new rollout would silently change the input space.
+    Pass the EXISTING std_obs/std_act so the rollout is standardized with the
+    statistics the model was trained on -- refitting would silently change the space.
     """
     rng = np.random.default_rng(seed)
     O, A, N = [], [], []
@@ -419,7 +399,7 @@ def collect_online(env, num_episodes=1, max_steps=None, policy=None, seed=0,
 # -------------------------------------------------------------- subsampling ---
 def subsample(obs, act, nobs, n_keep=300, mode="stride", seed=0, t_hours=None):
     """Exact GP inference costs O(N^3) per GP (8 GPs here), so N must stay small.
-    'stride' preserves temporal coverage of the batch; 'random' samples uniformly.
+    'stride' preserves temporal coverage; 'random' samples uniformly.
 
     If t_hours is given it is subsampled with the same indices and returned as a
     fourth element, so time labels stay aligned with the kept rows.
@@ -434,3 +414,53 @@ def subsample(obs, act, nobs, n_keep=300, mode="stride", seed=0, t_hours=None):
     if t_hours is None:
         return obs[idx], act[idx], nobs[idx]
     return obs[idx], act[idx], nobs[idx], t_hours[idx]
+
+
+def select_pivoted_cholesky(X, m, lengthscales=None, tol=1e-10, verbose=True):
+    """Greedy pivoted-Cholesky subset selection.
+
+    Picks the m points contributing most to the RANK of the RBF kernel matrix,
+    skipping near-duplicates.
+
+    WHY: uniform 'stride' subsampling keeps redundant rows. In a narrow time window
+    the process barely moves, so hundreds of rows are near-identical in the 14-D input
+    space. Then K(x_i,x_j) ~ K(x_i,x_i), the kernel matrix is numerically rank
+    deficient, and torch.cholesky fails with
+        "the leading minor of order 229 is not positive-definite".
+
+    The residual trace printed at the end is diagnostic in its own right: if it drops
+    below tol after k << m points, the data contains only ~k points' worth of
+    independent information, and no kernel choice changes that.
+    """
+    X = np.asarray(X, dtype=np.float64)
+    N, d = X.shape
+    ls = np.ones(d) if lengthscales is None else np.asarray(lengthscales, dtype=np.float64)
+    Xs = X / ls
+
+    m = int(min(m, N))
+    diag = np.ones(N)                      # RBF kernel diagonal is 1 everywhere
+    idx = []
+    L = np.zeros((m, N))
+
+    for k in range(m):
+        j = int(np.argmax(diag))
+        if diag[j] < tol:
+            if verbose:
+                print(f"[pivchol] residual below tol at k={k}: the data has only "
+                      f"~{k} independent directions")
+            break
+        idx.append(j)
+        d2 = ((Xs - Xs[j]) ** 2).sum(axis=1)
+        row = np.exp(-0.5 * d2)                       # k(x_j, .)
+        if k:
+            row = row - L[:k, :].T @ L[:k, j]
+        row = row / np.sqrt(max(diag[j], 1e-300))
+        L[k] = row
+        diag = np.maximum(diag - row ** 2, 0.0)
+
+    idx = np.array(sorted(idx), dtype=int)
+    if verbose:
+        print(f"[pivchol] selected {len(idx)}/{N} points  "
+              f"(residual trace {diag.sum():.3e})")
+    return idx
+

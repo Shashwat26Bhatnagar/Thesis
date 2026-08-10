@@ -80,8 +80,14 @@ def action_chance_penalty(a, lo, hi, num_states=None, k_actions=None,
         sigma = a.std(dim=0, keepdim=True).clamp_min(sigma_floor).expand_as(a)
 
     # Eq. 8 tightening, both sides of the box. Positive => violated.
-    v_hi = (mu + z * sigma) - hi                        # want <= 0
-    v_lo = lo - (mu - z * sigma)                        # want <= 0
+    # A channel may be EXEMPTED by passing lo=-inf / hi=+inf (e.g. one driven by a
+    # Bernoulli gate, whose two-point distribution has maximal variance by design and
+    # would violate any variance back-off). inf-arithmetic would give nan here, so
+    # exempt sides are zeroed explicitly.
+    v_hi = torch.where(torch.isfinite(hi), (mu + z * sigma) - hi,
+                       torch.zeros_like(mu))
+    v_lo = torch.where(torch.isfinite(lo), lo - (mu - z * sigma),
+                       torch.zeros_like(mu))
 
     # Eq. 9 with the slack at its lower bound: s = max(0, violation)
     s = torch.relu(v_hi) + torch.relu(v_lo)             # (S, da) or (P, da)
@@ -255,6 +261,43 @@ def mass_balance_penalty(mu, s_prev, a, wt_idx, water_idx, disch_idx,
                              "max_resid": resid.max().detach(),
                              "violation_frac": (slack > 0).to(mu.dtype).mean().detach()}
     return penalty
+
+
+def gate_sparsity_kl(p, p_target, eps=1e-8):
+    """KL( Bernoulli(p) || Bernoulli(p_target) ), averaged over the batch.
+
+    The regularisation term of ASRE (Pang et al., "Reinforcement Learning With
+    Sparse-executing Action via Sparsity Regularization"), Eq. (6):
+
+        max_pi  E[ sum_t gamma^t ( r(s_t,a_t) - lambda * D_KL(pi(.|s_t), p~(.)) ) ]
+
+    ASRE learns the sparsity distribution p~ with a D-UCB bandit that constrains
+    action sampling for N episodes and reads off the episodic reward. That machinery
+    is NOT used here, for two reasons: it needs environment interaction and a reward
+    signal, and -- more simply -- the target sparsity is already known. The gpei
+    reference opens the discharge valve 6 times in 230 h, a duty cycle of 0.052, so
+    p_target is set from data rather than estimated.
+
+    The paper's discrete-action requirement (its stated limitation: "infeasible to
+    evaluate the sparsity of continuous actions") is met because the gated channel is
+    binary.
+
+    WHAT THIS DOES AND DOES NOT DO
+    It controls the MARGINAL frequency: the gate is pushed toward opening p_target of
+    the time. It does NOT impose temporal structure -- a memoryless policy can satisfy
+    a 5% marginal by opening at random 5% of the time rather than in 2-hour pulses
+    every 30 h. Reproducing the pulse would need the elapsed-open-time in the policy
+    input, which the 8-D state does not carry.
+
+    p        : (N,) or (N,k) open-probabilities from the gate, differentiable
+    p_target : scalar or (k,) target duty cycle
+    """
+    p = p.clamp(eps, 1.0 - eps)
+    q = (p_target if torch.is_tensor(p_target)
+         else torch.as_tensor(p_target, dtype=p.dtype, device=p.device))
+    q = q.clamp(eps, 1.0 - eps)
+    kl = p * torch.log(p / q) + (1.0 - p) * torch.log((1.0 - p) / (1.0 - q))
+    return kl.mean()
 
 
 class RecipeBounds:

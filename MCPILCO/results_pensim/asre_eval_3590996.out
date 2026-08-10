@@ -1,0 +1,32 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+phase models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+expert: 150 hourly distributions (1..150 h)
+
+evaluating reference: cdil_policy_asre_lam0.pt
+  W2 per hour: mean=0.20896  ||a||^2: mean=15.7257
+  cdil_policy_asre_lam0p001.pt             good=147/150
+  cdil_policy_asre_lam0p01.pt              good=150/150
+  cdil_policy_asre_lam0p1.pt               good=136/150
+  cdil_policy_asre_lam1p0.pt               good=144/150
+
+====================================================================================================
+policy                                    lambda  GOOD hrs   W2 ok  |a| ok   W2 /ref  |a|^2 /ref
+----------------------------------------------------------------------------------------------------
+REFERENCE (lambda=0)                         0.0         -       -       -     1.000       1.000
+cdil_policy_asre_lam0p01.pt                 0.01       150     150     150     0.643       0.223
+cdil_policy_asre_lam0p001.pt               0.001       147     147     150     0.870       0.761
+cdil_policy_asre_lam1p0.pt                     1       144     144     150     0.702       0.136
+cdil_policy_asre_lam0p1.pt                   0.1       136     136     150     0.716       0.171
+
+SELECTED: lambda = 0.01  (150 good hours of 150, W2 0.643x reference, ||a||^2 0.223x reference)
+
+A 'good hour' means W2 within tol of the reference AND a smaller action
+norm -- counted per hour, so two modes cannot average into a third.
+selected policy copied -> /home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_best.pt
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_pensim/lambda_sweep_asre.json

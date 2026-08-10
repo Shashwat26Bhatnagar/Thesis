@@ -1,0 +1,10 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+phase models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+expert: 150 hourly distributions (1..150 h)
+
+evaluating reference: cdil_policy_bnd_rbf_iter0_lam0.pt

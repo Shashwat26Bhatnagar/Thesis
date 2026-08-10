@@ -1,0 +1,55 @@
+{
+  "tol": 0.05,
+  "reference": "results_pensim/cdil_policy_bnd_rbf_iter0_lam0.pt",
+  "phase_prefix": null,
+  "model": "results_pensim/rbf_model_bnd_rbf_iter0.pt",
+  "w2_ref_mean": 0.12115236970924012,
+  "a2_ref_mean": 0.8445392776214656,
+  "n_hours": 150,
+  "rows": [
+    {
+      "path": "results_pensim/cdil_policy_bnd_rbf_iter0_lam0p001.pt",
+      "lam": 0.001,
+      "good_hours": 0,
+      "hours_w2_ok": 122,
+      "hours_a_ok": 0,
+      "w2_mean": 0.1210919477288842,
+      "a2_mean": 1.3984930725475346,
+      "w2_rel": 0.999501272814548,
+      "a2_rel": 1.6559242531457001
+    },
+    {
+      "path": "results_pensim/cdil_policy_bnd_rbf_iter0_lam0p01.pt",
+      "lam": 0.01,
+      "good_hours": 89,
+      "hours_w2_ok": 89,
+      "hours_a_ok": 150,
+      "w2_mean": 0.12439295665073519,
+      "a2_mean": 0.08630535432113359,
+      "w2_rel": 1.0267480277048837,
+      "a2_rel": 0.10219223262676584
+    },
+    {
+      "path": "results_pensim/cdil_policy_bnd_rbf_iter0_lam0p1.pt",
+      "lam": 0.1,
+      "good_hours": 64,
+      "hours_w2_ok": 64,
+      "hours_a_ok": 150,
+      "w2_mean": 0.1305923413842569,
+      "a2_mean": 0.021270605756061534,
+      "w2_rel": 1.0779181760758973,
+      "a2_rel": 0.025186046782770616
+    },
+    {
+      "path": "results_pensim/cdil_policy_bnd_rbf_iter0_lam1p0.pt",
+      "lam": 1.0,
+      "good_hours": 49,
+      "hours_w2_ok": 49,
+      "hours_a_ok": 150,
+      "w2_mean": 0.1329514318412114,
+      "a2_mean": 0.00223760209128117,
+      "w2_rel": 1.0973902711130492,
+      "a2_rel": 0.002649494405497733
+    }
+  ]
+}

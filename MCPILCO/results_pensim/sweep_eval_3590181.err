@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/evaluate_lambda_sweep.py", line 211, in <module>
+    rows.append(dict(path=c, lam=lam_of(c), good_hours=good,
+  File "/home/s2892016/Thesis/MCPILCO/evaluate_lambda_sweep.py", line 196, in lam_of
+    return float(m.group(1).replace("p", "."))
+ValueError: could not convert string to float: '0.001..'

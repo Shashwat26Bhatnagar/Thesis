@@ -61,23 +61,6 @@ POLICY:
     Covariance-spectrum matching needs the policy to move the state appreciably, and
     +/-10% does not. Flat u_max = 3.0 is therefore retained here; ACTION_LIMIT_FRAC
     below is kept for reference/experimentation.
-
-L_PHYSICS (added in this revision)
-    W2-on-states cannot see "cancellation" actions: flooding sugar feed + water
-    injection while draining hard can land on almost the same next state as the
-    baseline's near-zero action, because W2 only compares state distributions, not
-    the actions that produced them. This is the control-allocation null-space
-    problem (over-actuated system, redundant actuators producing the same net
-    effect) -- the standard fix is a minimum-effort norm on the action itself,
-    independent of whether it moved the state. Added below as
-        L_physics = PHYS_L2_FRAC * w2.detach() * mean(||a_t_z||^2)
-    added directly into the per-window loss, weighted as a FRACTION of that window's
-    own (detached) W2 value -- L_physics = PHYS_L2_FRAC * w2.detach() * mean(||a_z||^2)
-    -- so it auto-scales with training and is capped at PHYS_L2_FRAC of W2's
-    contribution by construction; physics only breaks ties among actions landing on
-    ~the same next state, it cannot out-compete W2 for search direction. This
-    REPLACES a previously-referenced CC_PHYS_C / CC_ALPHA_PHYS / CC_PHYS_TOL mass-
-    balance constraint that was never actually defined in this file (dead code).
 """
 import os
 import sys
@@ -111,7 +94,8 @@ from policy_learning.wasserstein_loss import w2_cross_dim_torch
 from policy_learning.policy_variants import build_policy
 from policy_learning.chance_constraints import (action_chance_penalty, phi_inv,
                                                 RecipeBounds, state_chance_penalty,
-                                                action_violation_multiplier)
+                                                action_violation_multiplier,
+                                                gate_sparsity_kl)
 from dcfba_pen.flgfn.pf_query import PFQuery
 
 torch.set_num_threads(1)
@@ -121,6 +105,9 @@ np.random.seed(0); torch.manual_seed(0)
 SAVE_DIR = os.path.join(_REPO, "results_pensim")
 
 _ap = argparse.ArgumentParser("CDIL policy optimization")
+_ap.add_argument("-phase_prefix", type=str, default=None,
+                 help="use THREE phase models named <prefix>_phase{0,1,2}.pt, selected "
+                      "per window by the expert time. Ignored if -model is given.")
 _ap.add_argument("-model", type=str, default=None,
                  help="single world-model checkpoint (Dyna loop). Omit to use the "
                       "three phase models.")
@@ -130,6 +117,11 @@ _ap.add_argument("-init_policy", type=str, default=None,
                       "the loaded weights meaningless.")
 _ap.add_argument("-out", type=str, default=None, help="output policy path")
 _ap.add_argument("-iters", type=int, default=None, help="override N_ITERS")
+_ap.add_argument("-lam", type=float, default=None,
+                 help="L2 action-regularisation weight. Loss = W2 + lam*||a||^2 + "
+                      "chance constraints. ||a|| is in Z-SCORED units, so z=0 is the "
+                      "DATASET-MEAN action: this pulls toward typical operating values, "
+                      "not toward zero flow.")
 _ap.add_argument("-policy_kind", type=str, default=None,
                  choices=["rbf", "mlp", "kan"],
                  help="policy architecture (default: POLICY_KIND below). "
@@ -140,9 +132,8 @@ _args = _ap.parse_known_args()[0]
 
 # --- world models: one per fermentation phase, or a single all-data model ---
 USE_PHASE_MODELS = _args.model is None
-MODEL_PATHS = {0: os.path.join(SAVE_DIR, "rbf_model_phase0.pt"),
-               1: os.path.join(SAVE_DIR, "rbf_model_phase1.pt"),
-               2: os.path.join(SAVE_DIR, "rbf_model_phase2.pt")}
+_pp = _args.phase_prefix or os.path.join(SAVE_DIR, "rbf_model")
+MODEL_PATHS = {p: f"{_pp}_phase{p}.pt" for p in (0, 1, 2)}
 ALL_MODEL_PATH = _args.model or os.path.join(SAVE_DIR, "rbf_model_all.pt")
 
 STATE_DIM = pdata.OBS_DIM          # 8
@@ -208,7 +199,13 @@ CC_STATE_CHANNEL = "Wt"      # vessel weight
 CC_WT_MIN_PHYS = 50000.0     # minimum working volume. Reference runs stay above 91000
                              # and batches start near 62500, so 50000 is a floor that
                              # is clearly unsafe to cross without being restrictive.
-CC_ALPHA_STATE = 1000.0
+# alpha CALIBRATED from a measured run, not guessed. With alpha=1000 the smoke test
+# gave  state penalty = 1.090e+02  against a W2 of ~1.5e-01: the constraint was ~700x
+# the objective, so the policy optimised the constraint alone and imitation was
+# irrelevant. alpha=1.0 puts the penalty at ~0.11, the same order as W2, so it guides
+# rather than dominates. Raise it if the vessel still drains; lower it if W2 stops
+# improving.
+CC_ALPHA_STATE = 1.0
 
 # --- multiplicative action-violation penalty -----------------------------------
 # The objective becomes  W2 * (1 + beta * v)  where v is the normalised amount by
@@ -219,37 +216,88 @@ CC_ALPHA_STATE = 1000.0
 # Calibrated on bnd_iter6_batch_7.csv (discharge out of band 91.3% of steps, sugar
 # 31.9%, mean normalised excess 0.0107): beta=1000 gives ~12x on average and ~36x at
 # worst. beta=10 gives only 1.1x, far too weak to deter.
-USE_ACTION_MULTIPLIER = True
+# --- L2 action regularisation --------------------------------------------------
+# loss = W2 + LAMBDA_A * mean||a||^2 + chance penalties      (ADDITIVE)
+# NOT W2-divided: dividing by W2 makes the penalty vanish exactly when imitation is
+# going well, which is backwards -- it would license large actions precisely when the
+# policy is closest to the expert.
+USE_ACTION_L2 = True
+LAMBDA_A = 0.0             # set per run with -lam; 0.0 = the reference policy
+
+# PER-CHANNEL weights. ||a||^2 is in z-scored units, so z=0 is the DATASET-MEAN
+# action and the penalty pulls every channel toward its mean. That is right for a
+# continuously-modulated channel and WRONG for a valve.
+#
+# Measured against the gpei reference (gpei_batch_161.csv):
+#     discharge : 94.8% of steps at ZERO, occasional pulses to ~4000, std 858
+#                 -> BIMODAL. Its mean of 201 is a value it essentially never takes,
+#                    so pulling toward the mean lands between the modes. With L2 on,
+#                    our policy spent >5% of steps at 3600 and drained the vessel
+#                    (62900 -> 25467), terminating at t=120.6 h instead of 230.
+#     the other five : unimodal, std/mean 0.15-0.98 -> the mean is a sensible target.
+#                    With L2 on, four of six channels moved CLOSER to the reference's
+#                    action distribution (1-Wasserstein: sugar 17.1->13.6,
+#                    soilbean 4.05->3.54, backpressure 0.14->0.13, water 107.6->95.5).
+#
+# So the penalty is kept where it demonstrably helps and removed from discharge.
+# ALL SIX channels, including the gated one. Measured across three runs, L2 turns out
+# to CREATE the action variation rather than suppress it -- the runs without it are the
+# frozen ones. Per-channel action std against the gpei reference:
+#     run                 discharge  sugar  soilbean  aeration  backpres  water
+#     no L2, no gate           1.92   3.68      0.34      0.86      0.02    7.59
+#     L2 on all six         1206.88  30.38      1.57     10.28      0.11  203.09
+#     L2 x5 + gate            25.30   0.82      0.32      0.45      0.00    3.05
+#     gpei reference         858.52  24.29      5.03     10.58      0.15  148.03
+# L2-on-all-six is closest to the reference on every channel; exempting discharge
+# also flattened the other five. On the gated channel the penalty acts on the
+# PRE-SIGMOID head output, so it pulls the open-PROBABILITY toward its mean rather
+# than penalising flow magnitude -- which should discourage the gate from saturating.
+L2_CHANNEL_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+# --- Bernoulli gate on the discharge channel (Seyde et al., NeurIPS 2021) ----------
+# Discharge is a VALVE: the gpei reference holds it at zero for 94.8% of steps and
+# pulses to ~4000 otherwise, never in between. A continuous head cannot represent that
+# cleanly, and an L2 penalty actively prevents it -- the paper derives from Pontryagin
+# that an L2 ("minimum energy") action cost yields NON bang-bang optima. Gating makes
+# the mode structural: the intermediate value is no longer representable.
+# L2 stays on the other five channels, which ARE continuously modulated and where it
+# moved four of six action distributions closer to the reference.
+USE_BERNOULLI_GATE = True
+GATE_CHANNELS = [0]              # discharge
+GATE_OFF_PHYS = [0.0]            # closed, physical units
+GATE_ON_PHYS = [4000.0]          # open -- the recipe's own pulse level
+GATE_GAIN = 2.0                  # sigmoid slope on the base head's output
+
+# --- ASRE sparsity regularisation on the gate (Pang et al., Eq. 6) ---------------
+# loss += LAMBDA_SPARSE * KL( Bernoulli(p_open) || Bernoulli(GATE_TARGET_DUTY) )
+# ASRE estimates its sparsity distribution with a D-UCB bandit over constrained
+# sampling episodes; that is skipped here because the target is already known -- the
+# gpei reference opens discharge 6 times in 230 h, a duty cycle of 0.052. The paper's
+# discrete-action limitation is met because the gated channel is binary.
+# NOTE this fixes the marginal FREQUENCY, not the temporal structure: a memoryless
+# policy can hit 5% by opening at random rather than in 2-hour pulses.
+USE_GATE_SPARSITY_KL = True
+GATE_TARGET_DUTY = [0.052]       # measured on gpei_batch_161.csv
+LAMBDA_SPARSE = 0.01             # the paper's own lambda; larger values hurt (its Tab. I)
+
+# Gated channels are EXEMPT from the static chance constraint. The two model
+# contradictory things: the chance constraint asks the action DISTRIBUTION to sit
+# inside a box with a variance back-off (mu + 1.645*sigma <= hi), while a Bernoulli
+# gate deliberately places all its mass at the two extremes -- maximal variance by
+# construction. Measured: the gate's mixture of {-0.401, 5.917} z gave sigma ~3.2, so
+# mu + 1.645*sigma overshot the ceiling in 150/150 windows and the static penalty
+# reached 1156x the W2 term. The policy then optimised the constraint alone and
+# gate open-prob sat at 0.503, the sigmoid midpoint -- i.e. no useful gradient.
+# The gate already restricts discharge to exactly {0, 4000} L/h, both legal, so a box
+# constraint on that channel is redundant.
+CC_SKIP_GATED = True
+
+# The multiplicative violation penalty is DISABLED during a lambda sweep: it and the
+# L2 term both discourage large actions, so running both would confound the sweep.
+USE_ACTION_MULTIPLIER = False
 AM_BETA = 1000.0
 AM_CAP = 100.0             # bound the multiplier so one wild action cannot blow up
                            # the gradient
-
-# --- L_physics: minimum-effort actuator regularizer, weighted AS A FRACTION OF W2 --
-# W2-on-states cannot see a "cancellation" action: flooding sugar feed and water
-# injection while draining hard can land on almost the same next state (and even a
-# BETTER total reward -- confirmed on real data: bnd_iter6_batch_7.csv holds discharge
-# non-zero for 100% of the batch vs GPEI's 94.8% zero, and still out-scores GPEI
-# 3956 vs 3835 total yield) as the baseline's near-zero action. This is the control-
-# allocation null-space problem from over-actuated systems (redundant actuators
-# producing the same net effect): the fix is a minimum-effort norm on the action
-# itself, independent of whether it moved the state.
-#
-# Unlike a fixed PHYS_W_L2, the weight here is PROPORTIONAL to the window's own W2
-# value:  coefficient = PHYS_L2_FRAC * w2.detach() . This auto-scales as training
-# progresses (no need to re-tune a fixed constant against a moving W2 baseline) and
-# guarantees, by construction, that L_physics can never be more than PHYS_L2_FRAC of
-# W2's contribution to the loss for that window -- it can break ties between
-# same-state actions, but it cannot out-compete W2 for search direction.
-#
-# w2 MUST be detached before scaling: coefficient is meant to be a scalar multiplier
-# that TRACKS w2's current magnitude, not a differentiable function of it. Without
-# .detach(), backprop would add a second, unwanted gradient path from w2 through the
-# coefficient into L_physics, coupling the two terms' gradients in a way that has
-# nothing to do with the intended "penalize large actions" signal.
-#
-# Replaces a previously-referenced CC_PHYS_C / CC_ALPHA_PHYS / CC_PHYS_TOL mass-
-# balance constraint that was never defined anywhere in this file (dead code).
-PHYS_L2_FRAC = 0.10        # L_physics <= 10% of this window's own W2 value
 
 
 # --- policy ---
@@ -484,6 +532,26 @@ elif _warm_meta is not None:
           f"rbf centres, these cannot be remapped when the standardizer refits, so "
           f"the transfer is approximate.")
 
+# gate levels: PHYSICAL -> smpl min-max -> z, the same chain as everything else
+_g_off, _g_on = [], []
+if USE_BERNOULLI_GATE:
+    _mu_g = np.asarray(stats["std_act_mu"], dtype=np.float64)
+    _sd_g = np.asarray(stats["std_act_sd"], dtype=np.float64)
+    for i, ch in enumerate(GATE_CHANNELS):
+        lo, hi = pdata.MIN_ACT[ch], pdata.MAX_ACT[ch]
+        for val, out in ((GATE_OFF_PHYS[i], _g_off), (GATE_ON_PHYS[i], _g_on)):
+            out.append(float(((2.0 * (val - lo) / (hi - lo) - 1.0) - _mu_g[ch])
+                             / _sd_g[ch]))
+    print(f"\nBernoulli gate ON, channels "
+          f"{[pdata.ACT_NAMES[c] for c in GATE_CHANNELS]} "
+          f"(straight-through estimator; the paper notes it is BIASED)")
+    for i, ch in enumerate(GATE_CHANNELS):
+        print(f"    {pdata.ACT_NAMES[ch]:12s} off={GATE_OFF_PHYS[i]:8.1f} phys "
+              f"({_g_off[i]:7.3f} z)   on={GATE_ON_PHYS[i]:8.1f} phys "
+              f"({_g_on[i]:7.3f} z)")
+
+_GATE_TGT = torch.tensor(GATE_TARGET_DUTY, dtype=dtype, device=device)
+
 policy, policy_meta = build_policy(
     POLICY_KIND, STATE_DIM, INPUT_DIM,
     u_max=(1.0 if ENFORCE_ACTION_LIMITS else U_MAX_FLAT),
@@ -492,7 +560,9 @@ policy, policy_meta = build_policy(
     lengthscales_init=lengthscales_init,
     s_lo=s_lo.tolist(), s_hi=s_hi.tolist(), center_range_pad=CENTER_RANGE_PAD,
     mlp_hidden=MLP_HIDDEN,
-    kan_hidden=KAN_HIDDEN, kan_grid=KAN_GRID, kan_range=KAN_RANGE)
+    kan_hidden=KAN_HIDDEN, kan_grid=KAN_GRID, kan_range=KAN_RANGE,
+    gate_channels=(GATE_CHANNELS if USE_BERNOULLI_GATE else None),
+    gate_z_off=_g_off, gate_z_on=_g_on, gate_gain=GATE_GAIN)
 
 if ENFORCE_ACTION_LIMITS:
     policy = BoundedPolicy(policy, U_MAX_Z)
@@ -527,6 +597,14 @@ _mu_a = np.asarray(stats["std_act_mu"], dtype=np.float64)
 _sd_a = np.asarray(stats["std_act_sd"], dtype=np.float64)
 CC_LO = torch.tensor((_amin - _mu_a) / _sd_a, dtype=dtype, device=device)
 CC_HI = torch.tensor((_amax - _mu_a) / _sd_a, dtype=dtype, device=device)
+
+# widen the box to +/-inf on gated channels so they contribute nothing to the penalty
+CC_ACT_MASK = torch.ones(INPUT_DIM, dtype=dtype, device=device)
+if USE_BERNOULLI_GATE and CC_SKIP_GATED:
+    for _c in GATE_CHANNELS:
+        CC_LO[_c] = -float("inf")
+        CC_HI[_c] = float("inf")
+        CC_ACT_MASK[_c] = 0.0
 RECIPE_BOUNDS = None
 if USE_CHANCE_CONSTRAINT and CC_USE_RECIPE:
     from pensimpy.examples.recipe import Recipe, RecipeCombo
@@ -551,11 +629,17 @@ if USE_CHANCE_CONSTRAINT and CC_USE_RECIPE:
 if USE_CHANCE_CONSTRAINT:
     print(f"\nchance constraints ON (Tan et al. Eq. 9): eps={CC_EPS} "
           f"-> Phi^-1={phi_inv(CC_EPS):.4f}")
-    print(f"  static box   : {'ON' if CC_USE_STATIC else 'off'}  alpha={CC_ALPHA}")
+    _skipped = ([pdata.ACT_NAMES[c] for c in GATE_CHANNELS]
+                if (USE_BERNOULLI_GATE and CC_SKIP_GATED) else [])
+    print(f"  static box   : {'ON' if CC_USE_STATIC else 'off'}  alpha={CC_ALPHA}"
+          + (f"   EXEMPT (gated): {', '.join(_skipped)}" if _skipped else ""))
     print(f"  recipe band  : {'ON' if CC_USE_RECIPE else 'off'}  alpha={CC_ALPHA_RECIPE}"
           f"  +/-{100*CC_RECIPE_FRAC:.0f}% of profile, floor {100*CC_RECIPE_FLOOR:.0f}% "
           f"of span, smoothed +/-{CC_RECIPE_SMOOTH_H} h")
     for i, nm in enumerate(pdata.ACT_NAMES):
+        if not torch.isfinite(CC_LO[i]):
+            print(f"    {nm:14s} static z-box  EXEMPT (Bernoulli gate)")
+            continue
         line = f"    {nm:14s} static z-box [{CC_LO[i].item():7.3f}, {CC_HI[i].item():7.3f}]"
         if RECIPE_BOUNDS is not None:
             for _t in (10.0, 110.0):
@@ -573,11 +657,31 @@ if USE_CHANCE_CONSTRAINT and CC_USE_STATE:
     print(f"  state floor  : ON  alpha={CC_ALPHA_STATE}  "
           f"{CC_STATE_CHANNEL} >= {CC_WT_MIN_PHYS:.0f} physical "
           f"= {CC_WT_MIN_Z:.3f} z  (channel {CC_STATE_IDX})")
+    # A floor that much of the TRAINING data already breaches cannot be satisfied by
+    # any policy, and the penalty then becomes a constant offset that swamps W2
+    # without guiding anything. Report the fraction so a mis-set floor is visible
+    # immediately rather than after a multi-hour run.
+    _wt_tr = MODELS[sorted(MODELS)[0]].gp_inputs[:, CC_STATE_IDX].detach().numpy()
+    _frac = float((_wt_tr < CC_WT_MIN_Z).mean())
+    print(f"                 training data below this floor: {100*_frac:.1f}%"
+          f"   (z range {_wt_tr.min():.2f} .. {_wt_tr.max():.2f})")
+    if _frac > 0.25:
+        print(f"                 WARNING: the floor sits inside the data distribution; "
+              f"lower CC_WT_MIN_PHYS or the constraint will dominate the loss")
 
-# --- L_physics: minimum-effort actuator regularizer (replaces removed CC_PHYS_C) ---
-print(f"  physics      : ON  PHYS_L2_FRAC={PHYS_L2_FRAC}  "
-      f"(L_physics = {PHYS_L2_FRAC}*w2.detach() * mean(||a_t_z||^2), capped at "
-      f"{PHYS_L2_FRAC*100:.0f}% of each window's own W2 by construction)")
+# --- CLI overrides: MUST come before the optimiser is built ---
+if _args.iters:
+    N_ITERS = _args.iters
+if _args.lam is not None:
+    LAMBDA_A = _args.lam
+_L2_W = torch.tensor(L2_CHANNEL_WEIGHTS, dtype=dtype, device=device)
+_exempt = [pdata.ACT_NAMES[i] for i, w in enumerate(L2_CHANNEL_WEIGHTS) if w == 0.0]
+print(f"\naction L2: {'ON' if (USE_ACTION_L2 and LAMBDA_A > 0) else 'off'}"
+      f"  lambda={LAMBDA_A}   multiplier: "
+      f"{'ON' if USE_ACTION_MULTIPLIER else 'off'}   N_ITERS={N_ITERS}")
+if USE_ACTION_L2 and LAMBDA_A > 0:
+    print(f"           channel weights: {L2_CHANNEL_WEIGHTS}"
+          + (f"   exempt: {', '.join(_exempt)}" if _exempt else "   (all channels)"))
 
 optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
@@ -592,7 +696,9 @@ _acc_actions = []          # actions seen in the current window (for the chance 
 _acc_mu, _acc_cov = [], []  # predicted next-state distribution, for the state constraint
 _cc_log = []               # per-window penalty, for logging
 _am_log = []               # per-window action-violation multiplier
-_phys_log = []              # per-window (l2_actions, coefficient, L_physics), for logging
+_l2_log = []               # per-window mean ||a||^2, logged even when lam=0
+_acc_gate_p = []           # gate open-probabilities in the current window
+_kl_log = []               # per-window sparsity KL
 
 
 def window_loss(t, s, a, mu, cov, s_next):
@@ -603,6 +709,9 @@ def window_loss(t, s, a, mu, cov, s_next):
     _acc["mean"] = _acc["mean"] + (mu - s)
     _acc["var"] = _acc["var"] + cov
     _acc_actions.append(a)
+    if USE_GATE_SPARSITY_KL and USE_BERNOULLI_GATE:
+        with torch.enable_grad():
+            _acc_gate_p.append(policy.gate_prob(s, t=t, p_dropout=0.0))
     _acc_mu.append(mu)          # predicted next-state mean, for the state constraint
     _acc_cov.append(cov)        # and its (diagonal) variance
 
@@ -619,6 +728,25 @@ def window_loss(t, s, a, mu, cov, s_next):
     d_all = w2_cross_dim_torch(var_1h, _current_eig)               # (P,)
     w2 = d_all.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
 
+    # --- L2 action regularisation (additive) ---
+    if USE_ACTION_L2 and LAMBDA_A > 0.0 and _acc_actions:
+        _a_l2 = torch.cat(_acc_actions, dim=0)
+        _l2 = ((_a_l2 ** 2) * _L2_W).sum(dim=1).mean()      # per-channel weights
+        _l2_log.append(float(_l2.detach()))
+        w2 = w2 + LAMBDA_A * _l2
+    elif _acc_actions:
+        with torch.no_grad():
+            _l2_log.append(float((((torch.cat(_acc_actions, 0) ** 2) * _L2_W)
+                                  .sum(1).mean())))
+
+    # --- ASRE sparsity regularisation: pull the gate's duty cycle to the target ---
+    if USE_GATE_SPARSITY_KL and USE_BERNOULLI_GATE and _acc_gate_p:
+        _pg = torch.cat(_acc_gate_p, dim=0)                 # (N, n_gated)
+        _kl = gate_sparsity_kl(_pg, _GATE_TGT)
+        _kl_log.append(float(_kl.detach()))
+        w2 = w2 + LAMBDA_SPARSE * _kl
+    _acc_gate_p.clear()
+
     # scale W2 by how far the window's actions left the static box
     _mult = 1.0
     if USE_ACTION_MULTIPLIER and _acc_actions:
@@ -627,25 +755,6 @@ def window_loss(t, s, a, mu, cov, s_next):
                                             beta=AM_BETA, cap=AM_CAP)
         _am_log.append(float(_mult.detach()))
         w2 = w2 * _mult
-
-    # --- L_physics: minimum-effort actuator regularizer, weight = PHYS_L2_FRAC * w2 ---
-    # W2 (even multiplied by the box-violation term above) cannot see a "cancellation"
-    # action: flooding sugar+water while draining hard can land on ~the same next
-    # state as the baseline's near-zero action -- confirmed on real data to even
-    # score BETTER reward while doing it (bnd_iter6_batch_7 vs gpei_batch_7). This
-    # adds a direct penalty on actuator effort (z-scored action norm), independent
-    # of what the action did to the state -- the standard control-allocation fix for
-    # redundant actuators, sized as a fraction of THIS window's own W2 so it never
-    # needs re-tuning against a moving baseline.
-    if _acc_actions:
-        _l2 = sum((a_i ** 2).sum(dim=-1).mean() for a_i in _acc_actions) / len(_acc_actions)
-        _coef = PHYS_L2_FRAC * w2.detach()      # detach: scalar multiplier, not a
-                                                 # differentiable function of w2 --
-                                                 # see the comment at PHYS_L2_FRAC above
-        phys = _coef * _l2
-        _phys_log.append((float(_l2.detach()), float(_coef.detach()), float(phys.detach())))
-        w2 = w2 + phys
-    # --- end L_physics ---------------------------------------------------------
 
     # --- soft chance constraint on the ACTIONS taken in this window (Eq. 9) ---
     # sigma is the spread across the K dropout samples drawn for the same state, i.e.
@@ -746,23 +855,33 @@ for it in range(N_ITERS):
           f"(data {s_hi.max().item():.2f})   |a|max={A.max():.4f}"
           f"{f' (limit {U_MAX_Z.max():.4f})' if ENFORCE_ACTION_LIMITS else ''}",
           flush=True)
+    if USE_BERNOULLI_GATE:
+        with torch.no_grad():
+            _st = POOLS[sorted(POOLS)[0]][:256]
+            _pg = policy.gate_prob(_st, t=0, p_dropout=0.0).mean(0)
+        print("          gate open-prob: " + "  ".join(
+            f"{pdata.ACT_NAMES[c]}={_pg[i]:.3f}" for i, c in enumerate(GATE_CHANNELS))
+            + "   (reference duty cycle ~0.05)", flush=True)
+    if _kl_log:
+        _kla = np.array(_kl_log); _kl_log.clear()
+        print(f"          sparsity KL: mean={_kla.mean():.4f}  "
+              f"lambda*mean={LAMBDA_SPARSE*_kla.mean():.4e}", flush=True)
+    if _l2_log:
+        _l2a = np.array(_l2_log); _l2_log.clear()
+        print(f"          action ||a||^2: mean={_l2a.mean():.4f} max={_l2a.max():.4f}"
+              f"   lambda*mean={LAMBDA_A*_l2a.mean():.4e}", flush=True)
     if _am_log:
         _am = np.array(_am_log); _am_log.clear()
         print(f"          action multiplier: mean={_am.mean():.3f} max={_am.max():.3f}  "
               f"windows with violation={int((_am > 1.0 + 1e-9).sum())}/{len(_am)}",
               flush=True)
-    if _phys_log:
-        _pl = np.array(_phys_log); _phys_log.clear()
-        print(f"          physics: mean ||a_z||^2={_pl[:,0].mean():.3e}  "
-              f"mean coef={_pl[:,1].mean():.3e}  "
-              f"mean L_physics={_pl[:,2].mean():.3e} "
-              f"({100*_pl[:,2].mean()/max(L.mean(),1e-12):.1f}% of window-mean W2)",
-              flush=True)
     if _cc_log:
         _cc = np.array(_cc_log); _cc_log.clear()
+        _w2_only = max(L.mean() - _cc[:,0].mean(), 1e-12)
         print(f"          chance penalty: total={_cc[:,0].mean():.3e} "
               f"static={_cc[:,1].mean():.3e} recipe={_cc[:,2].mean():.3e} "
-              f"state={_cc[:,3].mean():.3e}", flush=True)
+              f"state={_cc[:,3].mean():.3e}   penalty/W2={_cc[:,0].mean()/_w2_only:.2f}x",
+              flush=True)
         print(f"          windows violating: static={int((_cc[:,1] > 0).sum())}/{len(_cc)} "
               f"recipe={int((_cc[:,2] > 0).sum())}/{len(_cc)} "
               f"state={int((_cc[:,3] > 0).sum())}/{len(_cc)}", flush=True)

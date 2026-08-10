@@ -1,0 +1,27 @@
+EXACT GP INFERENCE SELECTED
+world model: rbf_model_bnd_rbf_iter0.pt  train pts=800
+expert: 150 hourly distributions (1..150 h)
+
+evaluating reference: cdil_policy_bnd_rbf_iter0_lam0.pt
+  W2 per hour: mean=0.12115  ||a||^2: mean=0.8445
+  cdil_policy_bnd_rbf_iter0_lam0p001.pt    good=  0/150
+  cdil_policy_bnd_rbf_iter0_lam0p01.pt     good= 89/150
+  cdil_policy_bnd_rbf_iter0_lam0p1.pt      good= 64/150
+  cdil_policy_bnd_rbf_iter0_lam1p0.pt      good= 49/150
+
+====================================================================================================
+policy                                    lambda  GOOD hrs   W2 ok  |a| ok   W2 /ref  |a|^2 /ref
+----------------------------------------------------------------------------------------------------
+REFERENCE (lambda=0)                         0.0         -       -       -     1.000       1.000
+cdil_policy_bnd_rbf_iter0_lam0p01.pt        0.01        89      89     150     1.027       0.102
+cdil_policy_bnd_rbf_iter0_lam0p1.pt          0.1        64      64     150     1.078       0.025
+cdil_policy_bnd_rbf_iter0_lam1p0.pt            1        49      49     150     1.097       0.003
+cdil_policy_bnd_rbf_iter0_lam0p001.pt      0.001         0     122       0     1.000       1.656
+
+SELECTED: lambda = 0.01  (89 good hours of 150, W2 1.027x reference, ||a||^2 0.102x reference)
+
+A 'good hour' means W2 within tol of the reference AND a smaller action
+norm -- counted per hour, so two modes cannot average into a third.
+selected policy copied -> results_pensim/cdil_policy_selected.pt
+
+saved -> results_pensim/lambda_sweep.json

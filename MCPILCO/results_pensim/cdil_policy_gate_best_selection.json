@@ -1,0 +1,9 @@
+{
+  "selected": "/home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_gate_lam0p1.pt",
+  "lambda": 0.1,
+  "good_hours": 150,
+  "n_hours": 150,
+  "tol": 0.05,
+  "w2_rel": 0.8227512360360428,
+  "a2_rel": 0.618845433030854
+}

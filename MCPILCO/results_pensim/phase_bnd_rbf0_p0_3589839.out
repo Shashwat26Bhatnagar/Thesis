@@ -1,0 +1,42 @@
+=== training world model: phase=0 (bnd_rbf_iter0_phase0)  n_keep=800  n_epoch=2001  select=pivchol ===
+[pensim] dataset folder: /home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/smpl/configdata/pensimenv  (2 CSVs)
+max observations: [2.76000000e+02 8.05261517e+00 3.62841400e+02 6.85863686e+00
+ 2.70000000e+02 1.80000012e+03 9.46039368e+02 1.26920055e+05
+ 2.39494171e+01]
+min observations: [1.6000001e-01 4.5955915e+00 2.3797954e+02 0.0000000e+00 0.0000000e+00
+ 0.0000000e+00 0.0000000e+00 5.0006516e+04 2.3598127e+00]
+dataset max observations: [2.3000000e+02 6.6375961e+00 2.9980396e+02 4.6791539e+00 2.2500000e+02
+ 7.1911029e+02 4.7261533e+02 1.0150803e+05 1.9388021e+01]
+dataset min observations: [2.0000000e-01 6.1238022e+00 2.9777322e+02 0.0000000e+00 0.0000000e+00
+ 9.9999997e-05 9.9999997e-05 6.2508551e+04 9.1724377e+00]
+max actions: [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+min actions: [ 0.   7.  21.  29.   0.5  0. ]
+dataset max actions: [4.094559e+03 1.468720e+02 3.580100e+01 7.380800e+01 1.125000e+00
+ 5.038400e+02]
+dataset min actions: [ 0.     7.361 21.676 29.847  0.587  0.   ]
+normalize: True
+using max/min observations and actions.
+[std:obs]
+     0 pH             mean=     0.10070  std=   0.017633
+     1 T              mean=    -0.03797  std=   0.003141
+     2 Fa             mean=    -0.99250  std=   0.066872
+     3 Fb             mean=    -0.21392  std=   0.297848
+     4 Fc             mean=    -0.89971  std=   0.142061
+     5 Fh             mean=    -0.95627  std=   0.091735
+     6 Wt             mean=    -0.02849  std=   0.321497
+     7 DO2            mean=     0.15108  std=   0.145982
+[std:act]
+     0 discharge      mean=    -0.90248  std=   0.415968
+     1 sugar          mean=    -0.03731  std=   0.327976
+     2 soilbean       mean=    -0.31857  std=   0.627817
+     3 aeration       mean=     0.49987  std=   0.435510
+     4 backpressure   mean=     0.23416  std=   0.379260
+     5 waterinj       mean=    -0.39548  std=   0.588558
+[pensim] 2300 transitions | obs 8d act 6d
+[pensim] obs per-dim std: [1. 1. 1. 1. 1. 1. 1. 1.]
+[pensim] act per-dim std: [1. 1. 1. 1. 1. 1.]
+[pensim] time range: 0.08 .. 459.95 h
+[pensim]   phase 0 [0, 47.5) h: 238 transitions
+[pensim]   phase 1 [47.5, 72.5) h: 124 transitions
+[pensim]   phase 2 [72.5, inf) h: 1938 transitions
+[pensim] phase 0: t in [0, 47.5) h  ->  238 of 2300 transitions (10.3%)

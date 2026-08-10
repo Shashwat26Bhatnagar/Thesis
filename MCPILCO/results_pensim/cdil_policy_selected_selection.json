@@ -1,0 +1,9 @@
+{
+  "selected": "results_pensim/cdil_policy_bnd_rbf_iter0_lam0p01.pt",
+  "lambda": 0.01,
+  "good_hours": 89,
+  "n_hours": 150,
+  "tol": 0.05,
+  "w2_rel": 1.0267480277048837,
+  "a2_rel": 0.10219223262676584
+}

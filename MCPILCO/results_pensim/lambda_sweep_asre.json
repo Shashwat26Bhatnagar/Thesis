@@ -1,0 +1,55 @@
+{
+  "tol": 0.05,
+  "reference": "/home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_lam0.pt",
+  "phase_prefix": "/home/s2892016/Thesis/MCPILCO/results_pensim/rbf_model_bnd_rbf_iter0",
+  "model": null,
+  "w2_ref_mean": 0.2089568812503554,
+  "a2_ref_mean": 15.725712244479542,
+  "n_hours": 150,
+  "rows": [
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_lam0p001.pt",
+      "lam": 0.001,
+      "good_hours": 147,
+      "hours_w2_ok": 147,
+      "hours_a_ok": 150,
+      "w2_mean": 0.18177581329189338,
+      "a2_mean": 11.964877186482154,
+      "w2_rel": 0.8699202065238721,
+      "a2_rel": 0.7608480303130551
+    },
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_lam0p01.pt",
+      "lam": 0.01,
+      "good_hours": 150,
+      "hours_w2_ok": 150,
+      "hours_a_ok": 150,
+      "w2_mean": 0.1343895014605889,
+      "a2_mean": 3.5002345334234324,
+      "w2_rel": 0.6431446557606981,
+      "a2_rel": 0.2225803498758651
+    },
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_lam0p1.pt",
+      "lam": 0.1,
+      "good_hours": 136,
+      "hours_w2_ok": 136,
+      "hours_a_ok": 150,
+      "w2_mean": 0.14958989224463953,
+      "a2_mean": 2.6949016941184283,
+      "w2_rel": 0.7158888060997279,
+      "a2_rel": 0.17136913433377013
+    },
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_pensim/cdil_policy_asre_lam1p0.pt",
+      "lam": 1.0,
+      "good_hours": 144,
+      "hours_w2_ok": 144,
+      "hours_a_ok": 150,
+      "w2_mean": 0.1466545722685572,
+      "a2_mean": 2.137021433668757,
+      "w2_rel": 0.7018413147775088,
+      "a2_rel": 0.13589345909715164
+    }
+  ]
+}
