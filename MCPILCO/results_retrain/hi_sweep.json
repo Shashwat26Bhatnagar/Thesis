@@ -1,0 +1,55 @@
+{
+  "tol": 0.05,
+  "reference": "/home/s2892016/Thesis/MCPILCO/results_retrain/hi_lam0.pt",
+  "phase_prefix": "/home/s2892016/Thesis/MCPILCO/results_retrain/rt_model",
+  "model": null,
+  "w2_ref_mean": 0.5704268016419246,
+  "a2_ref_mean": 0.8960206835512349,
+  "n_hours": 150,
+  "rows": [
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_retrain/hi_lam1p3.pt",
+      "lam": 1.3,
+      "good_hours": 98,
+      "hours_w2_ok": 98,
+      "hours_a_ok": 150,
+      "w2_mean": 0.6340061436766862,
+      "a2_mean": 0.013617796745500742,
+      "w2_rel": 1.111459247447269,
+      "a2_rel": 0.015198083030325573
+    },
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_retrain/hi_lam1p6.pt",
+      "lam": 1.6,
+      "good_hours": 97,
+      "hours_w2_ok": 97,
+      "hours_a_ok": 150,
+      "w2_mean": 0.6351317551435718,
+      "a2_mean": 0.009041319226802206,
+      "w2_rel": 1.1134325268647958,
+      "a2_rel": 0.010090525132710533
+    },
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_retrain/hi_lam2.pt",
+      "lam": 2.0,
+      "good_hours": 96,
+      "hours_w2_ok": 96,
+      "hours_a_ok": 150,
+      "w2_mean": 0.6366865484606272,
+      "a2_mean": 0.008399558336451422,
+      "w2_rel": 1.1161581935280382,
+      "a2_rel": 0.00937429067280134
+    },
+    {
+      "path": "/home/s2892016/Thesis/MCPILCO/results_retrain/hi_lam2p5.pt",
+      "lam": 2.5,
+      "good_hours": 97,
+      "hours_w2_ok": 97,
+      "hours_a_ok": 150,
+      "w2_mean": 0.6374193266465835,
+      "a2_mean": 0.007773453042359923,
+      "w2_rel": 1.1174428074063607,
+      "a2_rel": 0.008675528573236817
+    }
+  ]
+}

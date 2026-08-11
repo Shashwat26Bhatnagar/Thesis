@@ -411,6 +411,11 @@ def run_episode(ep, seed):
                                   if float(_a[0, 0]) > VALVE["thresh"] else 0.0)
         a_z = _to_np(_a)
         a_phys = act_z_to_phys(a_z)
+        if os.environ.get("BUGGY_RECIPE_CLIP") and RECIPE_BOUNDS is not None:
+            # reproduce the bnd_rbf1 bug: clip PHYSICAL actions against SMPL-NORMALISED
+            # bounds, which pins every channel to its physical minimum
+            _l, _h = RECIPE_BOUNDS.at(float(o[pdata.TIME_INDEX]))
+            a_phys = np.clip(a_phys, np.asarray(_l), np.asarray(_h))
         if DISCH_TRACE is not None:
             # previous-value hold: linear interpolation would smear the 2-hour pulses
             _tt, _dd = DISCH_TRACE

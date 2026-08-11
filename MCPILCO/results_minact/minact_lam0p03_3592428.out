@@ -1,0 +1,76 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-15.77, 32.69] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 78
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+MINACT: lambda=0.03, penalty = sum_i ((a_i - lo_i)/span_i)^2 on all six channels
+action spread across 5 replicas of one state: 1.225e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-2.333 z)
+  training data below the floor: 0.0%
+
+minimum-action penalty targets (physical -> z):
+    discharge      lo=    0.00 phys ->  -0.234 z   (dataset mean is z=0 =   200.06 phys)
+    sugar          lo=    7.00 phys ->  -2.936 z   (dataset mean is z=0 =    77.41 phys)
+    soilbean       lo=   21.00 phys ->  -0.976 z   (dataset mean is z=0 =    25.80 phys)
+    aeration       lo=   29.00 phys ->  -3.497 z   (dataset mean is z=0 =    63.99 phys)
+    backpressure   lo=    0.50 phys ->  -3.397 z   (dataset mean is z=0 =     0.94 phys)
+    waterinj       lo=    0.00 phys ->  -1.024 z   (dataset mean is z=0 =   154.95 phys)
+iter   0  W2=0.68664  dist_from_min=1.35623  lam*dist=4.069e-02  loss=0.73306
+          cc_act=5.728e-03 cc_state=0.000e+00   |grad| med=1.445e-01 DEAD=0/150  |s|max=39.7 (data 32.7)
+iter   1  W2=0.66766  dist_from_min=1.33749  lam*dist=4.012e-02  loss=0.71543
+          cc_act=7.643e-03 cc_state=0.000e+00   |grad| med=1.840e-01 DEAD=0/150  |s|max=38.5 (data 32.7)
+iter   2  W2=0.65598  dist_from_min=1.29735  lam*dist=3.892e-02  loss=0.70123
+          cc_act=6.330e-03 cc_state=0.000e+00   |grad| med=2.400e-01 DEAD=0/150  |s|max=38.2 (data 32.7)
+iter   3  W2=0.65653  dist_from_min=1.28428  lam*dist=3.853e-02  loss=0.70423
+          cc_act=9.166e-03 cc_state=0.000e+00   |grad| med=2.489e-01 DEAD=0/150  |s|max=38.4 (data 32.7)
+iter   4  W2=0.64743  dist_from_min=1.23728  lam*dist=3.712e-02  loss=0.69554
+          cc_act=1.099e-02 cc_state=0.000e+00   |grad| med=3.509e-01 DEAD=0/150  |s|max=39.9 (data 32.7)
+iter   5  W2=0.65212  dist_from_min=1.25086  lam*dist=3.753e-02  loss=0.69373
+          cc_act=4.088e-03 cc_state=0.000e+00   |grad| med=2.480e-01 DEAD=0/150  |s|max=39.6 (data 32.7)
+iter   6  W2=0.64187  dist_from_min=1.19854  lam*dist=3.596e-02  loss=0.68427
+          cc_act=6.442e-03 cc_state=0.000e+00   |grad| med=3.355e-01 DEAD=0/150  |s|max=38.6 (data 32.7)
+iter   7  W2=0.62585  dist_from_min=1.14898  lam*dist=3.447e-02  loss=0.66734
+          cc_act=7.020e-03 cc_state=0.000e+00   |grad| med=2.946e-01 DEAD=0/150  |s|max=39.6 (data 32.7)
+iter   8  W2=0.63318  dist_from_min=1.13616  lam*dist=3.408e-02  loss=0.67307
+          cc_act=5.809e-03 cc_state=0.000e+00   |grad| med=2.940e-01 DEAD=0/150  |s|max=39.6 (data 32.7)
+iter   9  W2=0.64336  dist_from_min=1.17460  lam*dist=3.524e-02  loss=0.68727
+          cc_act=8.671e-03 cc_state=0.000e+00   |grad| med=2.704e-01 DEAD=0/150  |s|max=39.1 (data 32.7)
+iter  10  W2=0.62498  dist_from_min=1.12955  lam*dist=3.389e-02  loss=0.66570
+          cc_act=6.837e-03 cc_state=0.000e+00   |grad| med=3.009e-01 DEAD=0/150  |s|max=38.9 (data 32.7)
+iter  11  W2=0.61741  dist_from_min=1.09069  lam*dist=3.272e-02  loss=0.65913
+          cc_act=8.998e-03 cc_state=0.000e+00   |grad| med=3.177e-01 DEAD=0/150  |s|max=37.4 (data 32.7)
+iter  12  W2=0.62767  dist_from_min=1.08706  lam*dist=3.261e-02  loss=0.66535
+          cc_act=5.065e-03 cc_state=0.000e+00   |grad| med=3.647e-01 DEAD=0/150  |s|max=39.1 (data 32.7)
+iter  13  W2=0.62254  dist_from_min=1.11772  lam*dist=3.353e-02  loss=0.66411
+          cc_act=8.046e-03 cc_state=0.000e+00   |grad| med=3.722e-01 DEAD=0/150  |s|max=39.7 (data 32.7)
+iter  14  W2=0.60868  dist_from_min=1.07762  lam*dist=3.233e-02  loss=0.64768
+          cc_act=6.672e-03 cc_state=0.000e+00   |grad| med=4.087e-01 DEAD=0/150  |s|max=39.6 (data 32.7)
+iter  15  W2=0.60206  dist_from_min=1.04971  lam*dist=3.149e-02  loss=0.64089
+          cc_act=7.340e-03 cc_state=0.000e+00   |grad| med=3.883e-01 DEAD=0/150  |s|max=36.4 (data 32.7)
+iter  16  W2=0.61502  dist_from_min=1.08254  lam*dist=3.248e-02  loss=0.65663
+          cc_act=9.135e-03 cc_state=0.000e+00   |grad| med=3.311e-01 DEAD=0/150  |s|max=40.3 (data 32.7)
+iter  17  W2=0.61057  dist_from_min=1.11460  lam*dist=3.344e-02  loss=0.65224
+          cc_act=8.233e-03 cc_state=0.000e+00   |grad| med=3.943e-01 DEAD=0/150  |s|max=40.6 (data 32.7)
+iter  18  W2=0.61280  dist_from_min=1.15748  lam*dist=3.472e-02  loss=0.65316
+          cc_act=5.642e-03 cc_state=0.000e+00   |grad| med=2.663e-01 DEAD=0/150  |s|max=38.3 (data 32.7)
+iter  19  W2=0.60091  dist_from_min=1.07167  lam*dist=3.215e-02  loss=0.64056
+          cc_act=7.503e-03 cc_state=0.000e+00   |grad| med=3.588e-01 DEAD=0/150  |s|max=39.4 (data 32.7)
+
+dist_from_min  first iter 1.35623  ->  last 1.07167  (-21.0%)
+  (with lambda>0 this should DECREASE -- actions moving toward their physical
+   minima. If it rises, the penalty is too weak against the W2 gradient.)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_minact/minact_lam0p03.pt
