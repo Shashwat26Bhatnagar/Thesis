@@ -463,4 +463,3 @@ def select_pivoted_cholesky(X, m, lengthscales=None, tol=1e-10, verbose=True):
         print(f"[pivchol] selected {len(idx)}/{N} points  "
               f"(residual trace {diag.sum():.3e})")
     return idx
-

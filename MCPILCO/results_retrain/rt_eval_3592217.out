@@ -1,0 +1,32 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+phase models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+expert: 150 hourly distributions (1..150 h)
+
+evaluating reference: rt_lam0.pt
+  W2 per hour: mean=0.57728  ||a||^2: mean=0.6659
+  rt_lam0p03.pt                            good=129/150
+  rt_lam0p1.pt                             good=143/150
+  rt_lam0p3.pt                             good=118/150
+  rt_lam1.pt                               good= 97/150
+
+====================================================================================================
+policy                                    lambda  GOOD hrs   W2 ok  |a| ok   W2 /ref  |a|^2 /ref
+----------------------------------------------------------------------------------------------------
+REFERENCE (lambda=0)                         0.0         -       -       -     1.000       1.000
+rt_lam0p1.pt                                 0.1       143     143     150     1.000       0.261
+rt_lam0p03.pt                               0.03       129     129     150     1.017       0.274
+rt_lam0p3.pt                                 0.3       118     118     150     1.037       0.141
+rt_lam1.pt                                     1        97      97     150     1.088       0.037
+
+SELECTED: lambda = 0.1  (143 good hours of 150, W2 1.000x reference, ||a||^2 0.261x reference)
+
+A 'good hour' means W2 within tol of the reference AND a smaller action
+norm -- counted per hour, so two modes cannot average into a third.
+selected policy copied -> /home/s2892016/Thesis/MCPILCO/results_retrain/rt_best.pt
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_retrain/rt_sweep.json

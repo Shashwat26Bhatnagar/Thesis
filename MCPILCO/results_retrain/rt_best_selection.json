@@ -1,0 +1,9 @@
+{
+  "selected": "/home/s2892016/Thesis/MCPILCO/results_retrain/rt_lam0p1.pt",
+  "lambda": 0.1,
+  "good_hours": 143,
+  "n_hours": 150,
+  "tol": 0.05,
+  "w2_rel": 0.9995495470017296,
+  "a2_rel": 0.2606939885179432
+}

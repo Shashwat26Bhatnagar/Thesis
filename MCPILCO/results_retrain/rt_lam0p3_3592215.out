@@ -1,0 +1,67 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-15.77, 32.69] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 78
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+L2: lambda=0.3 on ALL SIX channels (additive)
+action spread across 5 replicas of one state: 1.225e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-2.333 z)
+  training data below the floor: 0.0%
+iter   0  W2=0.68561  ||a||^2=0.00571  lam*||a||^2=1.713e-03  loss=0.69205
+          cc_act=4.724e-03 cc_state=0.000e+00   |grad| med=1.084e-01 DEAD=0/150  |s|max=39.6 (data 32.7)
+iter   1  W2=0.66548  ||a||^2=0.01113  lam*||a||^2=3.340e-03  loss=0.67303
+          cc_act=4.207e-03 cc_state=0.000e+00   |grad| med=2.185e-01 DEAD=0/150  |s|max=38.0 (data 32.7)
+iter   2  W2=0.64996  ||a||^2=0.01821  lam*||a||^2=5.464e-03  loss=0.65928
+          cc_act=3.846e-03 cc_state=0.000e+00   |grad| med=2.957e-01 DEAD=0/150  |s|max=38.5 (data 32.7)
+iter   3  W2=0.64282  ||a||^2=0.02853  lam*||a||^2=8.558e-03  loss=0.65693
+          cc_act=5.554e-03 cc_state=0.000e+00   |grad| med=2.989e-01 DEAD=0/150  |s|max=38.0 (data 32.7)
+iter   4  W2=0.64279  ||a||^2=0.02826  lam*||a||^2=8.478e-03  loss=0.65634
+          cc_act=5.081e-03 cc_state=0.000e+00   |grad| med=3.056e-01 DEAD=0/150  |s|max=39.6 (data 32.7)
+iter   5  W2=0.62789  ||a||^2=0.03716  lam*||a||^2=1.115e-02  loss=0.64363
+          cc_act=4.600e-03 cc_state=0.000e+00   |grad| med=3.484e-01 DEAD=0/150  |s|max=39.7 (data 32.7)
+iter   6  W2=0.62870  ||a||^2=0.03712  lam*||a||^2=1.113e-02  loss=0.64413
+          cc_act=4.292e-03 cc_state=0.000e+00   |grad| med=3.673e-01 DEAD=0/150  |s|max=38.7 (data 32.7)
+iter   7  W2=0.62464  ||a||^2=0.03798  lam*||a||^2=1.139e-02  loss=0.64243
+          cc_act=6.394e-03 cc_state=0.000e+00   |grad| med=3.526e-01 DEAD=0/150  |s|max=39.4 (data 32.7)
+iter   8  W2=0.62572  ||a||^2=0.04205  lam*||a||^2=1.262e-02  loss=0.64306
+          cc_act=4.725e-03 cc_state=0.000e+00   |grad| med=3.288e-01 DEAD=0/150  |s|max=39.0 (data 32.7)
+iter   9  W2=0.63694  ||a||^2=0.02961  lam*||a||^2=8.884e-03  loss=0.64916
+          cc_act=3.338e-03 cc_state=0.000e+00   |grad| med=2.486e-01 DEAD=0/150  |s|max=38.9 (data 32.7)
+iter  10  W2=0.63225  ||a||^2=0.04048  lam*||a||^2=1.214e-02  loss=0.64940
+          cc_act=5.003e-03 cc_state=0.000e+00   |grad| med=4.141e-01 DEAD=0/150  |s|max=39.5 (data 32.7)
+iter  11  W2=0.61404  ||a||^2=0.04263  lam*||a||^2=1.279e-02  loss=0.63089
+          cc_act=4.066e-03 cc_state=0.000e+00   |grad| med=3.641e-01 DEAD=0/150  |s|max=38.2 (data 32.7)
+iter  12  W2=0.61395  ||a||^2=0.04563  lam*||a||^2=1.369e-02  loss=0.63201
+          cc_act=4.375e-03 cc_state=0.000e+00   |grad| med=3.146e-01 DEAD=0/150  |s|max=40.0 (data 32.7)
+iter  13  W2=0.62468  ||a||^2=0.03991  lam*||a||^2=1.197e-02  loss=0.64260
+          cc_act=5.948e-03 cc_state=0.000e+00   |grad| med=3.631e-01 DEAD=0/150  |s|max=39.8 (data 32.7)
+iter  14  W2=0.62703  ||a||^2=0.04036  lam*||a||^2=1.211e-02  loss=0.64268
+          cc_act=3.541e-03 cc_state=0.000e+00   |grad| med=3.106e-01 DEAD=0/150  |s|max=39.8 (data 32.7)
+iter  15  W2=0.60820  ||a||^2=0.04656  lam*||a||^2=1.397e-02  loss=0.62536
+          cc_act=3.193e-03 cc_state=0.000e+00   |grad| med=3.449e-01 DEAD=0/150  |s|max=37.3 (data 32.7)
+iter  16  W2=0.61477  ||a||^2=0.04690  lam*||a||^2=1.407e-02  loss=0.63312
+          cc_act=4.278e-03 cc_state=0.000e+00   |grad| med=3.343e-01 DEAD=0/150  |s|max=39.7 (data 32.7)
+iter  17  W2=0.61502  ||a||^2=0.04783  lam*||a||^2=1.435e-02  loss=0.63399
+          cc_act=4.618e-03 cc_state=0.000e+00   |grad| med=3.189e-01 DEAD=0/150  |s|max=40.3 (data 32.7)
+iter  18  W2=0.60689  ||a||^2=0.04780  lam*||a||^2=1.434e-02  loss=0.62586
+          cc_act=4.634e-03 cc_state=0.000e+00   |grad| med=3.336e-01 DEAD=0/150  |s|max=38.4 (data 32.7)
+iter  19  W2=0.60579  ||a||^2=0.05333  lam*||a||^2=1.600e-02  loss=0.62612
+          cc_act=4.329e-03 cc_state=0.000e+00   |grad| med=2.841e-01 DEAD=0/150  |s|max=39.5 (data 32.7)
+
+||a||^2  first iter 0.00571  ->  last 0.05333  (+834.0%)
+  (with lambda>0 this should DECREASE; if it rises, the L2 term is not binding)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_retrain/rt_lam0p3.pt

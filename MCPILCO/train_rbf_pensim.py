@@ -7,9 +7,12 @@ Train an RBF Gaussian-process world model on the PenSim offline data and save it
 MODEL LEARNING ONLY.
 
     python train_rbf_pensim.py                # all data       -> rbf_model_all.pt
-    python train_rbf_pensim.py -phase 0       # t <  35 h      -> rbf_model_phase0.pt
-    python train_rbf_pensim.py -phase 1       # 35 <= t < 51 h -> rbf_model_phase1.pt
-    python train_rbf_pensim.py -phase 2       # t >= 51 h      -> rbf_model_phase2.pt
+    python train_rbf_pensim.py -phase 0       # -> rbf_model_phase0.pt
+    python train_rbf_pensim.py -phase 1       # -> rbf_model_phase1.pt
+    python train_rbf_pensim.py -phase 2       # -> rbf_model_phase2.pt
+
+    Boundaries come from PENSIM_PHASE_BOUNDS (default "35.0,51.0"); the causal
+    transition analysis of the penicillin process gives "47.5,72.5".
 
     optional: -n_keep 1500  -n_epoch 2001  -select pivchol
 
@@ -55,7 +58,7 @@ np.random.seed(0); torch.manual_seed(0)
 # ------------------------------------------------------------------ args ----
 _p = argparse.ArgumentParser("train a (phase-specific) PenSim world model")
 _p.add_argument("-phase", type=int, default=-1,
-                help="0: t<35h   1: 35<=t<51h   2: t>=51h   -1: all data (default)")
+                help="0,1,2: the phases set by PENSIM_PHASE_BOUNDS   -1: all data")
 _p.add_argument("-n_keep", type=int, default=800,
                 help="training points after subsampling (exact GP is O(N^3) per GP)")
 _p.add_argument("-n_epoch", type=int, default=501,
@@ -66,10 +69,13 @@ _p.add_argument("-data_dir", type=str, default=None,
                 help="dataset folder (also settable via PENSIM_DATA_DIR)")
 _p.add_argument("-tag", type=str, default=None,
                 help="output tag; default is the phase tag. Dyna loop uses e.g. unb_iter2")
+_p.add_argument("-save_dir", type=str, default="results_pensim",
+                help="where the model, metrics and stats are written")
 _p.add_argument("-std_from", type=str, default=None,
                 help="checkpoint whose std_obs_*/std_act_* stats to REUSE. Required from "
-                     "iteration 1 on: refitting them would drift the z-space and "
-                     "invalidate a warm-started policy.")
+                     "the z-space is pinned instead of refitted. Without it the "
+                     "statistics follow whatever is in the data folder at that moment, "
+                     "and the folder grows as exploration adds CSVs.")
 _args = _p.parse_known_args()[0]
 
 if _args.data_dir:
@@ -85,7 +91,7 @@ N_TEST = 200
 STATE_DIM = pdata.OBS_DIM          # 8 (time channel dropped)
 INPUT_DIM = pdata.ACT_DIM          # 6
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
-SAVE_DIR = "results_pensim"
+SAVE_DIR = _args.save_dir
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 print(f"=== training world model: phase={PHASE} ({TAG})  "
@@ -93,12 +99,26 @@ print(f"=== training world model: phase={PHASE} ({TAG})  "
 
 # ---------------------------------------------------------------- data ----
 # standardizer is fitted on ALL data here, so every phase model shares one z-space
-# The standardizer is refitted on the UNION of old + new data every iteration.
-# (-std_from is accepted but ignored: the warm-started policy's RBF centres are
-#  remapped into the new z-space by cdil_policy_optimization.py instead.)
+_std_obs_stats = _std_act_stats = None
+if _args.std_from:
+    _ck = torch.load(_args.std_from, map_location="cpu", weights_only=False)
+    _std_obs_stats = (np.asarray(_ck["std_obs_mu"]), np.asarray(_ck["std_obs_sd"]))
+    _std_act_stats = (np.asarray(_ck["std_act_mu"]), np.asarray(_ck["std_act_sd"]))
+    print(f"[loop] reusing frozen standardizer stats from {_args.std_from}")
+
 obs, act, nobs, std_obs, std_act, t_h = pdata.load_offline(
-    max_transitions=None, return_time=True)
+    max_transitions=None, return_time=True,
+    std_obs_stats=_std_obs_stats, std_act_stats=_std_act_stats)
 N_ALL = obs.shape[0]               # total BEFORE phase filtering
+# print the statistics so a mismatch between models is visible in the logs. The
+# folder grows as exploration adds CSVs, and two models fitted two days apart on the
+# same folder saw 19953 vs 25290 transitions with pH's std moving 0.0153 -> 0.0329 --
+# the same physical state then maps to a different z and neither ||a||^2 nor W2 is
+# comparable across them.
+print(f"[std] fitted on {N_ALL} transitions ({N_ALL/1150:.2f} CSVs)"
+      f"{'  [PINNED via -std_from]' if _args.std_from else '  [freshly fitted]'}")
+print(f"[std] obs_sd = {np.round(std_obs.sd, 5)}")
+print(f"[std] act_sd = {np.round(std_act.sd, 5)}")
 
 # then restrict to the requested phase
 obs, act, nobs, t_h = pdata.filter_by_phase(obs, act, nobs, t_h, PHASE)
