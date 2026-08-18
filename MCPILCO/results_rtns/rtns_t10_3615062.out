@@ -1,0 +1,118 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-10.41, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 78
+TASKS_PER_META=10 of 150 -- partial coverage
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+W2 trace-normalisation: ON (asserted)
+Reptile: k=5 inner steps, eps=0.5, 10 tasks/meta-iter, 20 meta-iters
+  base lr=0.02  inner alpha=0.02000  (= lr*5/k, so alpha*k = 0.1000 is held fixed as k varies)
+  gradient-agreement coefficient  0.5*k*(k-1)*alpha = 0.20000   (exactly 0 at k=1)
+aggregation over the 100 states: softmax, beta=5.0
+L1: lambda_l1=0.05 on discharge, from CLOSED   L2: lambda=0.001 on the other 5 channels
+checkpointing every 5 meta-iterations
+action spread across 5 replicas of one state: 3.323e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+
+action penalty: 0.05 * |a_disch - -0.401|  (L1, from CLOSED)
+                + 0.001 * ||a_1..5||^2                (L2, from the mean)
+meta   0  W2=0.19690  ||a_1..5||^2=0.00045  discharge L1=0.39955  closed_frac=0.0%  loss=0.23446  |phi-theta|=8.6555e-01
+          10 tasks x 5 inner steps  eff_particles=92.0/100  max/min weight=3.7x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=8.352e-03 DEAD=0/50  |s|max=32.9 (data 40.4)
+meta   1  W2=0.22293  ||a_1..5||^2=0.00053  discharge L1=0.39814  closed_frac=0.0%  loss=0.25922  |phi-theta|=1.0667e+00
+          10 tasks x 5 inner steps  eff_particles=92.6/100  max/min weight=3.5x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=4.916e-03 DEAD=0/50  |s|max=39.3 (data 40.4)
+meta   2  W2=0.23749  ||a_1..5||^2=0.00015  discharge L1=0.39863  closed_frac=0.0%  loss=0.26632  |phi-theta|=7.7019e-01
+          10 tasks x 5 inner steps  eff_particles=96.0/100  max/min weight=2.7x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=1.850e-03 DEAD=0/50  |s|max=31.5 (data 40.4)
+meta   3  W2=0.21533  ||a_1..5||^2=0.00062  discharge L1=0.39339  closed_frac=0.0%  loss=0.25038  |phi-theta|=1.3801e+00
+          10 tasks x 5 inner steps  eff_particles=93.0/100  max/min weight=3.4x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=5.482e-03 DEAD=0/50  |s|max=41.2 (data 40.4)
+meta   4  W2=0.24398  ||a_1..5||^2=0.00067  discharge L1=0.38899  closed_frac=0.0%  loss=0.27549  |phi-theta|=1.3619e+00
+          10 tasks x 5 inner steps  eff_particles=94.7/100  max/min weight=3.1x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=4.719e-03 DEAD=0/50  |s|max=36.2 (data 40.4)
+          [checkpoint saved -> results_rtns/rtns_t10.pt]
+meta   5  W2=0.20240  ||a_1..5||^2=0.00126  discharge L1=0.38088  closed_frac=0.0%  loss=0.23915  |phi-theta|=1.1841e+00
+          10 tasks x 5 inner steps  eff_particles=91.9/100  max/min weight=3.6x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=1.445e-02 DEAD=0/50  |s|max=36.3 (data 40.4)
+meta   6  W2=0.23019  ||a_1..5||^2=0.00105  discharge L1=0.37834  closed_frac=0.0%  loss=0.26228  |phi-theta|=1.2574e+00
+          10 tasks x 5 inner steps  eff_particles=94.1/100  max/min weight=3.2x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=7.555e-03 DEAD=0/50  |s|max=37.2 (data 40.4)
+meta   7  W2=0.23562  ||a_1..5||^2=0.00101  discharge L1=0.37589  closed_frac=0.0%  loss=0.26430  |phi-theta|=1.2414e+00
+          10 tasks x 5 inner steps  eff_particles=95.6/100  max/min weight=2.8x (beta=5.0)
+          cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=8.571e-03 DEAD=0/50  |s|max=33.6 (data 40.4)
+meta   8  W2=0.22133  ||a_1..5||^2=0.00255  discharge L1=0.35795  closed_frac=0.0%  loss=0.25391  |phi-theta|=1.5706e+00
+          10 tasks x 5 inner steps  eff_particles=93.5/100  max/min weight=3.3x (beta=5.0)
+          cc_act=2.412e-04 cc_state=0.000e+00  |grad| med=1.126e-02 DEAD=0/50  |s|max=35.1 (data 40.4)
+meta   9  W2=0.22577  ||a_1..5||^2=0.00357  discharge L1=0.34545  closed_frac=0.0%  loss=0.26579  |phi-theta|=1.1288e+00
+          10 tasks x 5 inner steps  eff_particles=92.5/100  max/min weight=3.6x (beta=5.0)
+          cc_act=5.904e-03 cc_state=0.000e+00  |grad| med=1.742e-02 DEAD=0/50  |s|max=35.8 (data 40.4)
+          [checkpoint saved -> results_rtns/rtns_t10.pt]
+meta  10  W2=0.21834  ||a_1..5||^2=0.00258  discharge L1=0.34903  closed_frac=0.0%  loss=0.25256  |phi-theta|=1.0377e+00
+          10 tasks x 5 inner steps  eff_particles=94.0/100  max/min weight=3.2x (beta=5.0)
+          cc_act=3.374e-03 cc_state=0.000e+00  |grad| med=2.819e-02 DEAD=0/50  |s|max=34.5 (data 40.4)
+meta  11  W2=0.22593  ||a_1..5||^2=0.00344  discharge L1=0.34045  closed_frac=0.0%  loss=0.26284  |phi-theta|=1.0241e+00
+          10 tasks x 5 inner steps  eff_particles=93.4/100  max/min weight=3.3x (beta=5.0)
+          cc_act=5.209e-03 cc_state=0.000e+00  |grad| med=2.166e-02 DEAD=0/50  |s|max=36.0 (data 40.4)
+meta  12  W2=0.22337  ||a_1..5||^2=0.00307  discharge L1=0.34440  closed_frac=0.0%  loss=0.26014  |phi-theta|=8.1916e-01
+          10 tasks x 5 inner steps  eff_particles=94.5/100  max/min weight=2.9x (beta=5.0)
+          cc_act=7.357e-03 cc_state=0.000e+00  |grad| med=6.386e-02 DEAD=0/50  |s|max=32.9 (data 40.4)
+meta  13  W2=0.23046  ||a_1..5||^2=0.00406  discharge L1=0.33916  closed_frac=0.0%  loss=0.27017  |phi-theta|=8.7544e-01
+          10 tasks x 5 inner steps  eff_particles=93.4/100  max/min weight=3.3x (beta=5.0)
+          cc_act=7.885e-03 cc_state=0.000e+00  |grad| med=7.647e-02 DEAD=0/50  |s|max=34.8 (data 40.4)
+meta  14  W2=0.22541  ||a_1..5||^2=0.00360  discharge L1=0.34416  closed_frac=0.0%  loss=0.25895  |phi-theta|=9.6422e-01
+          10 tasks x 5 inner steps  eff_particles=94.2/100  max/min weight=3.2x (beta=5.0)
+          cc_act=3.589e-03 cc_state=0.000e+00  |grad| med=3.124e-02 DEAD=0/50  |s|max=34.2 (data 40.4)
+          [checkpoint saved -> results_rtns/rtns_t10.pt]
+meta  15  W2=0.22962  ||a_1..5||^2=0.00468  discharge L1=0.34135  closed_frac=0.0%  loss=0.26864  |phi-theta|=9.6754e-01
+          10 tasks x 5 inner steps  eff_particles=94.2/100  max/min weight=3.2x (beta=5.0)
+          cc_act=9.105e-03 cc_state=0.000e+00  |grad| med=1.295e-02 DEAD=0/50  |s|max=38.6 (data 40.4)
+meta  16  W2=0.20291  ||a_1..5||^2=0.00520  discharge L1=0.33608  closed_frac=0.1%  loss=0.24608  |phi-theta|=8.9091e-01
+          10 tasks x 5 inner steps  eff_particles=92.4/100  max/min weight=3.5x (beta=5.0)
+          cc_act=9.706e-03 cc_state=0.000e+00  |grad| med=1.198e-01 DEAD=0/50  |s|max=31.7 (data 40.4)
+meta  17  W2=0.21017  ||a_1..5||^2=0.00567  discharge L1=0.33741  closed_frac=0.1%  loss=0.25506  |phi-theta|=9.1936e-01
+          10 tasks x 5 inner steps  eff_particles=92.9/100  max/min weight=3.3x (beta=5.0)
+          cc_act=1.240e-02 cc_state=0.000e+00  |grad| med=6.643e-02 DEAD=0/50  |s|max=35.1 (data 40.4)
+meta  18  W2=0.21979  ||a_1..5||^2=0.00456  discharge L1=0.34404  closed_frac=0.1%  loss=0.26061  |phi-theta|=7.8684e-01
+          10 tasks x 5 inner steps  eff_particles=93.5/100  max/min weight=3.3x (beta=5.0)
+          cc_act=9.089e-03 cc_state=0.000e+00  |grad| med=9.499e-02 DEAD=0/50  |s|max=35.2 (data 40.4)
+meta  19  W2=0.21331  ||a_1..5||^2=0.00538  discharge L1=0.34148  closed_frac=0.1%  loss=0.25759  |phi-theta|=9.0141e-01
+          10 tasks x 5 inner steps  eff_particles=93.5/100  max/min weight=3.4x (beta=5.0)
+          cc_act=1.281e-02 cc_state=0.000e+00  |grad| med=1.701e-02 DEAD=0/50  |s|max=35.0 (data 40.4)
+          [checkpoint saved -> results_rtns/rtns_t10.pt]
+
+||a_1..5||^2 0.00045 -> 0.00538 (+1096.3%)
+
+action spread ACROSS WINDOWS (the thing that collapsed before):
+  channel            t=10h     t=50h     t=90h    t=130h       std
+  discharge        -0.0427   -0.0665   -0.0687   -0.0687    0.0126
+  sugar            -0.0149   -0.0072    0.0038    0.0038    0.0092
+  soilbean         -0.0037    0.0093    0.0207    0.0207    0.0116
+  aeration          0.0141   -0.0105   -0.0384   -0.0384    0.0253
+  backpressure      0.0168    0.0168    0.0130    0.0130    0.0022
+  waterinj         -0.0017   -0.0089   -0.0144   -0.0144    0.0060
+  (a std of ~0 means one action for every window, whatever the meta-update)
+
+  as a fraction of the reference's action std:
+    discharge        0.93% of gpei
+    sugar            0.66% of gpei
+    soilbean         0.83% of gpei
+    aeration         2.31% of gpei
+    backpressure     0.16% of gpei
+    waterinj         0.45% of gpei
+    (the sequential loop with the SAME loss gave 3.3-19.2% on the simulator)
+
+saved -> results_rtns/rtns_t10.pt

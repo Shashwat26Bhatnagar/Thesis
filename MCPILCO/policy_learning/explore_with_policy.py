@@ -60,6 +60,21 @@ It answers one question: how much of the remaining yield gap is the valve?
 Run with -p_dropout 0: the earlier 3735 figure came from dropout noise perturbing
 discharge, not from learned behaviour, so only a deterministic run is comparable.
 
+=== PHASE POLICIES (-phase_policies) ===
+Takes a PREFIX and loads <prefix>_ph0.pt, _ph1.pt, _ph2.pt, selecting by the current
+batch time using the same PENSIM_PHASE_BOUNDS the world models were split on.
+
+WHY. A per-hour evaluation of the single time-invariant policy showed it does not fall
+uniformly short of what is reachable -- it specialises, and the early hours pay:
+23-32% WORSE than the mean action at t = 1-41, 26-30% BETTER at t = 51-71, 7-17%
+better at t = 81-141. At four of the five early hours the mean action was itself the
+best of 200 random samples, so doing nothing is genuinely optimal there and the policy
+is dragged off it by what it learned for the later hours. Those breakpoints fall on
+the phase boundaries already used by the world models.
+
+One policy per phase removes that compromise. Time is available at deployment, so this
+costs no extra observation.
+
 === SPLIT POLICY (-valve_policy) ===
 With -valve_policy, discharge comes from a separately trained policy P_C and channels
 1..5 from the frozen policy given by -policy (P_B):
@@ -200,6 +215,13 @@ _p.add_argument("-recipe_discharge", action="store_true",
                 help="ABLATION: take discharge from the recipe profile at the current "
                      "time instead of from the policy. Isolates how much of the yield "
                      "gap is the valve channel.")
+_p.add_argument("-fix_discharge", type=float, default=None,
+                help="hold discharge at this PHYSICAL value below -fix_until hours")
+_p.add_argument("-fix_until", type=float, default=1e9,
+                help="apply -fix_discharge only below this batch time")
+_p.add_argument("-phase_policies", type=str, default=None,
+                help="PREFIX for three per-phase policies <prefix>_ph{0,1,2}.pt, "
+                     "selected by batch time. Overrides -policy.")
 _p.add_argument("-valve_policy", type=str, default=None,
                 help="P_C checkpoint: a separate discharge policy. -policy then "
                      "supplies channels 1..5 only.")
@@ -227,6 +249,12 @@ PCD_MIN_ACT = np.array(np.asarray(_pcd.min_actions).tolist(), dtype=np.float64)
 print(f"[units] PeniControlData obs bounds: time [{PCD_MIN_OBS[0]:.2f}, {PCD_MAX_OBS[0]:.2f}] h")
 print(f"[units] PeniControlData act bounds: {np.round(PCD_MIN_ACT,2)} .. {np.round(PCD_MAX_ACT,2)}")
 
+# -phase_policies supplies three policies selected by time, but the block that
+# loads them runs AFTER this point -- and this load is unconditional. Point it at
+# phase 0's file so the single-policy path has a valid checkpoint to read the
+# standardiser and metadata from; _policy_at() overrides the policy itself per step.
+if args.phase_policies and not os.path.exists(args.policy):
+    args.policy = f"{args.phase_policies}_ph0.pt"
 ck = torch.load(args.policy, map_location=device, weights_only=False)
 STD_OBS_MU = np.array(np.asarray(ck["std_obs_mu"]).tolist(), dtype=np.float64)   # (8,)
 STD_OBS_SD = np.array(np.asarray(ck["std_obs_sd"]).tolist(), dtype=np.float64)
@@ -261,9 +289,52 @@ if _meta is None:
              "lengthscales_init": (np.asarray(_ls).tolist() if _ls is not None
                                    else np.ones(state_dim).tolist())}
 policy = rebuild_policy(_meta, dtype=dtype, device=device)
-policy.load_state_dict(ck["policy_state_dict"])
+_sd = ck["policy_state_dict"]
+# policies saved through a wrapper (_Pin, _TimeAware, BernoulliGatePolicy) carry a
+# "base." prefix on every key, while rebuild_policy constructs the bare module. The
+# wrapper's own behaviour is re-applied here by -fix_discharge, so only the inner
+# weights are needed.
+if any(k.startswith("base.") for k in _sd):
+    _sd = {k[5:]: v for k, v in _sd.items() if k.startswith("base.")}
+    print("[policy] stripped 'base.' prefix from a wrapped checkpoint")
+policy.load_state_dict(_sd)
 policy.eval()
 state_dim = _meta["state_dim"]
+# --- optional: three per-phase policies, selected by time ---
+PHASE_POLS = None
+if args.phase_policies:
+    PHASE_POLS = {}
+    for _p in (0, 1, 2):
+        _pp = f"{args.phase_policies}_ph{_p}.pt"
+        _pc = torch.load(_pp, map_location=device, weights_only=False)
+        _pol = rebuild_policy(_pc["policy_meta"], dtype=dtype, device=device)
+        _psd = _pc["policy_state_dict"]
+        # same wrapper prefix as above: policies saved through _Pin / _TimeAware /
+        # BernoulliGatePolicy carry "base." on every key
+        if any(k.startswith("base.") for k in _psd):
+            _psd = {k[5:]: v for k, v in _psd.items() if k.startswith("base.")}
+        _pol.load_state_dict(_psd)
+        _pol.eval()
+        _lo, _hi = pdata.PHASES[_p]
+        PHASE_POLS[_p] = _pol
+        print(f"[phase] {_p}: {os.path.basename(_pp)}  t in [{_lo:g}, "
+              f"{'inf' if _hi > 1e8 else f'{_hi:g}'}) h  "
+              f"trained on {_pc.get('n_windows', '?')} windows")
+    print(f"[phase] boundaries from PENSIM_PHASE_BOUNDS="
+          f"{os.environ.get('PENSIM_PHASE_BOUNDS', '35.0,51.0')} -- these MUST match "
+          f"the ones the policies were trained with")
+
+
+def _policy_at(t_h):
+    if PHASE_POLS is None:
+        return policy
+    for _p in (0, 1, 2):
+        _lo, _hi = pdata.PHASES[_p]
+        if _lo <= t_h < _hi:
+            return PHASE_POLS[_p]
+    return PHASE_POLS[2]
+
+
 # --- optional: replay a recorded discharge trace ---
 DISCH_TRACE = None
 if args.discharge_csv:
@@ -395,7 +466,8 @@ def run_episode(ep, seed):
         z = obs_phys_to_z(o)
         with torch.no_grad():
             _s = torch.tensor(z[None, :], dtype=dtype, device=device)
-            _a = policy(states=_s, t=t, p_dropout=args.p_dropout)
+            _a = _policy_at(float(o[pdata.TIME_INDEX]))(
+                states=_s, t=t, p_dropout=args.p_dropout)
             if VALVE is not None:
                 # P_C sees [state, hours_open]; the counter is what lets it close
                 _sa = torch.cat([_s, torch.tensor([[VALVE["hours"]]], dtype=dtype,
@@ -411,11 +483,11 @@ def run_episode(ep, seed):
                                   if float(_a[0, 0]) > VALVE["thresh"] else 0.0)
         a_z = _to_np(_a)
         a_phys = act_z_to_phys(a_z)
-        if os.environ.get("BUGGY_RECIPE_CLIP") and RECIPE_BOUNDS is not None:
-            # reproduce the bnd_rbf1 bug: clip PHYSICAL actions against SMPL-NORMALISED
-            # bounds, which pins every channel to its physical minimum
-            _l, _h = RECIPE_BOUNDS.at(float(o[pdata.TIME_INDEX]))
-            a_phys = np.clip(a_phys, np.asarray(_l), np.asarray(_h))
+        if args.fix_discharge is not None \
+                and float(o[pdata.TIME_INDEX]) < args.fix_until:
+            # growth phase: the vessel should fill, not drain. gpei holds discharge at
+            # exactly 0 for the first ~100 h.
+            a_phys[0] = float(args.fix_discharge)
         if DISCH_TRACE is not None:
             # previous-value hold: linear interpolation would smear the 2-hour pulses
             _tt, _dd = DISCH_TRACE

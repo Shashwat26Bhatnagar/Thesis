@@ -1,0 +1,10 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[policy] results_rsl/rsl_k15.pt
+[policy] kind=rbf state_dim=8 u_max=3.0 | final training W2 = 0.2653
+[action] recipe setpoint (physical): [254.173  76.519  25.965  60.961   0.905 153.74 ]
+[action] clipping: OFF (env bounds only)
+
+collecting 5 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim
+    dropped terminal error_reward row at t=229.8 h

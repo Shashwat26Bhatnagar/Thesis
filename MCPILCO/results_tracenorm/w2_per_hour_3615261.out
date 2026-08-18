@@ -1,0 +1,29 @@
+trace_norm=True  smooth_eps=0.05  cov=sum of 5
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+policy: tn_lam0.pt  lam=0.0
+
+ t [h]  policy W2  mean-act  best rnd      gap  vs mean
+     1    0.24177   0.18834   0.18834  0.05343   -28.4%
+    11    0.22350   0.18156   0.18156  0.04193   -23.1%
+    21    0.24260   0.18830   0.18172  0.06088   -28.8%
+    31    0.23126   0.17546   0.16903  0.06223   -31.8%
+    41    0.22630   0.17649   0.17649  0.04981   -28.2%
+    51    0.13843   0.19746   0.09851  0.03991    29.9%
+    61    0.13524   0.18383   0.09717  0.03807    26.4%
+    71    0.13036   0.18530   0.10377  0.02659    29.7%
+    81    0.24864   0.28487   0.22598  0.02266    12.7%
+    91    0.25627   0.27595   0.23111  0.02516     7.1%
+   101    0.26698   0.29586   0.23510  0.03188     9.8%
+   111    0.27009   0.29335   0.24367  0.02642     7.9%
+   121    0.23306   0.27969   0.21599  0.01707    16.7%
+   131    0.24091   0.26238   0.23289  0.00802     8.2%
+   141    0.24142   0.27164   0.21860  0.02282    11.1%
+
+policy W2 : mean=0.22179  std=0.04539  min=0.13036  max=0.27009
+gap to best: mean=0.03512  std=0.01561
+policy beats the mean action at 10/15 hours
+
+  a gap that is large and FLAT across hours -> uniformly short of reachable
+  a gap that VARIES -> the policy has specialised to some hours over others

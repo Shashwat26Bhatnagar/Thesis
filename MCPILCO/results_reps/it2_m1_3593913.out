@@ -1,0 +1,67 @@
+=== training world model: phase=1 (reps_it3_p1)  n_keep=800  n_epoch=2001  select=pivchol ===
+[loop] reusing frozen standardizer stats from /home/s2892016/Thesis/MCPILCO/results_pensim/rbf_model_bnd_rbf_iter0_phase0.pt
+[pensim] dataset folder (PENSIM_DATA_DIR): /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_reps  (15 CSVs)
+max observations: [2.76000000e+02 8.05261517e+00 3.62841400e+02 6.85863686e+00
+ 2.70000000e+02 1.80000012e+03 9.46039368e+02 1.26920055e+05
+ 2.39494171e+01]
+min observations: [1.6000001e-01 4.5955915e+00 2.3797954e+02 0.0000000e+00 0.0000000e+00
+ 0.0000000e+00 0.0000000e+00 5.0006516e+04 2.3598127e+00]
+dataset max observations: [2.30000000e+02 6.63759613e+00 3.02107452e+02 4.67915392e+00
+ 2.25000000e+02 1.50000000e+03 1.26485828e+03 1.03417805e+05
+ 1.93880215e+01]
+dataset min observations: [0.0000000e+00 6.0929465e+00 2.9710764e+02 0.0000000e+00 0.0000000e+00
+ 9.9999997e-05 9.9999997e-05 5.4047891e+04 9.0607529e+00]
+max actions: [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+min actions: [ 0.   7.  21.  29.   0.5  0. ]
+dataset max actions: [4.094559e+03 1.470660e+02 3.580100e+01 7.514100e+01 1.132000e+00
+ 5.038400e+02]
+dataset min actions: [ 0.     7.361 21.249 29.636  0.545  0.   ]
+normalize: True
+using max/min observations and actions.
+[pensim] using SAVED standardizer statistics
+[pensim] loader time bounds: [0.16, 276.00] h
+[pensim] 17247 transitions | obs 8d act 6d
+[pensim] obs per-dim std: [0.4418 1.0976 1.1181 0.9431 0.8606 1.1374 1.0742 1.5077]
+[pensim] time range: -0.00 .. 230.00 h
+[pensim]   phase 0 [0, 47.5) h: 3555 transitions
+[pensim]   phase 1 [47.5, 72.5) h: 1875 transitions
+[pensim]   phase 2 [72.5, inf) h: 11814 transitions
+[std] fitted on 17247 transitions (15.00 CSVs)  [PINNED via -std_from]
+[std] obs_sd = [0.0329  0.00339 0.03372 0.30286 0.17267 0.11814 0.34974 0.11855]
+[std] act_sd = [0.30882 0.24979 0.48691 0.34592 0.29527 0.43871]
+[pensim] phase 1: t in [47.5, 72.5) h  ->  1875 of 17247 transitions (10.9%)
+[pivchol] selected 800/1675 points  (residual trace 3.304e-01)
+train N=800   test N=200   gp input dim=14   num_gp=8
+training-set time span: 47.60 .. 72.40 h
+EXACT GP INFERENCE SELECTED
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([1.0000e-02, 1.0000e-02, 1.8088e-08, 1.0000e-02, 1.0000e-02, 1.0000e-02,
+        1.0000e-02, 1.0000e-02, 1.0000e-02, 1.0000e-02, 1.0000e-02, 1.0000e-02,
+        1.0000e-02, 1.0000e-02], dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -695.5071193162978
+Time elapsed: 0.34734153747558594
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-3.9637], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 9.7670e-01,  2.7191e+00, -2.7033e-05,  1.2195e+00,  1.0335e+00,
+         3.3472e+00,  2.6315e+00,  2.4931e+00,  1.6313e+00,  1.7893e+00,
+         2.5521e+00,  2.3424e+00,  1.9085e+00,  3.5448e+00],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-2.1030], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -2622.1570984130108
+Time elapsed: 129.70713996887207

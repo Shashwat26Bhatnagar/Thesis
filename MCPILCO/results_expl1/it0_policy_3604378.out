@@ -1,0 +1,37 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-10.41, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1..150 h) ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 158
+windows: 230 total over 1..230 h  ->  150 with the W2 constraint (t<=150), 80 reward-only
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+L2: lambda=0.01 on channels 1..5 (additive)
+action spread across 5 replicas of one state: 3.323e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+  training data below the floor: 0.0%
+EXACT GP INFERENCE SELECTED
+
+objective: -LCB_reward + 15.0*relu(W2_h - 0.23) + 0.01*||a_1..5||^2 + lambda_l1*|a_disch-a_off| + chance
+  reward GP : reward_model_base.pt  held-out R^2=0.8571  yield/step mu=3.2279 sd=1.4090
+  LCB       : mu_r - 1.0*sigma_r  (not the mean)
+  eta       : 0.23  -- measured, the converged W2 of imitation-only policies
+  alpha_W2  : 15.0  -- measured, puts the penalty on the reward's scale
+
+discharge closed = 0 phys = -0.401 z; z=0 would be 254.2 phys (the dataset mean), which is why L1 is measured from the closed level and not from zero
+
+LAMBDA_L1=0.05 (explicit -lam_l1 or -no_calib; not calibrated)
+
+action penalty: 0.0500 * |a_disch - -0.401|  (L1, from CLOSED)
+                + 0.01 * ||a_1..5||^2                (L2, from the mean)

@@ -1,0 +1,31 @@
+=== K=default, LR=default ===
+trace-normalised W2: True   inner k=15  alpha=0.02
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+
+ t [h]  W2 before  W2 after    drop   phi action (z), mean over states
+    10    0.27779   0.27690    0.3%   [-0.002  0.002 -0.001 -0.001  0.     0.002]
+    30    0.27352   0.27821   -1.7%   [-0.002  0.002 -0.001 -0.    -0.002 -0.001]
+    50    0.18061   0.16670    7.7%   [ 0.026 -0.004 -0.009  0.011 -0.018 -0.005]
+    75    0.18101   0.19254   -6.4%   [-0.007  0.016 -0.005 -0.008  0.002 -0.002]
+   100    0.22367   0.23573   -5.4%   [-0.025  0.028  0.005 -0.019  0.013 -0.003]
+   130    0.22218   0.22235   -0.1%   [ 0.003 -0.001 -0.012 -0.016 -0.011 -0.004]
+   150    0.22388   0.22577   -0.8%   [-0.003  0.022 -0.016 -0.001  0.003 -0.011]
+
+channel         std ACROSS phi_h   as % of gpei
+discharge                 0.0142          1.04%
+sugar                     0.0115          0.83%
+soilbean                  0.0067          0.48%
+aeration                  0.0094          0.86%
+backpressure              0.0095          0.68%
+waterinj                  0.0038          0.28%
+
+  If these spreads are LARGE, per-hour solutions exist and gradient descent
+  finds them -- the collapse is then the OUTER average over windows, i.e. the
+  deployed policy is a barycenter of the phi_h.
+  If they are SMALL, the collapse happens inside one window and the outer
+  average is not the cause.
+
+for reference, the OUTER-averaged theta after one Reptile step:
+  (this run inspects phi only; the averaged theta is what deployment uses)

@@ -1,0 +1,85 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-10.41, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047211]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 78
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+W2 trace-normalisation: ON (asserted)
+Reptile: k=15 inner steps, eps=0.5, 10 tasks/meta-iter, 20 meta-iters
+  inner alpha=0.00333  (= LR*5/k, so alpha*k = 0.0500 is held fixed)
+  gradient-agreement coefficient  0.5*k*(k-1)*alpha = 0.35000   (exactly 0 at k=1, which IS joint training)
+L2: lambda=0.001 on ALL SIX channels (additive)
+action spread across 5 replicas of one state: 3.323e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+  training data below the floor: 0.0%
+meta   0  W2=0.19696  ||a||^2=0.00040  loss=0.19696  |phi-theta|=1.8444e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=8.460e-03 DEAD=0/150  |s|max=32.6 (data 40.4)
+meta   1  W2=0.22447  ||a||^2=0.00045  loss=0.22447  |phi-theta|=2.0186e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.278e-03 DEAD=0/150  |s|max=37.4 (data 40.4)
+meta   2  W2=0.23850  ||a||^2=0.00010  loss=0.23850  |phi-theta|=1.1718e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=1.772e-03 DEAD=0/150  |s|max=31.8 (data 40.4)
+meta   3  W2=0.21588  ||a||^2=0.00044  loss=0.21588  |phi-theta|=2.4718e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.834e-03 DEAD=0/150  |s|max=40.2 (data 40.4)
+meta   4  W2=0.24317  ||a||^2=0.00029  loss=0.24317  |phi-theta|=1.7113e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=1.454e-03 DEAD=0/150  |s|max=35.6 (data 40.4)
+meta   5  W2=0.20382  ||a||^2=0.00043  loss=0.20382  |phi-theta|=1.9484e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=5.264e-03 DEAD=0/150  |s|max=35.7 (data 40.4)
+meta   6  W2=0.22954  ||a||^2=0.00032  loss=0.22954  |phi-theta|=1.5819e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.179e-03 DEAD=0/150  |s|max=35.3 (data 40.4)
+meta   7  W2=0.23477  ||a||^2=0.00019  loss=0.23477  |phi-theta|=1.3777e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=1.677e-03 DEAD=0/150  |s|max=33.8 (data 40.4)
+meta   8  W2=0.22128  ||a||^2=0.00038  loss=0.22128  |phi-theta|=1.9368e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.582e-03 DEAD=0/150  |s|max=36.0 (data 40.4)
+meta   9  W2=0.22514  ||a||^2=0.00043  loss=0.22514  |phi-theta|=2.0299e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=3.557e-03 DEAD=0/150  |s|max=34.7 (data 40.4)
+meta  10  W2=0.21623  ||a||^2=0.00030  loss=0.21623  |phi-theta|=1.7514e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=3.633e-03 DEAD=0/150  |s|max=33.3 (data 40.4)
+meta  11  W2=0.22487  ||a||^2=0.00037  loss=0.22487  |phi-theta|=1.7724e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.964e-03 DEAD=0/150  |s|max=35.1 (data 40.4)
+meta  12  W2=0.22209  ||a||^2=0.00027  loss=0.22209  |phi-theta|=1.6017e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=4.115e-03 DEAD=0/150  |s|max=31.5 (data 40.4)
+meta  13  W2=0.22943  ||a||^2=0.00038  loss=0.22944  |phi-theta|=1.6115e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=4.377e-03 DEAD=0/150  |s|max=36.4 (data 40.4)
+meta  14  W2=0.22298  ||a||^2=0.00032  loss=0.22298  |phi-theta|=1.5204e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.911e-03 DEAD=0/150  |s|max=35.4 (data 40.4)
+meta  15  W2=0.23085  ||a||^2=0.00047  loss=0.23085  |phi-theta|=1.9683e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.360e-03 DEAD=0/150  |s|max=39.0 (data 40.4)
+meta  16  W2=0.20171  ||a||^2=0.00054  loss=0.20171  |phi-theta|=2.4375e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=5.546e-03 DEAD=0/150  |s|max=36.7 (data 40.4)
+meta  17  W2=0.20969  ||a||^2=0.00054  loss=0.20969  |phi-theta|=2.0903e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=5.459e-03 DEAD=0/150  |s|max=36.2 (data 40.4)
+meta  18  W2=0.21850  ||a||^2=0.00043  loss=0.21850  |phi-theta|=1.9390e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=4.582e-03 DEAD=0/150  |s|max=32.6 (data 40.4)
+meta  19  W2=0.21357  ||a||^2=0.00049  loss=0.21358  |phi-theta|=2.1006e-01
+          10 tasks x 15 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=3.635e-03 DEAD=0/150  |s|max=34.8 (data 40.4)
+
+action spread ACROSS WINDOWS (the thing that collapsed before):
+  channel            t=10h     t=50h     t=90h    t=130h       std
+  discharge        -0.0032   -0.0021   -0.0050   -0.0050    0.0015
+  sugar             0.0001    0.0020    0.0110    0.0110    0.0058
+  soilbean         -0.0009    0.0004   -0.0026   -0.0026    0.0015
+  aeration          0.0029   -0.0003   -0.0066   -0.0066    0.0048
+  backpressure      0.0009    0.0001    0.0005    0.0005    0.0003
+  waterinj          0.0005    0.0001   -0.0014   -0.0014    0.0010
+  (a std of ~0 means one action for every window, whatever the meta-update)
+
+  as a fraction of the reference's action std:
+    discharge        0.11% of gpei
+    sugar            0.42% of gpei
+    soilbean         0.11% of gpei
+    aeration         0.44% of gpei
+    backpressure     0.02% of gpei
+    waterinj         0.07% of gpei
+    (the sequential loop with the SAME loss gave 3.3-19.2% on the simulator)

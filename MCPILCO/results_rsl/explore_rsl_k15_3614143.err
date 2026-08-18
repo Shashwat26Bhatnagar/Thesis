@@ -1,0 +1,15 @@
+Gym has been unmaintained since 2022 and does not support NumPy 2.0 amongst other critical functionality.
+Please upgrade to Gymnasium, the maintained drop-in replacement of Gym, or contact the authors of your software and request that they upgrade.
+Users of this version of Gym should be able to simply replace 'import gym' with 'import gymnasium as gym' in the vast majority of cases.
+See the migration guide at https://gymnasium.farama.org/introduction/migration_guide/ for additional information.
+/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/mzutils/torch_funcs.py:97: FutureWarning: `torch.cuda.amp.custom_fwd(args...)` is deprecated. Please use `torch.amp.custom_fwd(args..., device_type='cuda')` instead.
+  def forward(ctx, input, min, max):
+/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/mzutils/torch_funcs.py:102: FutureWarning: `torch.cuda.amp.custom_bwd(args...)` is deprecated. Please use `torch.amp.custom_bwd(args..., device_type='cuda')` instead.
+  def backward(ctx, grad_output):
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/explore_with_policy.py", line 512, in <module>
+    np.savetxt(path, rows, delimiter=",", header=",".join(CSV_COLUMNS),
+  File "<__array_function__ internals>", line 180, in savetxt
+  File "/home/s2892016/.conda/envs/rvgp/lib/python3.10/site-packages/numpy/lib/npyio.py", line 1523, in savetxt
+    open(fname, 'wt').close()
+FileNotFoundError: [Errno 2] No such file or directory: '/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim/results_rsl/rsl_k15_explore_batch_0.csv'

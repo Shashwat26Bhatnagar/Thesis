@@ -1,0 +1,96 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-10.41, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047211]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 78
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+L2: lambda=0.0 on ALL SIX channels (additive)
+action spread across 5 replicas of one state: 3.323e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+  training data below the floor: 0.0%
+EXACT GP INFERENCE SELECTED
+
+reward GP: reward_model_base.pt  train pts=800  held-out R^2=0.8571450949279534
+  yield/step mu=3.2279 sd=1.4090; the objective maximises the LOWER
+  confidence bound mu_r - 1.0*sigma_r, not the mean
+
+REPS constraint: max reward  s.t.  W2_h <= eta
+  eta      = 0.23   (measured: imitation-only policies converge to 0.219-0.253 per hour in training units)
+  alpha_W2 = 14.0   penalty = alpha * relu(W2_h - eta), ONE-SIDED
+iter   0  loss=2.03672   reward(LCB)=-0.93595   W2 mean=0.25186 min=0.00000 max=0.48695
+          eta=0.23  hours violating=83/150  mean excess=0.07842  penalty=1.09790  (penalty/|reward|=1.17x)
+          cc_act=2.861e-03 cc_state=0.000e+00   |grad| med=1.559e-01 DEAD=0/150  |s|max=36.5 (data 40.4)
+iter   1  loss=1.78409   reward(LCB)=-0.89181   W2 mean=0.23456 min=0.00000 max=0.43137
+          eta=0.23  hours violating=81/150  mean excess=0.06338  penalty=0.88736  (penalty/|reward|=1.00x)
+          cc_act=4.920e-03 cc_state=0.000e+00   |grad| med=4.603e-01 DEAD=0/150  |s|max=34.3 (data 40.4)
+iter   2  loss=1.72850   reward(LCB)=-0.87674   W2 mean=0.23204 min=0.00000 max=0.43401
+          eta=0.23  hours violating=82/150  mean excess=0.06064  penalty=0.84897  (penalty/|reward|=0.97x)
+          cc_act=2.790e-03 cc_state=0.000e+00   |grad| med=5.044e-01 DEAD=0/150  |s|max=33.7 (data 40.4)
+iter   3  loss=1.82601   reward(LCB)=-0.86785   W2 mean=0.23858 min=0.00000 max=0.48507
+          eta=0.23  hours violating=82/150  mean excess=0.06829  penalty=0.95600  (penalty/|reward|=1.10x)
+          cc_act=2.155e-03 cc_state=0.000e+00   |grad| med=4.367e-01 DEAD=0/150  |s|max=37.8 (data 40.4)
+iter   4  loss=1.74197   reward(LCB)=-0.85836   W2 mean=0.23480 min=0.00000 max=0.44925
+          eta=0.23  hours violating=83/150  mean excess=0.06286  penalty=0.88004  (penalty/|reward|=1.03x)
+          cc_act=3.574e-03 cc_state=0.000e+00   |grad| med=4.535e-01 DEAD=0/150  |s|max=35.7 (data 40.4)
+iter   5  loss=1.73921   reward(LCB)=-0.86782   W2 mean=0.23301 min=0.00000 max=0.43164
+          eta=0.23  hours violating=81/150  mean excess=0.06211  penalty=0.86952  (penalty/|reward|=1.00x)
+          cc_act=1.870e-03 cc_state=0.000e+00   |grad| med=4.988e-01 DEAD=0/150  |s|max=36.4 (data 40.4)
+iter   6  loss=1.77817   reward(LCB)=-0.87906   W2 mean=0.23422 min=0.00000 max=0.41469
+          eta=0.23  hours violating=82/150  mean excess=0.06397  penalty=0.89558  (penalty/|reward|=1.02x)
+          cc_act=3.535e-03 cc_state=0.000e+00   |grad| med=4.899e-01 DEAD=0/150  |s|max=37.3 (data 40.4)
+iter   7  loss=1.77786   reward(LCB)=-0.88936   W2 mean=0.23270 min=0.00000 max=0.43313
+          eta=0.23  hours violating=82/150  mean excess=0.06323  penalty=0.88517  (penalty/|reward|=1.00x)
+          cc_act=3.334e-03 cc_state=0.000e+00   |grad| med=5.167e-01 DEAD=0/150  |s|max=35.9 (data 40.4)
+iter   8  loss=1.72494   reward(LCB)=-0.86669   W2 mean=0.22962 min=0.00000 max=0.45114
+          eta=0.23  hours violating=81/150  mean excess=0.06094  penalty=0.85318  (penalty/|reward|=0.98x)
+          cc_act=5.069e-03 cc_state=0.000e+00   |grad| med=4.513e-01 DEAD=0/150  |s|max=37.2 (data 40.4)
+iter   9  loss=1.66977   reward(LCB)=-0.84912   W2 mean=0.22618 min=0.00000 max=0.43333
+          eta=0.23  hours violating=81/150  mean excess=0.05845  penalty=0.81834  (penalty/|reward|=0.96x)
+          cc_act=2.320e-03 cc_state=0.000e+00   |grad| med=4.652e-01 DEAD=0/150  |s|max=34.9 (data 40.4)
+iter  10  loss=1.71744   reward(LCB)=-0.83787   W2 mean=0.23148 min=0.00000 max=0.44117
+          eta=0.23  hours violating=82/150  mean excess=0.06258  penalty=0.87610  (penalty/|reward|=1.05x)
+          cc_act=3.472e-03 cc_state=0.000e+00   |grad| med=4.144e-01 DEAD=0/150  |s|max=35.0 (data 40.4)
+iter  11  loss=1.70341   reward(LCB)=-0.82646   W2 mean=0.23025 min=0.00000 max=0.42565
+          eta=0.23  hours violating=81/150  mean excess=0.06241  penalty=0.87367  (penalty/|reward|=1.06x)
+          cc_act=3.274e-03 cc_state=0.000e+00   |grad| med=4.351e-01 DEAD=0/150  |s|max=35.4 (data 40.4)
+iter  12  loss=1.67331   reward(LCB)=-0.83827   W2 mean=0.22767 min=0.00000 max=0.41073
+          eta=0.23  hours violating=82/150  mean excess=0.05947  penalty=0.83260  (penalty/|reward|=0.99x)
+          cc_act=2.444e-03 cc_state=0.000e+00   |grad| med=5.364e-01 DEAD=0/150  |s|max=35.3 (data 40.4)
+iter  13  loss=1.68062   reward(LCB)=-0.85927   W2 mean=0.22646 min=0.00000 max=0.43201
+          eta=0.23  hours violating=80/150  mean excess=0.05849  penalty=0.81887  (penalty/|reward|=0.95x)
+          cc_act=2.487e-03 cc_state=0.000e+00   |grad| med=4.655e-01 DEAD=0/150  |s|max=34.7 (data 40.4)
+iter  14  loss=1.75204   reward(LCB)=-0.86496   W2 mean=0.23115 min=0.00000 max=0.49386
+          eta=0.23  hours violating=82/150  mean excess=0.06322  penalty=0.88508  (penalty/|reward|=1.02x)
+          cc_act=2.006e-03 cc_state=0.000e+00   |grad| med=5.207e-01 DEAD=0/150  |s|max=34.9 (data 40.4)
+iter  15  loss=1.71526   reward(LCB)=-0.85964   W2 mean=0.22837 min=0.00000 max=0.44129
+          eta=0.23  hours violating=83/150  mean excess=0.06090  penalty=0.85255  (penalty/|reward|=0.99x)
+          cc_act=3.070e-03 cc_state=0.000e+00   |grad| med=4.801e-01 DEAD=0/150  |s|max=34.7 (data 40.4)
+iter  16  loss=1.67112   reward(LCB)=-0.84909   W2 mean=0.22502 min=0.00000 max=0.45041
+          eta=0.23  hours violating=81/150  mean excess=0.05850  penalty=0.81905  (penalty/|reward|=0.96x)
+          cc_act=2.981e-03 cc_state=0.000e+00   |grad| med=4.656e-01 DEAD=0/150  |s|max=35.6 (data 40.4)
+iter  17  loss=1.66763   reward(LCB)=-0.83943   W2 mean=0.22663 min=0.00000 max=0.43381
+          eta=0.23  hours violating=80/150  mean excess=0.05896  penalty=0.82539  (penalty/|reward|=0.98x)
+          cc_act=2.808e-03 cc_state=0.000e+00   |grad| med=4.178e-01 DEAD=0/150  |s|max=35.9 (data 40.4)
+iter  18  loss=1.65570   reward(LCB)=-0.83020   W2 mean=0.22762 min=0.00000 max=0.41667
+          eta=0.23  hours violating=82/150  mean excess=0.05882  penalty=0.82352  (penalty/|reward|=0.99x)
+          cc_act=1.973e-03 cc_state=0.000e+00   |grad| med=5.378e-01 DEAD=0/150  |s|max=34.8 (data 40.4)
+iter  19  loss=1.62487   reward(LCB)=-0.84530   W2 mean=0.22221 min=0.00000 max=0.43988
+          eta=0.23  hours violating=81/150  mean excess=0.05558  penalty=0.77816  (penalty/|reward|=0.92x)
+          cc_act=1.409e-03 cc_state=0.000e+00   |grad| med=5.086e-01 DEAD=0/150  |s|max=34.4 (data 40.4)
+
+||a||^2  first iter 0.33512  ->  last 1.65894  (+395.0%)
+  (with lambda>0 this should DECREASE; if it rises, the L2 term is not binding)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_reps/reps_policy_iter0.pt

@@ -1,0 +1,79 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-10.41, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047211]
+PHASE 2: training on t in [72.5, inf) h  -> 78 windows of the original 150
+  windows/iter reduced to 78 (all of them)
+windows per model: phase 2: 78
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+L2: lambda=0.0 on ALL SIX channels (additive)
+W2 trace-normalisation: ON  -- both spectra divided by their own trace, so only SHAPE is compared. W2 values are NOT comparable to runs made before this change.
+action spread across 5 replicas of one state: 3.323e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+  training data below the floor: 0.0%
+iter   0  W2=0.22639  ||a||^2=0.00272  lam*||a||^2=0.000e+00  loss=0.22639
+          cc_act=0.000e+00 cc_state=0.000e+00   |grad| med=3.269e-03 DEAD=0/78  |s|max=42.4 (data 40.4)
+iter   1  W2=0.22165  ||a||^2=0.29109  lam*||a||^2=0.000e+00  loss=0.22209
+          cc_act=4.350e-04 cc_state=0.000e+00   |grad| med=1.920e-02 DEAD=0/78  |s|max=40.6 (data 40.4)
+iter   2  W2=0.21873  ||a||^2=0.92501  lam*||a||^2=0.000e+00  loss=0.22308
+          cc_act=4.348e-03 cc_state=0.000e+00   |grad| med=2.687e-02 DEAD=0/78  |s|max=40.4 (data 40.4)
+iter   3  W2=0.21501  ||a||^2=1.76954  lam*||a||^2=0.000e+00  loss=0.21594
+          cc_act=9.302e-04 cc_state=0.000e+00   |grad| med=3.347e-02 DEAD=0/78  |s|max=38.7 (data 40.4)
+iter   4  W2=0.20976  ||a||^2=3.02865  lam*||a||^2=0.000e+00  loss=0.21092
+          cc_act=1.154e-03 cc_state=0.000e+00   |grad| med=3.625e-02 DEAD=0/78  |s|max=40.2 (data 40.4)
+iter   5  W2=0.20646  ||a||^2=4.05818  lam*||a||^2=0.000e+00  loss=0.20740
+          cc_act=9.384e-04 cc_state=0.000e+00   |grad| med=4.126e-02 DEAD=0/78  |s|max=41.6 (data 40.4)
+iter   6  W2=0.20054  ||a||^2=5.56548  lam*||a||^2=0.000e+00  loss=0.20457
+          cc_act=4.024e-03 cc_state=0.000e+00   |grad| med=4.606e-02 DEAD=0/78  |s|max=40.9 (data 40.4)
+iter   7  W2=0.19796  ||a||^2=5.94003  lam*||a||^2=0.000e+00  loss=0.19877
+          cc_act=8.060e-04 cc_state=0.000e+00   |grad| med=4.572e-02 DEAD=0/78  |s|max=40.8 (data 40.4)
+iter   8  W2=0.19852  ||a||^2=6.29812  lam*||a||^2=0.000e+00  loss=0.20107
+          cc_act=2.555e-03 cc_state=0.000e+00   |grad| med=5.245e-02 DEAD=0/78  |s|max=40.4 (data 40.4)
+iter   9  W2=0.19217  ||a||^2=7.73318  lam*||a||^2=0.000e+00  loss=0.19751
+          cc_act=5.340e-03 cc_state=0.000e+00   |grad| med=5.640e-02 DEAD=0/78  |s|max=40.7 (data 40.4)
+iter  10  W2=0.19153  ||a||^2=7.54859  lam*||a||^2=0.000e+00  loss=0.20047
+          cc_act=8.941e-03 cc_state=0.000e+00   |grad| med=5.686e-02 DEAD=0/78  |s|max=40.4 (data 40.4)
+iter  11  W2=0.18933  ||a||^2=8.59890  lam*||a||^2=0.000e+00  loss=0.19080
+          cc_act=1.469e-03 cc_state=0.000e+00   |grad| med=6.097e-02 DEAD=0/78  |s|max=41.7 (data 40.4)
+iter  12  W2=0.18327  ||a||^2=10.16366  lam*||a||^2=0.000e+00  loss=0.18672
+          cc_act=3.447e-03 cc_state=0.000e+00   |grad| med=5.897e-02 DEAD=0/78  |s|max=40.7 (data 40.4)
+iter  13  W2=0.18278  ||a||^2=9.99450  lam*||a||^2=0.000e+00  loss=0.18600
+          cc_act=3.223e-03 cc_state=0.000e+00   |grad| med=5.711e-02 DEAD=0/78  |s|max=42.2 (data 40.4)
+iter  14  W2=0.18054  ||a||^2=10.62967  lam*||a||^2=0.000e+00  loss=0.18184
+          cc_act=1.294e-03 cc_state=0.000e+00   |grad| med=5.896e-02 DEAD=0/78  |s|max=39.7 (data 40.4)
+iter  15  W2=0.18304  ||a||^2=9.96555  lam*||a||^2=0.000e+00  loss=0.18626
+          cc_act=3.213e-03 cc_state=0.000e+00   |grad| med=5.642e-02 DEAD=0/78  |s|max=40.4 (data 40.4)
+iter  16  W2=0.18246  ||a||^2=10.29907  lam*||a||^2=0.000e+00  loss=0.18677
+          cc_act=4.308e-03 cc_state=0.000e+00   |grad| med=5.807e-02 DEAD=0/78  |s|max=40.4 (data 40.4)
+iter  17  W2=0.18024  ||a||^2=10.96586  lam*||a||^2=0.000e+00  loss=0.18557
+          cc_act=5.333e-03 cc_state=0.000e+00   |grad| med=5.811e-02 DEAD=0/78  |s|max=40.4 (data 40.4)
+iter  18  W2=0.17956  ||a||^2=11.60361  lam*||a||^2=0.000e+00  loss=0.18344
+          cc_act=3.883e-03 cc_state=0.000e+00   |grad| med=5.735e-02 DEAD=0/78  |s|max=42.6 (data 40.4)
+iter  19  W2=0.17748  ||a||^2=12.05121  lam*||a||^2=0.000e+00  loss=0.18003
+          cc_act=2.552e-03 cc_state=0.000e+00   |grad| med=5.552e-02 DEAD=0/78  |s|max=41.1 (data 40.4)
+
+||a||^2  first iter 0.00272  ->  last 12.05121  (+443333.6%)
+  (with lambda>0 this should DECREASE; if it rises, the L2 term is not binding)
+
+action spread ACROSS WINDOWS (the quantity that collapsed):
+  channel            t=73h     t=99h    t=124h    t=150h       std
+  discharge         0.5054    0.5054    0.5054    0.5054    0.0000   (0.00% of gpei)
+  sugar            -2.4223   -2.4223   -2.4223   -2.4223    0.0000   (0.00% of gpei)
+  soilbean          1.1462    1.1462    1.1462    1.1462    0.0000   (0.00% of gpei)
+  aeration         -1.5479   -1.5479   -1.5479   -1.5479    0.0000   (0.00% of gpei)
+  backpressure      0.7891    0.7891    0.7891    0.7891    0.0000   (0.00% of gpei)
+  waterinj          0.6481    0.6481    0.6481    0.6481    0.0000   (0.00% of gpei)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_phase/phase_ph2.pt

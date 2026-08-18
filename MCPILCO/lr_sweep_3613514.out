@@ -1,0 +1,27 @@
+=== lr=0.005  (alpha*k = 0.005*5)
+
+action spread ACROSS WINDOWS (the thing that collapsed before):
+  channel            t=10h     t=50h     t=90h    t=130h       std
+  discharge         0.0004    0.0053   -0.0001   -0.0001    0.0026
+  sugar             0.0012    0.0018    0.0134    0.0134    0.0069
+  soilbean          0.0010    0.0016   -0.0071   -0.0071    0.0049
+  aeration         -0.0028   -0.0050    0.0017    0.0017    0.0033
+  backpressure     -0.0040   -0.0053   -0.0005   -0.0005    0.0024
+  waterinj         -0.0018   -0.0042   -0.0043   -0.0043    0.0012
+  (a std of ~0 means one action for every window, whatever the meta-update)
+
+saved -> /tmp/rep_lr0.005.pt
+=== lr=0.01  (alpha*k = 0.01*5)
+
+action spread ACROSS WINDOWS (the thing that collapsed before):
+  channel            t=10h     t=50h     t=90h    t=130h       std
+  discharge         0.0069    0.0175    0.0019    0.0019    0.0074
+  sugar             0.0051    0.0051    0.0226    0.0226    0.0101
+  soilbean          0.0065    0.0088   -0.0086   -0.0086    0.0094
+  aeration         -0.0173   -0.0226   -0.0001   -0.0001    0.0117
+  backpressure     -0.0166   -0.0202   -0.0047   -0.0047    0.0081
+  waterinj         -0.0104   -0.0174   -0.0172   -0.0172    0.0034
+  (a std of ~0 means one action for every window, whatever the meta-update)
+
+saved -> /tmp/rep_lr0.01.pt
+=== lr=0.02  (alpha*k = 0.02*5)

@@ -1,0 +1,27 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[ablation] discharge replayed from gpei_batch_0.csv: 1150 steps, duty=5.2%, peak=4058, volume=45708
+[policy] /home/s2892016/Thesis/MCPILCO/results_expreps/xr_policy_iter0.pt
+[policy] kind=rbf state_dim=8 u_max=3.0 | final training W2 = 0.2238
+[action] recipe setpoint (physical): [254.173  76.519  25.965  60.961   0.905 153.74 ]
+[action] clipping: time-varying +/-10% of recipe profile
+[action] recipe band: +/-10% of profile, floor 5% of span, smoothed +/-2.0 h
+    t=  10.0 h  discharge [    -1.00,     -0.90]   sugar [  -1.00,   -0.87]
+    t=  50.0 h  discharge [    -1.00,     -0.90]   sugar [  -0.39,   -0.19]
+    t= 110.0 h  discharge [     0.76,      1.00]   sugar [   0.35,    0.67]
+    t= 200.0 h  discharge [     0.76,      1.00]   sugar [   0.03,    0.28]
+
+collecting 1 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_expreps
+    dropped terminal error_reward row at t=127.2 h
+  episode 0: 636 steps, final t=127.0 h, total yield=1686.8136  ->  xrdisch_iter0_batch_0.csv
+
+summary:
+  episodes written: 1/1
+  total yield  mean=1686.8136  min=1686.8136  max=1686.8136
+  yield/step   mean=2.6522  min=2.6522  max=2.6522   (SMPL paper baseline: 3.3071)
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_expreps
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.

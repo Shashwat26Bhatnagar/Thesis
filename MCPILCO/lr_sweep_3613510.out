@@ -1,0 +1,20 @@
+=== lr=0.005  (alpha*k = 0.005*5)
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/reptile_policy_opt.py", line 109, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
+=== lr=0.01  (alpha*k = 0.01*5)
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/reptile_policy_opt.py", line 109, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
+=== lr=0.02  (alpha*k = 0.02*5)
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/reptile_policy_opt.py", line 109, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'
+=== lr=0.05  (alpha*k = 0.05*5)
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/reptile_policy_opt.py", line 109, in <module>
+    import torch
+ModuleNotFoundError: No module named 'torch'

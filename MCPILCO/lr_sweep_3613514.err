@@ -1,0 +1,2 @@
+/var/spool/slurmd/job3613514/slurm_script: line 11: /home/s2892016/path/to/your/rvgp/bin/activate: No such file or directory
+[2026-08-15T23:07:47.008] error: *** JOB 3613514 ON opencast CANCELLED AT 2026-08-15T23:07:47 DUE TO TIME LIMIT ***

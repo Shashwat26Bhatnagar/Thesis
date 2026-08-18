@@ -1,0 +1,22 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[ablation] discharge replayed from gpei_batch_0.csv: 1150 steps, duty=5.2%, peak=4058, volume=45708
+[policy] /home/s2892016/Thesis/MCPILCO/results_expreps/xr_policy_iter0.pt
+[policy] kind=rbf state_dim=8 u_max=3.0 | final training W2 = 0.2238
+[action] recipe setpoint (physical): [254.173  76.519  25.965  60.961   0.905 153.74 ]
+[action] clipping: OFF (env bounds only)
+
+collecting 1 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_expreps
+    dropped terminal error_reward row at t=229.8 h
+  episode 0: 1149 steps, final t=229.6 h, total yield=3645.6157  ->  xrdisch_iter0_batch_0.csv
+
+summary:
+  episodes written: 1/1
+  total yield  mean=3645.6157  min=3645.6157  max=3645.6157
+  yield/step   mean=3.1729  min=3.1729  max=3.1729   (SMPL paper baseline: 3.3071)
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_expreps
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.

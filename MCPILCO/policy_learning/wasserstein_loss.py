@@ -80,6 +80,36 @@ def _sym_sqrt_torch(S, eps=1e-12):
     return (V * torch.sqrt(w).unsqueeze(-2)) @ V.transpose(-1, -2)
 
 
+# Trace-normalise both spectra inside w2_cross_dim_torch. See the long note in the
+# function body for why; set False to recover the previous behaviour exactly.
+TRACE_NORMALIZE = True
+
+# --- SMOOTHING: W2_eps = sqrt(W2^2 + eps^2) ---------------------------------------
+# Chewi et al., "Averaging on the Bures-Wasserstein manifold": W2(Sigma, .) "is
+# neither geodesically convex nor geodesically smooth, nor Euclidean convex nor
+# Euclidean smooth ... it poses challenges for optimization. We therefore smooth the
+# objective before optimization", with exactly this W_{2,eps} := sqrt(W2^2 + eps^2).
+#
+# The un-smoothed distance ends in sqrt(cost), whose derivative is 1/(2*sqrt(cost)) --
+# unbounded as cost -> 0. Every particle sitting near a zero of the cost therefore
+# contributes an enormous, near-random gradient direction, and averaged over 500
+# particles those directions largely cancel.
+#
+# MEASURED CONSEQUENCE. At t=75 h, W2 along the discharge axis reads 0.309, 0.310,
+# 0.164, 0.315 at a = -0.5, 0, +0.5, +1: a gradient that reverses within half a unit.
+# A random search over 400 actions per hour found actions beating the mean action by
+# 87-90% at t = 50..150, with the winners differing completely between hours
+# (discharge +0.76 at t=75 vs -1.59 at t=130) -- so far better policies EXIST. But 15
+# Adam steps on a single window moved the loss by ~1% and INCREASED it on four of
+# seven windows. That is the classic symptom: "large steps ... indicative of stable
+# local minima ... Classical descent, Adam, and Adamax are particularly susceptible"
+# (Tropical Gradient Descent, on Wasserstein projection problems).
+#
+# EPS is on the scale of W2 itself, which after trace-normalisation runs 0.05-0.40.
+# Larger eps smooths harder and biases the distance upward by ~eps at the minimum.
+SMOOTH_EPS = 0.05
+
+
 def w2_cross_dim_torch(cov_big_diag, eig_small, eps=1e-12):
     """Cai-Lim projection distance, LARGE side diagonal (our GP), SMALL side given
     by its eigenvalues (the expert).
@@ -96,8 +126,42 @@ def w2_cross_dim_torch(cov_big_diag, eig_small, eps=1e-12):
         raise ValueError("eig_small must be the smaller dimension")
 
     # eigenvalues of a diagonal matrix are its diagonal -> just sort (differentiable)
-    lam, _ = torch.sort(cov_big_diag, dim=1, descending=True)      # (P, n)
-    gam, _ = torch.sort(eig_small.detach(), descending=True)       # (m,)
+    if TRACE_NORMALIZE:
+        # --- put the two spectra on a common scale before comparing ---
+        #
+        # They arrive on unrelated ones. The expert's cov_n comes from dividing the
+        # state by a hand-picked [20, 80, 2.5] with NO centring, so its normalised
+        # values sit in [0,1] with means 0.27-0.38. The GP's covariance comes from
+        # physical -> smpl min-max -> z-score, a THREE-stage chain whose per-channel
+        # divisors span 103x (std_obs_sd 0.0034 .. 0.350). Nothing links the two.
+        #
+        # That mismatch is what produced the dead zone. w2_cross_dim_torch clamps the
+        # expert eigenvalue gamma into the band between the model's 3rd-smallest and
+        # 3rd-largest diagonal entries; when gamma lands INSIDE, s_star == gamma, the
+        # cost is exactly 0 and clamp has zero derivative -- no loss and no gradient.
+        # Measured at t=75 h with the summed 5-step covariance, W2 was 0.00000 for
+        # ALL SIX action channels across a in [-0.5, +0.5], which is precisely where
+        # the trained policies sat (z ~ 0.01-0.07). The only live gradients were the
+        # L2 and the chance box, both of which pull toward z=0 -- the dataset mean.
+        # That is why the actions collapsed to constants at ~1% of the reference's
+        # variance, and why nine different objectives all gave the same answer.
+        #
+        # Dividing each spectrum by its own trace cancels every accumulated scaling on
+        # both sides and leaves only the SHAPE, which is the one quantity the two can
+        # honestly be compared on without an 8->3 projection. Measured after this
+        # change: the zeros are gone, every channel varies (range 0.10-0.29).
+        #
+        # TWO COSTS, stated rather than hidden. The distance can no longer reach 0 --
+        # a 3-shape and an 8-shape never coincide exactly, so there is a floor around
+        # 0.05-0.16. And the landscape is jagged rather than smooth: at t=75 discharge
+        # reads 0.309, 0.310, 0.164, 0.315 at a = -0.5, 0, +0.5, +1.
+        _cb = cov_big_diag / cov_big_diag.sum(dim=1, keepdim=True).clamp_min(eps)
+        _es = eig_small.detach() / eig_small.detach().sum().clamp_min(eps)
+    else:
+        _cb, _es = cov_big_diag, eig_small.detach()
+
+    lam, _ = torch.sort(_cb, dim=1, descending=True)               # (P, n)
+    gam, _ = torch.sort(_es, descending=True)                      # (m,)
 
     idx = torch.arange(m, device=cov_big_diag.device)
     lo = lam[:, n - m + idx]                                       # (P, m) lower band
@@ -110,6 +174,10 @@ def w2_cross_dim_torch(cov_big_diag, eig_small, eps=1e-12):
 
     cost = ((torch.sqrt(torch.clamp(g, min=eps))
              - torch.sqrt(torch.clamp(s_star, min=eps))) ** 2).sum(dim=1)
+    if SMOOTH_EPS > 0.0:
+        # sqrt(W2^2 + eps^2) == sqrt(cost + eps^2), since cost IS W2^2 here. The
+        # derivative is bounded by 1/(2*eps) instead of diverging as cost -> 0.
+        return torch.sqrt(torch.clamp(cost, min=0.0) + SMOOTH_EPS ** 2)
     return torch.sqrt(torch.clamp(cost, min=0.0) + eps)
 
 

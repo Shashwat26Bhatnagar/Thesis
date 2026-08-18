@@ -1,0 +1,137 @@
+#!/bin/bash
+# =====================================================================================
+# Ten Dyna iterations of the reward + W2-constraint objective, with per-phase policies.
+#
+#   ./run_rlimit_loop.sh              # iterations 0..9
+#   ./run_rlimit_loop.sh 3 9          # resume at 3
+#
+# Each iteration:
+#   [1] three policies, one per phase, trained in parallel on the CURRENT world models
+#         loss = -LCB_reward + 15*relu(W2 - 0.35) + lam(phase)*||(a-lo)/span||^2
+#                + chance penalties
+#   [2] ONE deterministic episode with all three, selected by batch time
+#   [3] retrain the three phase world models on everything collected so far
+#
+# WHY relu(W2 - eta) AND NOT A W2 PENALTY. Replaying gpei's own recorded actions
+# through the world model shows the objective RANKS THE REFERENCE BELOW INACTION: gpei
+# beats the mean action at only 4 of 15 hours (mean W2 0.253 vs 0.229) despite reaching
+# 3803 yield. Minimising W2 therefore cannot produce reference-like behaviour. With
+# eta = 0.35 -- which admits gpei (0.19-0.34) and the mean (0.18-0.30) at every sampled
+# hour -- the term is zero for both and the REWARD decides.
+#
+# eta = 0.23 was tried first and bound on 40 of 47 phase-0 windows, i.e. back to
+# ranking. Watch "violating=N/..." in the logs: single digits means guardrail, most of
+# the windows means it has become a ranking again.
+#
+# lam IS PHASE-SPECIFIC (0.2 on phase 0, 0 elsewhere). The penalty is distance from the
+# PHYSICAL MINIMUM, and gpei is closer to it than the dataset mean only during growth:
+# span-normalised 0.476 vs 1.234 at t < 20 h, reversing to 1.735 vs 1.234 by t = 20-47.
+#
+# Discharge is pinned at 0 below 47.5 h, in training and at deployment.
+#
+# THE STANDARDIZER IS PINNED across all ten iterations (-std_from). It otherwise refits
+# on a folder that grows every iteration: two models fitted two days apart on the same
+# folder saw 19953 vs 25290 transitions and pH's std moved 0.0153 -> 0.0329, which
+# changes what z means and makes eta -- a fixed number -- incomparable between rounds.
+# =====================================================================================
+set -euo pipefail
+cd "$(dirname "$0")"
+REPO=$PWD
+CFG=/home/s2892016/Thesis/deps/smpl/smpl/configdata
+RES=$REPO/results_rlloop
+DATA=$CFG/pensim_rlloop
+mkdir -p "$RES" "$DATA"
+
+FROM=${1:-0}
+TO=${2:-9}
+SRC_PREFIX=${SRC_PREFIX:-$REPO/results_pensim/rbf_model_bnd_rbf_iter0}
+REWARD=${REWARD:-$REPO/results_pensim/reward_model_base.pt}
+ETA=${ETA:-0.35}
+ALPHA_W2=${ALPHA_W2:-15.0}
+KAPPA=${KAPPA:-1.0}
+LAM_GROWTH=${LAM_GROWTH:-0.2}
+ITERS=${ITERS:-20}
+N_KEEP=${N_KEEP:-800}
+N_EPOCH=${N_EPOCH:-2001}
+PB=${PENSIM_PHASE_BOUNDS:-47.5,72.5}
+PHASE0_END=${PB%%,*}
+
+[ -f "$REWARD" ] || { echo "reward model not found: $REWARD" >&2; exit 1; }
+[ -f "${SRC_PREFIX}_phase0.pt" ] || { echo "models not found: ${SRC_PREFIX}_phase0.pt" >&2; exit 1; }
+
+[ -f "$DATA/gpei_batch_0.csv" ] || cp "$CFG"/pensimenv/*.csv "$DATA/"
+if [ ! -f "$RES/m_iter0_phase0.pt" ]; then
+  for p in 0 1 2; do cp "${SRC_PREFIX}_phase${p}.pt" "$RES/m_iter0_phase${p}.pt"; done
+  echo "iteration 0 models copied from $SRC_PREFIX"
+fi
+
+SB="--partition=Teaching --account=general-teaching --qos=teaching --cpus-per-task=4 --mem=16G"
+CONDA="source /opt/conda/etc/profile.d/conda.sh; conda activate rvgp; \
+export PENSIM_PHASE_BOUNDS='$PB'; cd $REPO;"
+
+echo "=========================================================================="
+echo " rl+imitation Dyna loop, iterations $FROM..$TO"
+echo "   eta=$ETA  alpha_W2=$ALPHA_W2  kappa=$KAPPA  lam(growth)=$LAM_GROWTH"
+echo "   policy iters=$ITERS   phase bounds=$PB"
+echo "   data: $DATA ($(ls "$DATA"/*.csv 2>/dev/null | wc -l) CSVs)"
+echo "=========================================================================="
+
+DEP=""
+for IT in $(seq "$FROM" "$TO"); do
+  MODEL=$RES/m_iter${IT}
+  NEXT=$RES/m_iter$((IT+1))
+  echo "--- iteration $IT"
+
+  # [1] one policy per phase
+  PIDS=()
+  for P in 0 1 2; do
+    if [ "$P" = "0" ]; then LAM=$LAM_GROWTH; FIX="-fix_discharge 0"; else LAM=0.0; FIX=""; fi
+    PREV=$RES/p_iter$((IT-1))_ph${P}.pt
+    WARM=""; [ -f "$PREV" ] && WARM="-init_policy $PREV"
+    D=""; [ -n "$DEP" ] && D="--dependency=afterok:$DEP"
+    J=$(sbatch --parsable $SB $D --job-name="L${IT}p$P" --time=14:00:00 \
+      --output="$RES/it${IT}_p${P}_%j.out" --error="$RES/it${IT}_p${P}_%j.err" \
+      --wrap="$CONDA python -u policy_learning/rl_imit_phase.py \
+              -phase_prefix $MODEL -reward_model $REWARD -phase $P \
+              -eta $ETA -alpha_w2 $ALPHA_W2 -kappa $KAPPA -lam $LAM $FIX \
+              -iters $ITERS -out $RES/p_iter${IT}_ph${P}.pt $WARM")
+    PIDS+=("$J")
+  done
+  echo "  [1/3] policies -> ${PIDS[*]}"
+
+  # [2] one deterministic episode, policies selected by time
+  PDEP=$(IFS=:; echo "${PIDS[*]}")
+  J2=$(sbatch --parsable $SB --dependency=afterok:$PDEP --job-name="L${IT}x" \
+    --time=06:00:00 \
+    --output="$RES/it${IT}_explore_%j.out" --error="$RES/it${IT}_explore_%j.err" \
+    --wrap="$CONDA python -u policy_learning/explore_with_policy.py \
+            -phase_policies $RES/p_iter${IT} -fix_discharge 0 -fix_until $PHASE0_END \
+            -out $DATA -tag rl_iter${IT} -n 1 -p_dropout 0.0")
+  echo "  [2/3] explore  -> $J2"
+
+  # [3] retrain the three phase models, z-space pinned
+  if [ "$IT" -lt "$TO" ]; then
+    TIDS=()
+    for P in 0 1 2; do
+      J=$(sbatch --parsable $SB --dependency=afterok:$J2 --job-name="L${IT}m$P" \
+        --time=10:00:00 \
+        --output="$RES/it${IT}_m${P}_%j.out" --error="$RES/it${IT}_m${P}_%j.err" \
+        --wrap="$CONDA python -u train_rbf_pensim.py -phase $P -data_dir $DATA \
+                -tag rl_it$((IT+1))_p${P} -save_dir $RES -n_keep $N_KEEP \
+                -n_epoch $N_EPOCH -select pivchol -std_from ${SRC_PREFIX}_phase0.pt; \
+                cp $RES/rbf_model_rl_it$((IT+1))_p${P}.pt ${NEXT}_phase${P}.pt")
+      TIDS+=("$J")
+    done
+    DEP=$(IFS=:; echo "${TIDS[*]}")
+    echo "  [3/3] models   -> ${TIDS[*]}"
+  else
+    DEP=$J2
+  fi
+done
+
+echo
+echo "watch  : squeue -u \$USER"
+echo "W2/eta : grep -h 'violating' $RES/it*_p*_*.out | tail -20"
+echo "reward : grep -h 'reward(LCB)' $RES/it*_p*_*.out | tail -20"
+echo "yields : grep -h 'total yield' $RES/it*_explore_*.out"
+echo "data   : ls $DATA/*.csv | wc -l"

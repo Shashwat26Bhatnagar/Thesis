@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/home/s2892016/Thesis/MCPILCO/policy_learning/reptile_tracenorm.py", line 562, in <module>
+    torch.save({"policy_state_dict": policy.state_dict(), "policy_meta": policy_meta,
+NameError: name 'l2_first' is not defined

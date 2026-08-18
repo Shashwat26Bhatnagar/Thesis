@@ -210,6 +210,58 @@ class BernoulliGatePolicy(nn.Module):
 
 
 # =====================================================================================
+class TimeBandPolicy(nn.Module):
+    """Wraps a policy so its output is CONSTRUCTED inside a time-varying band:
+
+        u(s,t) = lo(t) + (hi(t) - lo(t)) * sigmoid(raw(s))
+
+    WHY THIS RATHER THAN CLIPPING
+    np.clip after the fact has zero derivative at the bound, so once the band binds
+    the policy receives NO gradient distinguishing one output from another there.
+    Measured: with the recipe band applied as a post-hoc clip inside a PPO env, the
+    clip bound on 100.0% of steps and the return moved only -1230 -> -1190 over an
+    update -- that movement was the value function fitting, not the policy improving,
+    because on a fully-bound channel every policy earns the same reward.
+
+    Constructing the action inside the band instead makes it differentiable
+    everywhere: sigmoid'(x) > 0 for all finite x, so there is always a direction to
+    move, and out-of-band values are UNREPRESENTABLE rather than merely overwritten.
+
+    THE BAND IS SUPPLIED PER STEP by the caller (`set_band`), because it depends on
+    absolute batch time, which the policy does not otherwise know. Callers that do not
+    set one get the static bounds passed at construction.
+
+    NOTE the output is no longer centred at zero: sigmoid(0) puts it at the MIDPOINT
+    of the band. An L2 penalty on ||u||^2 therefore no longer means what it did -- use
+    the distance-from-lo penalty below if the intent is "small physical actions".
+    """
+
+    def __init__(self, base, lo_z, hi_z, dtype=torch.float64,
+                 device=torch.device("cpu")):
+        super().__init__()
+        self.base = base
+        self.state_dim, self.input_dim = base.state_dim, base.input_dim
+        self.register_buffer("lo0", torch.as_tensor(lo_z, dtype=dtype, device=device))
+        self.register_buffer("hi0", torch.as_tensor(hi_z, dtype=dtype, device=device))
+        self._lo = None
+        self._hi = None
+
+    def set_band(self, lo_z, hi_z):
+        """Band for the CURRENT step, in the policy's z units."""
+        self._lo = torch.as_tensor(lo_z, dtype=self.lo0.dtype, device=self.lo0.device)
+        self._hi = torch.as_tensor(hi_z, dtype=self.hi0.dtype, device=self.hi0.device)
+
+    def clear_band(self):
+        self._lo = self._hi = None
+
+    def forward(self, states, t=None, p_dropout=0.0):
+        raw = self.base(states=states, t=t, p_dropout=p_dropout)
+        lo = self.lo0 if self._lo is None else self._lo
+        hi = self.hi0 if self._hi is None else self._hi
+        return lo + (hi - lo) * torch.sigmoid(raw)
+
+
+# =====================================================================================
 def build_policy(kind, state_dim, input_dim, u_max=3.0, dtype=torch.float64,
                  device=torch.device("cpu"), rng=None,
                  # --- rbf ---
@@ -220,7 +272,9 @@ def build_policy(kind, state_dim, input_dim, u_max=3.0, dtype=torch.float64,
                  # --- kan ---
                  kan_hidden=10, kan_grid=20, kan_range=(-3.0, 3.0),
                  # --- Bernoulli gate (bang-off-bang channels) ---
-                 gate_channels=None, gate_z_off=None, gate_z_on=None, gate_gain=2.0):
+                 gate_channels=None, gate_z_off=None, gate_z_on=None, gate_gain=2.0,
+                 # --- time-varying band, constructed rather than clipped ---
+                 band_lo=None, band_hi=None):
     """Construct a policy of the requested kind.
 
     Returns (policy, meta). `meta` records everything needed to rebuild the same
@@ -270,6 +324,11 @@ def build_policy(kind, state_dim, input_dim, u_max=3.0, dtype=torch.float64,
     else:
         raise ValueError(f"kind must be 'rbf', 'mlp' or 'kan', got {kind!r}")
 
+    if band_lo is not None and band_hi is not None:
+        policy = TimeBandPolicy(policy, band_lo, band_hi, dtype=dtype, device=device)
+        meta.update(band_lo=list(map(float, band_lo)),
+                    band_hi=list(map(float, band_hi)))
+
     if gate_channels:
         policy = BernoulliGatePolicy(policy, gate_channels, gate_z_off, gate_z_on,
                                      gain=gate_gain, dtype=dtype, device=device)
@@ -295,7 +354,8 @@ def rebuild_policy(meta, dtype=torch.float64, device=torch.device("cpu")):
               u_max=meta.get("u_max", 3.0), dtype=dtype, device=device,
               gate_channels=meta.get("gate_channels"),
               gate_z_off=meta.get("gate_z_off"), gate_z_on=meta.get("gate_z_on"),
-              gate_gain=meta.get("gate_gain", 2.0))
+              gate_gain=meta.get("gate_gain", 2.0),
+              band_lo=meta.get("band_lo"), band_hi=meta.get("band_hi"))
     if kind == "rbf":
         return build_policy("rbf",
                             centers_init=np.asarray(meta["centers_init"]),

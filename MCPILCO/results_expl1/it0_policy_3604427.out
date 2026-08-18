@@ -1,0 +1,143 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-10.41, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1..150 h) ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 158
+windows: 230 total over 1..230 h  ->  150 with the W2 constraint (t<=150), 80 reward-only
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+L2: lambda=0.01 on channels 1..5 (additive)
+action spread across 5 replicas of one state: 3.323e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+  training data below the floor: 0.0%
+EXACT GP INFERENCE SELECTED
+
+objective: -LCB_reward + 15.0*relu(W2_h - 0.23) + 0.01*||a_1..5||^2 + lambda_l1*|a_disch-a_off| + chance
+  reward GP : reward_model_base.pt  held-out R^2=0.8571  yield/step mu=3.2279 sd=1.4090
+  LCB       : mu_r - 1.0*sigma_r  (not the mean)
+  eta       : 0.23  -- measured, the converged W2 of imitation-only policies
+  alpha_W2  : 15.0  -- measured, puts the penalty on the reward's scale
+
+discharge closed = 0 phys = -0.401 z; z=0 would be 254.2 phys (the dataset mean), which is why L1 is measured from the closed level and not from zero
+
+LAMBDA_L1=0.05 (explicit -lam_l1 or -no_calib; not calibrated)
+
+action penalty: 0.0500 * |a_disch - -0.401|  (L1, from CLOSED)
+                + 0.01 * ||a_1..5||^2                (L2, from the mean)
+iter   0  loss=1.83676  reward(LCB)=-0.96526 (phys 1.868)  W2 mean=0.26268 max=0.50931
+          eta=0.23 violating=58/100 excess=0.08427 penalty=1.26402 (pen/|rew|=1.31x)   ||a_1..5||^2=0.20515 lam*=2.051e-03
+          discharge L1=0.44135 lam_l1*=2.207e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 100 imitation+reward, 50 reward-only (t>150 h)   reward early=-0.9518 late=-0.9923
+          cc_act=4.697e-03 cc_state=0.000e+00   |grad| med=6.167e-02 DEAD=0/150  |s|max=38.1 (data 40.4)
+iter   1  loss=1.53222  reward(LCB)=-0.87638 (phys 1.993)  W2 mean=0.23072 max=0.46575
+          eta=0.23 violating=55/101 excess=0.06149 penalty=0.92240 (pen/|rew|=1.05x)   ||a_1..5||^2=0.93378 lam*=9.338e-03
+          discharge L1=0.45803 lam_l1*=2.290e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 101 imitation+reward, 49 reward-only (t>150 h)   reward early=-0.8736 late=-0.8822
+          cc_act=2.513e-03 cc_state=0.000e+00   |grad| med=1.996e-01 DEAD=0/150  |s|max=38.7 (data 40.4)
+iter   2  loss=1.53943  reward(LCB)=-0.84628 (phys 2.036)  W2 mean=0.24485 max=0.43643
+          eta=0.23 violating=54/94 excess=0.06955 penalty=1.04325 (pen/|rew|=1.23x)   ||a_1..5||^2=1.37535 lam*=1.375e-02
+          discharge L1=0.45699 lam_l1*=2.285e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 94 imitation+reward, 56 reward-only (t>150 h)   reward early=-0.8586 late=-0.8255
+          cc_act=2.777e-03 cc_state=0.000e+00   |grad| med=2.138e-01 DEAD=0/150  |s|max=38.0 (data 40.4)
+iter   3  loss=1.54201  reward(LCB)=-0.83844 (phys 2.047)  W2 mean=0.24025 max=0.43796
+          eta=0.23 violating=53/96 excess=0.06938 penalty=1.04077 (pen/|rew|=1.24x)   ||a_1..5||^2=1.34894 lam*=1.349e-02
+          discharge L1=0.45634 lam_l1*=2.282e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 96 imitation+reward, 54 reward-only (t>150 h)   reward early=-0.8465 late=-0.8241
+          cc_act=1.168e-03 cc_state=0.000e+00   |grad| med=2.429e-01 DEAD=0/150  |s|max=40.4 (data 40.4)
+iter   4  loss=1.54308  reward(LCB)=-0.82640 (phys 2.064)  W2 mean=0.23972 max=0.44308
+          eta=0.23 violating=57/100 excess=0.06764 penalty=1.01461 (pen/|rew|=1.23x)   ||a_1..5||^2=1.48835 lam*=1.488e-02
+          discharge L1=0.46533 lam_l1*=2.327e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 100 imitation+reward, 50 reward-only (t>150 h)   reward early=-0.8359 late=-0.8074
+          cc_act=2.129e-03 cc_state=0.000e+00   |grad| med=2.325e-01 DEAD=0/150  |s|max=36.6 (data 40.4)
+iter   5  loss=1.61440  reward(LCB)=-0.82789 (phys 2.061)  W2 mean=0.25216 max=0.42833
+          eta=0.23 violating=61/102 excess=0.07306 penalty=1.09584 (pen/|rew|=1.32x)   ||a_1..5||^2=1.63522 lam*=1.635e-02
+          discharge L1=0.44128 lam_l1*=2.206e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 102 imitation+reward, 48 reward-only (t>150 h)   reward early=-0.8426 late=-0.7967
+          cc_act=2.921e-03 cc_state=0.000e+00   |grad| med=2.153e-01 DEAD=0/150  |s|max=40.4 (data 40.4)
+iter   6  loss=1.50330  reward(LCB)=-0.82381 (phys 2.067)  W2 mean=0.23158 max=0.41610
+          eta=0.23 violating=55/101 excess=0.06358 penalty=0.95368 (pen/|rew|=1.16x)   ||a_1..5||^2=1.48138 lam*=1.481e-02
+          discharge L1=0.42275 lam_l1*=2.114e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 101 imitation+reward, 49 reward-only (t>150 h)   reward early=-0.8356 late=-0.7995
+          cc_act=1.403e-03 cc_state=0.000e+00   |grad| med=2.111e-01 DEAD=0/150  |s|max=36.8 (data 40.4)
+iter   7  loss=1.45362  reward(LCB)=-0.81059 (phys 2.086)  W2 mean=0.23145 max=0.42725
+          eta=0.23 violating=51/94 excess=0.06421 penalty=0.96321 (pen/|rew|=1.19x)   ||a_1..5||^2=1.71713 lam*=1.717e-02
+          discharge L1=0.41992 lam_l1*=2.100e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 94 imitation+reward, 56 reward-only (t>150 h)   reward early=-0.8154 late=-0.8024
+          cc_act=1.255e-03 cc_state=0.000e+00   |grad| med=1.857e-01 DEAD=0/150  |s|max=38.5 (data 40.4)
+iter   8  loss=1.55045  reward(LCB)=-0.80837 (phys 2.089)  W2 mean=0.24101 max=0.45444
+          eta=0.23 violating=62/104 excess=0.06705 penalty=1.00571 (pen/|rew|=1.24x)   ||a_1..5||^2=1.80542 lam*=1.805e-02
+          discharge L1=0.40911 lam_l1*=2.046e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 104 imitation+reward, 46 reward-only (t>150 h)   reward early=-0.8222 late=-0.7770
+          cc_act=6.280e-03 cc_state=0.000e+00   |grad| med=2.108e-01 DEAD=0/150  |s|max=38.4 (data 40.4)
+iter   9  loss=1.49549  reward(LCB)=-0.80344 (phys 2.096)  W2 mean=0.22809 max=0.42873
+          eta=0.23 violating=53/100 excess=0.06561 penalty=0.98417 (pen/|rew|=1.22x)   ||a_1..5||^2=1.54177 lam*=1.542e-02
+          discharge L1=0.39985 lam_l1*=1.999e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 100 imitation+reward, 50 reward-only (t>150 h)   reward early=-0.8138 late=-0.7828
+          cc_act=5.199e-04 cc_state=0.000e+00   |grad| med=2.017e-01 DEAD=0/150  |s|max=38.5 (data 40.4)
+iter  10  loss=1.49820  reward(LCB)=-0.80172 (phys 2.098)  W2 mean=0.23202 max=0.44144
+          eta=0.23 violating=52/98 excess=0.06726 penalty=1.00883 (pen/|rew|=1.26x)   ||a_1..5||^2=1.63834 lam*=1.638e-02
+          discharge L1=0.39511 lam_l1*=1.976e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 98 imitation+reward, 52 reward-only (t>150 h)   reward early=-0.8144 late=-0.7778
+          cc_act=1.231e-03 cc_state=0.000e+00   |grad| med=1.748e-01 DEAD=0/150  |s|max=37.5 (data 40.4)
+iter  11  loss=1.45611  reward(LCB)=-0.78734 (phys 2.119)  W2 mean=0.23018 max=0.43693
+          eta=0.23 violating=53/98 excess=0.06449 penalty=0.96730 (pen/|rew|=1.23x)   ||a_1..5||^2=1.60978 lam*=1.610e-02
+          discharge L1=0.39158 lam_l1*=1.958e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 98 imitation+reward, 52 reward-only (t>150 h)   reward early=-0.8004 late=-0.7627
+          cc_act=1.126e-03 cc_state=0.000e+00   |grad| med=2.031e-01 DEAD=0/150  |s|max=36.9 (data 40.4)
+iter  12  loss=1.39977  reward(LCB)=-0.79732 (phys 2.105)  W2 mean=0.21700 max=0.43232
+          eta=0.23 violating=47/98 excess=0.05724 penalty=0.85859 (pen/|rew|=1.08x)   ||a_1..5||^2=1.76125 lam*=1.761e-02
+          discharge L1=0.40747 lam_l1*=2.037e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 98 imitation+reward, 52 reward-only (t>150 h)   reward early=-0.8145 late=-0.7649
+          cc_act=3.523e-03 cc_state=0.000e+00   |grad| med=2.078e-01 DEAD=0/150  |s|max=36.1 (data 40.4)
+iter  13  loss=1.46020  reward(LCB)=-0.78677 (phys 2.119)  W2 mean=0.22010 max=0.46770
+          eta=0.23 violating=51/102 excess=0.06215 penalty=0.93225 (pen/|rew|=1.18x)   ||a_1..5||^2=1.76287 lam*=1.763e-02
+          discharge L1=0.37775 lam_l1*=1.889e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 102 imitation+reward, 48 reward-only (t>150 h)   reward early=-0.7958 late=-0.7675
+          cc_act=2.991e-03 cc_state=0.000e+00   |grad| med=2.347e-01 DEAD=0/150  |s|max=36.0 (data 40.4)
+iter  14  loss=1.45103  reward(LCB)=-0.78441 (phys 2.123)  W2 mean=0.23697 max=0.45219
+          eta=0.23 violating=49/91 excess=0.06853 penalty=1.02789 (pen/|rew|=1.31x)   ||a_1..5||^2=2.08752 lam*=2.088e-02
+          discharge L1=0.37027 lam_l1*=1.851e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 91 imitation+reward, 59 reward-only (t>150 h)   reward early=-0.8069 late=-0.7498
+          cc_act=3.644e-03 cc_state=0.000e+00   |grad| med=1.831e-01 DEAD=0/150  |s|max=37.7 (data 40.4)
+iter  15  loss=1.54200  reward(LCB)=-0.79247 (phys 2.111)  W2 mean=0.23772 max=0.42874
+          eta=0.23 violating=56/101 excess=0.06999 penalty=1.04984 (pen/|rew|=1.32x)   ||a_1..5||^2=1.74816 lam*=1.748e-02
+          discharge L1=0.41909 lam_l1*=2.095e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 101 imitation+reward, 49 reward-only (t>150 h)   reward early=-0.8005 late=-0.7760
+          cc_act=4.206e-03 cc_state=0.000e+00   |grad| med=2.279e-01 DEAD=0/150  |s|max=36.9 (data 40.4)
+iter  16  loss=1.47792  reward(LCB)=-0.79619 (phys 2.106)  W2 mean=0.22806 max=0.45134
+          eta=0.23 violating=56/103 excess=0.06215 penalty=0.93224 (pen/|rew|=1.17x)   ||a_1..5||^2=1.72426 lam*=1.724e-02
+          discharge L1=0.44277 lam_l1*=2.214e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 103 imitation+reward, 47 reward-only (t>150 h)   reward early=-0.8025 late=-0.7824
+          cc_act=2.201e-03 cc_state=0.000e+00   |grad| med=2.199e-01 DEAD=0/150  |s|max=37.0 (data 40.4)
+iter  17  loss=1.46127  reward(LCB)=-0.79786 (phys 2.104)  W2 mean=0.22894 max=0.43964
+          eta=0.23 violating=52/101 excess=0.06182 penalty=0.92723 (pen/|rew|=1.16x)   ||a_1..5||^2=1.58668 lam*=1.587e-02
+          discharge L1=0.41659 lam_l1*=2.083e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 101 imitation+reward, 49 reward-only (t>150 h)   reward early=-0.8170 late=-0.7583
+          cc_act=2.378e-03 cc_state=0.000e+00   |grad| med=2.295e-01 DEAD=0/150  |s|max=39.1 (data 40.4)
+iter  18  loss=1.40927  reward(LCB)=-0.79262 (phys 2.111)  W2 mean=0.23491 max=0.43414
+          eta=0.23 violating=52/91 excess=0.06328 penalty=0.94922 (pen/|rew|=1.20x)   ||a_1..5||^2=1.89253 lam*=1.893e-02
+          discharge L1=0.41546 lam_l1*=2.077e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 91 imitation+reward, 59 reward-only (t>150 h)   reward early=-0.8090 late=-0.7674
+          cc_act=1.089e-03 cc_state=0.000e+00   |grad| med=2.101e-01 DEAD=0/150  |s|max=36.1 (data 40.4)
+iter  19  loss=1.59486  reward(LCB)=-0.82285 (phys 2.069)  W2 mean=0.24847 max=0.43566
+          eta=0.23 violating=60/103 excess=0.07133 penalty=1.06999 (pen/|rew|=1.30x)   ||a_1..5||^2=1.49792 lam*=1.498e-02
+          discharge L1=0.40927 lam_l1*=2.046e-02   fraction near CLOSED=0.0%   (gpei duty cycle -> 94.8% closed)
+          windows: 103 imitation+reward, 47 reward-only (t>150 h)   reward early=-0.8308 late=-0.8055
+          cc_act=1.832e-03 cc_state=0.000e+00   |grad| med=3.025e-01 DEAD=0/150  |s|max=37.7 (data 40.4)
+
+final W2=0.24847 vs eta=0.23 -> still binding
+      reward(LCB)=-0.82285 (physical yield/step ~ 2.069)
+      ||a||^2 0.20515 -> 1.49792 (+630.2%)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_expl1/l1_policy_iter0.pt

@@ -18,7 +18,7 @@
 
 exp_dir: pensim_sindy_latent
 n_train_iter: 2000
-dyn_fit_freq: 200
+dyn_fit_freq: 50
 fcnet_hiddens: [64, 64]
 use_pbt: False
 
@@ -150,7 +150,7 @@ ray_config:
     run_config:
         name: "dyna_pensim_latent_d4"
         stop:
-            num_env_steps_sampled: 2.0e+6
+            num_env_steps_sampled: 5.0e+6
         log_to_file: True
         verbose: 2
     tune_config:

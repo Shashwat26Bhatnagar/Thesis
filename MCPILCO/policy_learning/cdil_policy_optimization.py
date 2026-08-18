@@ -1,69 +1,119 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-policy_learning/cdil_policy_optimization.py
+policy_learning/cdil_policy_smooth.py
 
-Cross-Domain Imitation Learning (CDIL) policy optimization -- EPISODIC,
-with PHASE-SPECIFIC world models.
+CDIL policy optimization, rebuilt clean. Writes to results_clean/ and does not touch
+any existing file.
 
-STRUCTURE (mirrors MC-PILCO, Amadio et al. 2022):
-    J(theta) = sum_{t=0..T} (1/M) sum_m c(x_t^(m)),  ONE backward, ONE update.
-    MC-PILCO horizons are SHORT (cart-pole 3 s / 0.05 s = 60 steps) and p(x_0) is
-    RESAMPLED at every optimization step -- the trajectory never continues past T.
+WHY THIS FILE EXISTS: THE LOSS IS NON-SMOOTH AND ADAM CANNOT DESCEND IT
 
-    Each expert comparison window (T = STEPS_PER_EXPERT = 5 steps = 1 h) is therefore
-    a self-contained episode with a FRESH in-distribution start state. A single long
-    continuing rollout instead drove |s| to ~140 z-units (training data spans
-    [-5.5, 11.2]), which killed the gradient twice over:
-        GP predictive variance saturated at the prior lambda -> dvar/dinput = 0
-        policy RBF basis abandoned its centres               -> da/dtheta   = 0
+    Two facts, both measured:
 
-PHASE-SPECIFIC WORLD MODELS  (the change in this revision)
-    Fermentation has distinct regimes, so one RBF world model was trained per phase:
-        phase 0: t <  35 h       phase 1: 35 <= t < 51 h      phase 2: t >= 51 h
-    The expert is queried BY TIME, so each window already knows its t_h -- the same
-    clock therefore selects the world model. Because every window is a self-contained
-    episode with a fresh start state, no rollout ever crosses a phase boundary, so
-    switching models introduces no discontinuity.
+    1. Far better per-hour actions EXIST. Random search over 400 actions per hour beat
+       the mean action by 87-90% at t = 50..150, and the winners differ completely
+       between hours -- discharge +0.76 at t=75 against -1.59 at t=130.
 
-    Start states are drawn from the SELECTED model's own training inputs, so the
-    particles begin inside the region that model actually covers. This is what keeps
-    the gradient alive, so it matters more than it looks.
+    2. Gradient descent does not find them. Fifteen Adam steps on a single window,
+       starting from theta_0, moved the loss by ~1% and INCREASED it on four of seven
+       windows (t=30 +1.7%, t=75 +6.4%, t=100 +5.4%). The resulting per-hour policies
+       phi_h were already near-identical, at 0.28-1.04% of the reference's action
+       spread, BEFORE any meta-averaging -- so the outer average is not the cause.
 
-    All phase models share ONE z-space (the trainer fits the Standardizer on the full
-    dataset BEFORE filtering); this is asserted at load time.
+    Chewi et al. ("Averaging on the Bures-Wasserstein manifold") state the reason
+    directly: W2(Sigma, .) "is neither geodesically convex nor geodesically smooth,
+    nor Euclidean convex nor Euclidean smooth ... it poses challenges for
+    optimization", and they smooth the objective before optimising, with exactly
+    W_{2,eps} := sqrt(W2^2 + eps^2). Tropical Gradient Descent reports the same
+    symptom on Wasserstein projection problems: "stable local minima ... Classical
+    descent, Adam, and Adamax are particularly susceptible", worst in low dimensions.
 
-    USE_PHASE_MODELS = False falls back to the single all-data model, so the
-    "did phase-splitting help?" comparison is one config change.
+    This file applies that smoothing (wasserstein_loss.SMOOTH_EPS). The un-smoothed
+    distance ends in sqrt(cost), whose derivative diverges as cost -> 0, so particles
+    near a zero contribute enormous near-random directions that cancel when averaged
+    over 500. Bounding the derivative at 1/(2*eps) is the standard fix.
 
-OBJECTIVE:  E_s( E_{a|s}( W2 ) )
-    NUM_STATES start states, each replicated K_ACTIONS times; replicas share a state
-    but draw independent actions (dropout), so the inner mean is E_{a|s} and the outer
-    mean is E_s. W2 is the Cai-Lim cross-dimensional distance (8-D model vs 3-D
-    expert): no projection needed, and the MEANS DROP OUT by construction --
-    a deliberate choice; the objective matches covariance spectra only.
+    NOTE the distance is now biased upward by ~eps at its minimum, so W2 values are
+    NOT comparable to earlier runs.
 
-POLICY:
-    RBF centres are spread over the OBSERVED state range instead of randn's [-3, 3];
-    training states span [-5.5, 11.2], so randn centres under-cover it. With phase
-    models the range is the UNION over all phases, since one policy serves them all.
+WHY THE IMITATION TERM WAS SILENT BEFORE THAT
 
-    NOTE ON ACTION BOUNDS. The PenSim docs specify +/-10% of setpoint, which in
-    z-scored units is u_max_z = [0.023, 0.323, 0.554, 0.628, 0.702, 0.103] -- i.e.
-    a flat u_max = 3.0 is 4x to 128x wider. Enforcing that bound was tried and made
-    the objective un-optimizable:
-        - gradients fell ~30x (0.104 -> 0.0037 median) and the loss went flat
-          (0.219 -> 0.206 over 20 iters, vs 0.190 -> 0.105 unbounded)
-        - the widest channel saturated its bound at EVERY step (|a|max == 0.7021)
-        - |s|max was UNCHANGED (~12.5 med), so the divergence is driven by the GP's
-          own delta predictions, not by action magnitude -- the bound cost signal
-          without buying in-distribution behaviour
-    Covariance-spectrum matching needs the policy to move the state appreciably, and
-    +/-10% does not. Flat u_max = 3.0 is therefore retained here; ACTION_LIMIT_FRAC
-    below is kept for reference/experimentation.
+    w2_cross_dim_torch now trace-normalises both spectra before comparing (see the
+    note in that function). Without it the loss was EXACTLY ZERO -- no loss, no
+    gradient -- for all six action channels across a in [-0.5, +0.5], measured at
+    t=75 h with the summed 5-step covariance that training actually uses. The trained
+    policies sat at z ~ 0.01-0.07, inside that dead zone.
+
+    The cause was a normalisation mismatch, not the distance itself. The expert's
+    cov_n comes from state/[20, 80, 2.5] with no centring; the GP's covariance comes
+    from physical -> smpl min-max -> z-score, whose per-channel divisors span 103x.
+    The two spectra overlapped only by coincidence of independent rescalings, and
+    that overlap put the expert's eigenvalues inside the Cai-Lim clamp band, where
+    s_star == gamma and the cost is identically zero.
+
+    WHAT THAT EXPLAINS. With W2 silent, the only live gradients were the action L2 and
+    the chance box, and BOTH pull toward z = 0 -- which, under z-scoring, IS the
+    dataset-mean action. So the policy converged to the mean on every channel, at
+    ~1% of the reference's action variance, and nine successive objectives (L1, L2,
+    minimum-action, reward maximisation, Bernoulli gate, ASRE sparsity KL, a separate
+    valve policy, PPO, Reptile) all produced the same collapse -- eight of them were
+    regularisers layered on a term contributing nothing, and the meta-updates were
+    redistributing a gradient that was zero.
+
+    AFTER THE FIX, measured: no zeros anywhere, every channel varies with a range of
+    0.10-0.29. The distance no longer reaches 0 (a 3-shape and an 8-shape cannot
+    coincide, so there is a floor near 0.05-0.16) and the landscape is jagged rather
+    than smooth. W2 VALUES FROM THIS FILE ARE NOT COMPARABLE to any earlier run.
+
+WHAT IS IN
+    W2      E_s[ E_{a|s}[ W2( P(s'|s,a) || P_expert(s'|s) ) ] ]
+            Cai-Lim cross-dimensional distance, 8-D model vs 3-D expert. Means drop
+            out by construction -- the objective matches covariance spectra only.
+    L2      lambda * mean||a||^2 over ALL SIX channels, ADDITIVE.
+    chance  Tan et al. Eq. 8-9 soft chance constraints: the static action box, and a
+            floor on the predicted vessel weight.
+
+WHAT IS OUT (deliberately, after all of these were tried and did not survive)
+    Bernoulli gate on discharge      the gate contradicted the chance constraint
+                                     (a two-point distribution has maximal variance,
+                                     so the variance back-off flagged it in 150/150
+                                     windows and the penalty reached 1156x the W2
+                                     term). Adding a learned magnitude then gave the
+                                     gate a degenerate optimum -- hold it open and set
+                                     the level near zero -- which is the continuous
+                                     head it was meant to replace.
+    ASRE sparsity KL                 fixes the marginal duty cycle, not the temporal
+                                     structure; the deployed policy still flickered
+                                     (51 opens of 0.22 h against the reference's 6 of
+                                     2.0 h).
+    multiplicative violation penalty confounded with the L2 term.
+    separate valve policy            its state-matching target was minimised by not
+                                     discharging at all (duty went to 0 by iteration 7
+                                     and stayed).
+    discharge override               useful as an ablation, not as a policy.
+
+VERIFYING THAT L2 ACTUALLY BINDS
+    In an earlier sweep lambda=0.001 came back with an action norm 1.656x the
+    lambda=0 reference -- more regularisation, larger actions. That is backwards, and
+    either the term was not reaching the loss or run-to-run variance swamped it. This
+    file therefore logs mean||a||^2 EVERY iteration alongside lambda*||a||^2, and
+    prints the first-to-last change at the end, so the effect of lambda is visible
+    directly rather than inferred from the sweep table.
+
+STRUCTURE (MC-PILCO, Amadio et al. 2022)
+    Each expert hour is one self-contained episode: T = 5 steps, a FRESH
+    in-distribution start state, one graph, one backward, one update. A single long
+    continuing rollout instead drove |s| to ~140 z-units against training data
+    spanning [-5.5, 11.2], which killed the gradient twice over -- the GP's predictive
+    variance saturated at the prior, and the policy's RBF basis abandoned its centres.
+
+    python policy_learning/cdil_policy_smooth.py \\
+        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 -lam 0.01 -iters 20
 """
+import argparse
 import os
 import sys
+
 import numpy as np
 import torch
 
@@ -71,849 +121,292 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _REPO = os.path.dirname(_HERE)
 if _REPO not in sys.path:
     sys.path.insert(0, _REPO)
-
-for _cand in (
-    os.path.expanduser("~/penicillin-dcfba"),
-    os.path.join(os.path.dirname(_REPO), "penicillin-dcfba"),
-    os.path.join(os.path.dirname(os.path.dirname(_REPO)), "penicillin-dcfba"),
-):
-    if os.path.isdir(_cand):
-        if _cand not in sys.path:
-            sys.path.insert(0, _cand)
-        break
-else:
-    raise FileNotFoundError("penicillin-dcfba not found -- set the path manually")
-
-import argparse
+for _c in (os.path.expanduser("~/Thesis/penicillin-dcfba"),
+           os.path.expanduser("~/penicillin-dcfba")):
+    if os.path.isdir(_c) and _c not in sys.path:
+        sys.path.insert(0, _c); break
 
 import model_learning.Model_learning as ML
 import model_learning.pensim_dataset as pdata
-import policy_learning.Policy as Policy
 from policy_learning.gp_particle_rollout import gp_rollout, sample_initial_particles
+from policy_learning.policy_variants import build_policy, rebuild_policy
 from policy_learning.wasserstein_loss import w2_cross_dim_torch
-from policy_learning.policy_variants import build_policy
-from policy_learning.chance_constraints import (action_chance_penalty, phi_inv,
-                                                RecipeBounds, state_chance_penalty,
-                                                action_violation_multiplier,
-                                                gate_sparsity_kl)
+from policy_learning.chance_constraints import (action_chance_penalty,
+                                                state_chance_penalty, phi_inv)
 from dcfba_pen.flgfn.pf_query import PFQuery
 
 torch.set_num_threads(1)
 dtype, device = torch.float64, torch.device("cpu")
 np.random.seed(0); torch.manual_seed(0)
 
-SAVE_DIR = os.path.join(_REPO, "results_pensim")
+SAVE_DIR = os.path.join(_REPO, "results_smooth")
+os.makedirs(SAVE_DIR, exist_ok=True)
 
-_ap = argparse.ArgumentParser("CDIL policy optimization")
-_ap.add_argument("-discharge_csv", type=str, default=None,
-                 help="replay this CSV's discharge column during the ROLLOUT, so the "
-                      "policy trains under the same discharge regime it deploys "
-                      "under. Discharge is then excluded from the policy's loss "
-                      "entirely -- it emits the channel but the value is discarded, "
-                      "so that head receives no gradient.")
-_ap.add_argument("-phase_prefix", type=str, default=None,
-                 help="use THREE phase models named <prefix>_phase{0,1,2}.pt, selected "
-                      "per window by the expert time. Ignored if -model is given.")
-_ap.add_argument("-model", type=str, default=None,
-                 help="single world-model checkpoint (Dyna loop). Omit to use the "
-                      "three phase models.")
-_ap.add_argument("-init_policy", type=str, default=None,
-                 help="warm-start from this policy checkpoint (Dyna loop). The RBF "
-                      "CENTRES are taken from it too -- regenerating them would make "
-                      "the loaded weights meaningless.")
-_ap.add_argument("-out", type=str, default=None, help="output policy path")
-_ap.add_argument("-iters", type=int, default=None, help="override N_ITERS")
-_ap.add_argument("-lam", type=float, default=None,
-                 help="L2 action-regularisation weight. Loss = W2 + lam*||a||^2 + "
-                      "chance constraints. ||a|| is in Z-SCORED units, so z=0 is the "
-                      "DATASET-MEAN action: this pulls toward typical operating values, "
-                      "not toward zero flow.")
-_ap.add_argument("-policy_kind", type=str, default=None,
-                 choices=["rbf", "mlp", "kan"],
-                 help="policy architecture (default: POLICY_KIND below). "
-                      "rbf = Sum_of_gaussians (joint Gaussian basis, MC-PILCO's own); "
-                      "mlp = feed-forward; "
-                      "kan = Kolmogorov-Arnold with radial-basis edge functions")
-_args = _ap.parse_known_args()[0]
-
-# --- world models: one per fermentation phase, or a single all-data model ---
-USE_PHASE_MODELS = _args.model is None
-_pp = _args.phase_prefix or os.path.join(SAVE_DIR, "rbf_model")
-MODEL_PATHS = {p: f"{_pp}_phase{p}.pt" for p in (0, 1, 2)}
-ALL_MODEL_PATH = _args.model or os.path.join(SAVE_DIR, "rbf_model_all.pt")
-
-STATE_DIM = pdata.OBS_DIM          # 8
-INPUT_DIM = pdata.ACT_DIM          # 6
+STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) sampling ---
-NUM_STATES = 100
-K_ACTIONS = 5
+# --- E_s( E_{a|s}( . ) ) ---
+NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
 # --- episodic structure ---
-T_START_HOURS = 0.0            # rollout t=0 corresponds to this expert time
-HOURS_PER_STEP = 0.2
-EXPERT_DT = 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))     # = 5 = episode length T
+T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
 EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
 WINDOWS_PER_ITER = 150
-N_ITERS = 20
-LR = 0.01
-P_DROPOUT = 0.25
-CLIP = 10.0
-
-EXPERT_COV_KEY = "cov_n"
-
-# --- soft chance constraints on ACTIONS (Tan et al., Eqs. 8-9) -----------------
-# The CDIL objective is covariance-only, so nothing in it constrains what the actions
-# DO: the policy discharged ~200 L/h for the entire batch while the reference recipe
-# discharges 0 for ~97% of it. This adds the paper's soft chance constraint
-#     s >= mu + Phi^-1(eps)*sigma - hi ,  s >= 0 ,  cost += alpha * s
-# per action channel, so the policy is penalised for actions whose DISTRIBUTION
-# (not just mean) leaves the safe box.
-USE_CHANCE_CONSTRAINT = True
-CC_EPS = 0.95            # paper: 95% confidence  -> Phi^-1 = 1.6449
-CC_ALPHA = 1000.0        # paper: soft-constraint weight alpha = 1000
-# TWO constraints, both active:
-#   static : the physical action box (MIN_ACT/MAX_ACT). Rules out impossible actions.
-#   recipe : +/-10% of the TIME-VARYING recipe profile at this window's time. Rules out
-#            actions that are physically possible but far from the recipe at that point
-#            in the batch -- e.g. DISCHARGE_DEFAULT_PROFILE is 0 until t=100 h, so
-#            discharging 200 L/h during growth is a violation the static box cannot see.
-CC_USE_STATIC = True
-CC_USE_RECIPE = False     # REVERTED: the time-varying band drained the vessel
-                          # (episode ended at t=122 h). Exploration is back on -clip10.
-CC_RECIPE_FRAC = 0.10        # +/-10% of setpoint, per the SMPL docs
-CC_RECIPE_FLOOR = 0.05       # min half-width as a fraction of the channel span:
-                             # +/-10% of a ZERO setpoint would be unsatisfiable
-CC_RECIPE_SMOOTH_H = 2.0     # average the profile over +/-2 h: it steps 0->4000 within
-                             # 2 h, and an unsmoothed edge gives a huge spurious penalty
-CC_ALPHA_RECIPE = 1000.0
-
-# --- STATE chance constraint: the vessel must not be drained -------------------
-# A per-timestep ACTION bound cannot express an accumulation limit. Over t=100..130 h
-# the reference controller and the learned policy reach almost the same PEAK discharge
-# (3705 vs 3600), but the reference averages 245 L/h while the policy averages 3237:
-# the recipe's 4000 is a ceiling it touches briefly, and the +/-10% band turns that
-# ceiling into a permitted operating point. Every action is individually legal; the
-# accumulation drained the vessel 62900 -> 25436 and terminated the episode at t=122 h.
-# Constraining the PREDICTED VESSEL WEIGHT states the real requirement directly, and is
-# the form Tan et al. actually use (they constrain states, not actions).
-CC_USE_STATE = True
-CC_STATE_CHANNEL = "Wt"      # vessel weight
-CC_WT_MIN_PHYS = 50000.0     # minimum working volume. Reference runs stay above 91000
-                             # and batches start near 62500, so 50000 is a floor that
-                             # is clearly unsafe to cross without being restrictive.
-# alpha CALIBRATED from a measured run, not guessed. With alpha=1000 the smoke test
-# gave  state penalty = 1.090e+02  against a W2 of ~1.5e-01: the constraint was ~700x
-# the objective, so the policy optimised the constraint alone and imitation was
-# irrelevant. alpha=1.0 puts the penalty at ~0.11, the same order as W2, so it guides
-# rather than dominates. Raise it if the vessel still drains; lower it if W2 stops
-# improving.
-CC_ALPHA_STATE = 1.0
-
-# --- multiplicative action-violation penalty -----------------------------------
-# The objective becomes  W2 * (1 + beta * v)  where v is the normalised amount by
-# which actions leave the static +/-10% box. In-bounds actions pay exactly W2; an
-# out-of-bounds one pays many times over, so the policy cannot buy a better W2 by
-# leaving the safe region -- however tempting the W2 term is.
-#
-# Calibrated on bnd_iter6_batch_7.csv (discharge out of band 91.3% of steps, sugar
-# 31.9%, mean normalised excess 0.0107): beta=1000 gives ~12x on average and ~36x at
-# worst. beta=10 gives only 1.1x, far too weak to deter.
-# --- L2 action regularisation --------------------------------------------------
-# loss = W2 + LAMBDA_A * mean||a||^2 + chance penalties      (ADDITIVE)
-# NOT W2-divided: dividing by W2 makes the penalty vanish exactly when imitation is
-# going well, which is backwards -- it would license large actions precisely when the
-# policy is closest to the expert.
-USE_ACTION_L2 = True
-LAMBDA_A = 0.0             # set per run with -lam; 0.0 = the reference policy
-
-# PER-CHANNEL weights. ||a||^2 is in z-scored units, so z=0 is the DATASET-MEAN
-# action and the penalty pulls every channel toward its mean. That is right for a
-# continuously-modulated channel and WRONG for a valve.
-#
-# Measured against the gpei reference (gpei_batch_161.csv):
-#     discharge : 94.8% of steps at ZERO, occasional pulses to ~4000, std 858
-#                 -> BIMODAL. Its mean of 201 is a value it essentially never takes,
-#                    so pulling toward the mean lands between the modes. With L2 on,
-#                    our policy spent >5% of steps at 3600 and drained the vessel
-#                    (62900 -> 25467), terminating at t=120.6 h instead of 230.
-#     the other five : unimodal, std/mean 0.15-0.98 -> the mean is a sensible target.
-#                    With L2 on, four of six channels moved CLOSER to the reference's
-#                    action distribution (1-Wasserstein: sugar 17.1->13.6,
-#                    soilbean 4.05->3.54, backpressure 0.14->0.13, water 107.6->95.5).
-#
-# So the penalty is kept where it demonstrably helps and removed from discharge.
-# ALL SIX channels, including the gated one. Measured across three runs, L2 turns out
-# to CREATE the action variation rather than suppress it -- the runs without it are the
-# frozen ones. Per-channel action std against the gpei reference:
-#     run                 discharge  sugar  soilbean  aeration  backpres  water
-#     no L2, no gate           1.92   3.68      0.34      0.86      0.02    7.59
-#     L2 on all six         1206.88  30.38      1.57     10.28      0.11  203.09
-#     L2 x5 + gate            25.30   0.82      0.32      0.45      0.00    3.05
-#     gpei reference         858.52  24.29      5.03     10.58      0.15  148.03
-# L2-on-all-six is closest to the reference on every channel; exempting discharge
-# also flattened the other five. On the gated channel the penalty acts on the
-# PRE-SIGMOID head output, so it pulls the open-PROBABILITY toward its mean rather
-# than penalising flow magnitude -- which should discourage the gate from saturating.
-L2_CHANNEL_WEIGHTS = [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
-# ...but with -discharge_csv the discharge weight is forced to 0: that channel is
-# supplied externally, so penalising the policy's (discarded) output would be noise.
-
-# --- Bernoulli gate on the discharge channel (Seyde et al., NeurIPS 2021) ----------
-# Discharge is a VALVE: the gpei reference holds it at zero for 94.8% of steps and
-# pulses to ~4000 otherwise, never in between. A continuous head cannot represent that
-# cleanly, and an L2 penalty actively prevents it -- the paper derives from Pontryagin
-# that an L2 ("minimum energy") action cost yields NON bang-bang optima. Gating makes
-# the mode structural: the intermediate value is no longer representable.
-# L2 stays on the other five channels, which ARE continuously modulated and where it
-# moved four of six action distributions closer to the reference.
-USE_BERNOULLI_GATE = True
-GATE_CHANNELS = [0]              # discharge
-GATE_OFF_PHYS = [0.0]            # closed, physical units
-GATE_ON_PHYS = [4000.0]          # open -- the recipe's own pulse level
-GATE_GAIN = 2.0                  # sigmoid slope on the base head's output
-
-# --- ASRE sparsity regularisation on the gate (Pang et al., Eq. 6) ---------------
-# loss += LAMBDA_SPARSE * KL( Bernoulli(p_open) || Bernoulli(GATE_TARGET_DUTY) )
-# ASRE estimates its sparsity distribution with a D-UCB bandit over constrained
-# sampling episodes; that is skipped here because the target is already known -- the
-# gpei reference opens discharge 6 times in 230 h, a duty cycle of 0.052. The paper's
-# discrete-action limitation is met because the gated channel is binary.
-# NOTE this fixes the marginal FREQUENCY, not the temporal structure: a memoryless
-# policy can hit 5% by opening at random rather than in 2-hour pulses.
-USE_GATE_SPARSITY_KL = True
-GATE_TARGET_DUTY = [0.052]       # measured on gpei_batch_161.csv
-LAMBDA_SPARSE = 0.01             # the paper's own lambda; larger values hurt (its Tab. I)
-
-# Gated channels are EXEMPT from the static chance constraint. The two model
-# contradictory things: the chance constraint asks the action DISTRIBUTION to sit
-# inside a box with a variance back-off (mu + 1.645*sigma <= hi), while a Bernoulli
-# gate deliberately places all its mass at the two extremes -- maximal variance by
-# construction. Measured: the gate's mixture of {-0.401, 5.917} z gave sigma ~3.2, so
-# mu + 1.645*sigma overshot the ceiling in 150/150 windows and the static penalty
-# reached 1156x the W2 term. The policy then optimised the constraint alone and
-# gate open-prob sat at 0.503, the sigmoid midpoint -- i.e. no useful gradient.
-# The gate already restricts discharge to exactly {0, 4000} L/h, both legal, so a box
-# constraint on that channel is redundant.
-CC_SKIP_GATED = True
-
-# The multiplicative violation penalty is DISABLED during a lambda sweep: it and the
-# L2 term both discourage large actions, so running both would confound the sweep.
-USE_ACTION_MULTIPLIER = False
-AM_BETA = 1000.0
-AM_CAP = 100.0             # bound the multiplier so one wild action cannot blow up
-                           # the gradient
-
+N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
 # --- policy ---
-# --- policy architecture (ablation: rbf | mlp | kan, matched to ~2808 params) ---
-POLICY_KIND = "rbf"
-MLP_HIDDEN = (48, 48)          # 3078 params
-KAN_HIDDEN, KAN_GRID = 10, 20  # 2956 params
-KAN_RANGE = (-3.0, 3.0)        # grid span in Z-SCORED units
+NUM_BASIS, U_MAX = 200, 3.0
+CENTER_RANGE_PAD = 1.10
 
-NUM_BASIS = 200                # rbf: 2808 params
-ACTION_LIMIT_FRAC = 0.10           # reference only -- see the note above
-U_MAX_FLAT = 3.0                   # actually used (baseline value)
-ENFORCE_ACTION_LIMITS = False      # True -> per-channel +/-10% bounds
-CENTER_RANGE_PAD = 1.10            # spread centres slightly beyond the data range
+# --- L2 ---
+LAMBDA_A = 0.0                       # set with -lam; 0.0 is the sweep reference
+
+# --- chance constraints (Tan et al. Eq. 8-9) ---
+CC_EPS = 0.95                        # paper: 95% -> Phi^-1 = 1.6449
+CC_ALPHA_ACT = 1000.0                # paper's alpha for the action box
+CC_ALPHA_STATE = 1.0                 # calibrated: at 1000 the vessel penalty was
+                                     # ~700x the W2 term and the policy optimised the
+                                     # constraint alone
+CC_WT_MIN_PHYS = 50000.0             # reference runs stay above 91000; batches start
+                                     # near 62500
+
+EXPERT_COV_KEY = "cov_n"             # the network's OWN normalised covariance. The
+                                     # physical one has eigenvalues ~349x larger than
+                                     # the GP's z-scored ones, which made the loss a
+                                     # fixed unclosable offset.
+
+_ap = argparse.ArgumentParser("CDIL policy optimization (clean)")
+_ap.add_argument("-phase_prefix", required=True,
+                 help="three world models <prefix>_phase{0,1,2}.pt, selected per "
+                      "window by the expert time")
+_ap.add_argument("-lam", type=float, default=0.0, help="L2 weight on ||a||^2")
+_ap.add_argument("-iters", type=int, default=None)
+_ap.add_argument("-out", default=None)
+_ap.add_argument("-init_policy", default=None, help="warm start")
+_args = _ap.parse_known_args()[0]
+LAMBDA_A = _args.lam
+if _args.iters:
+    N_ITERS = _args.iters
+OUT = _args.out or os.path.join(SAVE_DIR,
+        f"sm_e{str(SMOOTH_EPS).replace('.','p')}_lam{str(LAMBDA_A).replace('.','p')}.pt")
 
 
-# =====================================================================================
-# 1. FROZEN GP WORLD MODELS  (one per phase)
-# =====================================================================================
-def load_rbf_model(path):
-    ckpt = torch.load(path, map_location=device, weights_only=False)
-    init_dict = dict(
-        active_dims=np.arange(0, GP_INPUT_DIM),
-        lengthscales_init=np.ones(GP_INPUT_DIM), flg_train_lengthscales=True,
-        lambda_init=np.ones(1), flg_train_lambda=True,
-        sigma_n_init=1e-2 * np.ones(1), sigma_n_num=1e-4, flg_train_sigma_n=True,
-        dtype=dtype, device=device,
-    )
-    model = ML.Model_learning_RBF(
-        num_gp=STATE_DIM,
-        init_dict_list=[dict(init_dict) for _ in range(STATE_DIM)],
-        approximation_mode=None, dtype=dtype, device=device, flg_norm=False,
-    )
-    model.load_state_dict(ckpt["state_dict"])
+# ================================================================ world models ===
+def load_model(path):
+    ck = torch.load(path, map_location=device, weights_only=False)
+    init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
+                lengthscales_init=np.ones(GP_INPUT_DIM), flg_train_lengthscales=True,
+                lambda_init=np.ones(1), flg_train_lambda=True,
+                sigma_n_init=1e-2 * np.ones(1), sigma_n_num=1e-4,
+                flg_train_sigma_n=True, dtype=dtype, device=device)
+    m = ML.Model_learning_RBF(num_gp=STATE_DIM,
+                              init_dict_list=[dict(init) for _ in range(STATE_DIM)],
+                              approximation_mode=None, dtype=dtype, device=device,
+                              flg_norm=False)
+    m.load_state_dict(ck["state_dict"])
     for k in ("gp_inputs", "gp_output_list", "alpha_list", "m_X_list",
               "K_X_inv_list", "gp_inputs_tr_list"):
-        setattr(model, k, ckpt[k])
-    model.num_samples = ckpt["gp_inputs"].shape[0]
-    model.dim_state, model.dim_input = STATE_DIM, INPUT_DIM
-    model.norm_list = [1.0] * STATE_DIM
-    stats = {k: np.asarray(ckpt[k]) for k in
-             ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
-    meta = {k: ckpt.get(k) for k in ("phase", "phase_tag", "phase_t_lo", "phase_t_hi",
-                                     "n_epoch", "select_mode", "train_t_min",
-                                     "train_t_max")}
-    return model, stats, meta
+        setattr(m, k, ck[k])
+    m.num_samples = ck["gp_inputs"].shape[0]
+    m.dim_state, m.dim_input = STATE_DIM, INPUT_DIM
+    m.norm_list = [1.0] * STATE_DIM
+    m.set_eval_mode()
+    return m, ck
 
 
-MODELS, POOLS, METAS = {}, {}, {}
-_paths = MODEL_PATHS if USE_PHASE_MODELS else {-1: ALL_MODEL_PATH}
-for _ph, _path in _paths.items():
-    if not os.path.exists(_path):
-        raise FileNotFoundError(f"world model for phase {_ph} not found: {_path}")
-    _m, stats, _meta = load_rbf_model(_path)
-    _m.set_eval_mode()                     # freeze hyperparameters (input-grad stays live)
-    MODELS[_ph], POOLS[_ph], METAS[_ph] = _m, _m.gp_inputs[:, :STATE_DIM], _meta
+MODELS, CKS = {}, {}
+for _p in (0, 1, 2):
+    MODELS[_p], CKS[_p] = load_model(f"{_args.phase_prefix}_phase{_p}.pt")
+stats = {k: np.asarray(CKS[0][k]) for k in
+         ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
 
-# all models must share ONE z-space or switching between them is meaningless
-_sd_ref = None
-for _ph in sorted(MODELS):
-    _sd = np.asarray(torch.load(_paths[_ph], map_location="cpu",
-                                weights_only=False)["std_obs_sd"])
-    if _sd_ref is None:
-        _sd_ref = _sd
-    _d = float(np.abs(_sd - _sd_ref).max())
+# every model must share one z-space or switching between them is meaningless
+_ref_sd = np.asarray(CKS[0]["std_obs_sd"])
+for _p in (1, 2):
+    _d = float(np.abs(np.asarray(CKS[_p]["std_obs_sd"]) - _ref_sd).max())
     if _d > 1e-10:
-        raise RuntimeError(
-            f"phase {_ph} was standardized differently (max|sd-sd_ref|={_d:.3e}). "
-            "All phase models must share one z-space -- retrain with the Standardizer "
-            "fitted on the FULL dataset before filtering.")
+        raise RuntimeError(f"phase {_p} standardized differently (max diff {_d:.3e})")
 
-print("world models loaded:")
-for _ph in sorted(MODELS):
-    _mt = METAS[_ph]
-    _hi = "inf" if (_mt["phase_t_hi"] or 0) > 1e8 else f"{_mt['phase_t_hi']:.0f}"
-    print(f"  phase {_ph}: [{_mt['phase_t_lo']:.0f},{_hi}) h  "
-          f"train pts={MODELS[_ph].gp_inputs.shape[0]}  epochs={_mt['n_epoch']}  "
-          f"select={_mt['select_mode']}")
-print("  -> all models share one z-space (verified)")
+print("world models:")
+for _p in (0, 1, 2):
+    lo, hi = pdata.PHASES[_p]
+    hi_s = "inf" if hi > 1e8 else f"{hi:g}"
+    print(f"  phase {_p}: [{lo:g},{hi_s}) h  train pts={MODELS[_p].gp_inputs.shape[0]}")
+print("  -> one shared z-space (verified)")
 
-# policy basis must cover the UNION of the phases' state ranges (one policy, all phases)
-_all_states = torch.cat([POOLS[p] for p in sorted(POOLS)], dim=0)
-s_lo = _all_states.min(0).values
-s_hi = _all_states.max(0).values
-print(f"combined training state range: [{s_lo.min().item():.2f}, "
-      f"{s_hi.max().item():.2f}] (z-units)")
+POOL = torch.cat([MODELS[p].gp_inputs[:, :STATE_DIM] for p in (0, 1, 2)], 0)
+POOLS = {p: MODELS[p].gp_inputs[:, :STATE_DIM] for p in (0, 1, 2)}
+s_lo, s_hi = POOL.min(0).values, POOL.max(0).values
+print(f"combined state range: [{s_lo.min():.2f}, {s_hi.max():.2f}] z")
 
 
-def phase_of(t_hours):
-    """Which world model covers this expert time? Uses pdata.PHASES so the boundaries
-    cannot drift out of sync with the trainer."""
-    if not USE_PHASE_MODELS:
-        return -1
-    for ph in (0, 1, 2):
-        lo, hi = pdata.PHASES[ph]
-        if lo <= t_hours < hi:
-            return ph
+def phase_of(t_h):
+    for p in (0, 1, 2):
+        lo, hi = pdata.PHASES[p]
+        if lo <= t_h < hi:
+            return p
     return 2
 
 
-# =====================================================================================
-# 2. EXPERT ORACLE
-# =====================================================================================
-class ExpertOracle:
-    def __init__(self, source="traj", verbose=True):
-        self.q = PFQuery(verbose=verbose)
-        self.source = source
-        self._cache = {}
-
-    def at_time(self, t_hours):
-        key = round(float(t_hours), 6)
-        if key not in self._cache:
-            d = self.q.next_state_distribution(t=key, source=self.source)
-            self._cache[key] = {
-                "b": torch.tensor(np.asarray(d["b"]).tolist(), dtype=dtype, device=device),
-                "cov": torch.tensor(np.asarray(d["cov"]).tolist(), dtype=dtype, device=device),
-                "cov_n": torch.tensor(np.asarray(d["cov_n"]).tolist(), dtype=dtype, device=device),
-            }
-        return self._cache[key]
-
-
-expert = ExpertOracle(source="traj")
+# ====================================================================== expert ===
+_q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
-print(f"pre-caching {len(EXPERT_TIMES)} expert distributions "
-      f"({EXPERT_T_MIN}..{EXPERT_T_MAX} h) ...", flush=True)
-EXPERT_EIGS = {round(float(t), 6):
-               torch.linalg.eigvalsh(expert.at_time(t)[EXPERT_COV_KEY].detach())
-               for t in EXPERT_TIMES}
-print(f"  done. example eigenvalues @75h: {EXPERT_EIGS[75.0].numpy()}", flush=True)
-
-# how many expert windows fall to each world model
+print(f"pre-caching {len(EXPERT_TIMES)} expert distributions ...", flush=True)
+EXPERT_EIGS = {}
+for _t in EXPERT_TIMES:
+    _d = _q.next_state_distribution(t=float(_t), source="traj")
+    EXPERT_EIGS[round(float(_t), 6)] = torch.linalg.eigvalsh(
+        torch.tensor(np.asarray(_d[EXPERT_COV_KEY]).tolist(), dtype=dtype,
+                     device=device))
+print(f"  eigenvalues @75h: {EXPERT_EIGS[75.0].numpy()}", flush=True)
 _cnt = {}
 for _t in EXPERT_TIMES:
     _cnt[phase_of(float(_t))] = _cnt.get(phase_of(float(_t)), 0) + 1
-print("expert windows per world model: " +
-      "  ".join(f"phase {k}: {v}" for k, v in sorted(_cnt.items())))
+print("windows per model: " + "  ".join(f"phase {k}: {v}" for k, v in sorted(_cnt.items())))
 
 
-# =====================================================================================
-# 3. POLICY  --  per-channel action limits + range-covering RBF centres
-# =====================================================================================
-def action_limits_z(frac=ACTION_LIMIT_FRAC):
-    """+/- frac of setpoint, expressed in the model's Z-SCORED action units.
-
-    Chain: physical -> smpl min-max -> z-score.
-        a_smpl = 2 (a_phys - lo) / (hi - lo) - 1
-        a_z    = (a_smpl - mu) / sd
-    A physical delta of frac*setpoint therefore becomes
-        delta_z = 2 * frac * setpoint_phys / ((hi - lo) * sd)
-    The setpoint is taken as the dataset mean action (in physical units).
-    """
-    lo, hi = pdata.MIN_ACT, pdata.MAX_ACT
-    mu_z, sd_z = stats["std_act_mu"], stats["std_act_sd"]
-    setpoint_smpl = mu_z                                   # z-space mean is 0 -> smpl mean = mu
-    setpoint_phys = (setpoint_smpl + 1.0) / 2.0 * (hi - lo) + lo
-    delta_z = 2.0 * frac * np.abs(setpoint_phys) / ((hi - lo) * sd_z)
-    return delta_z, setpoint_phys
-
-
-U_MAX_Z, SETPOINT_PHYS = action_limits_z()
-print(f"\nper-channel action limits (+/-{ACTION_LIMIT_FRAC*100:.0f}% of setpoint):")
-for i, nm in enumerate(pdata.ACT_NAMES):
-    print(f"    {nm:14s} setpoint={SETPOINT_PHYS[i]:10.3f}   u_max_z={U_MAX_Z[i]:.4f}")
-print(f"  (previous flat u_max was 3.0 -> "
-      f"{np.round(3.0/U_MAX_Z, 1)}x too wide per channel)")
-
-
-class BoundedPolicy(torch.nn.Module):
-    """Per-channel action scaling. NOT used by default -- see ENFORCE_ACTION_LIMITS.
-
-    CAUTION: wrapping a base policy that squashes to [-1, 1] and then scaling by a
-    small per-channel factor crushes the dropout-induced action diversity. With
-    +/-10% bounds the spread across replicas fell to ~1e-5, i.e. E_{a|s} collapsed to
-    a single sample. If you re-enable this, verify the 'action spread' print below.
-    """
-
-    def __init__(self, base, u_max_vec):
-        super().__init__()
-        self.base = base
-        self.register_buffer("u_scale",
-                             torch.tensor(u_max_vec, dtype=dtype, device=device))
-        self.state_dim = base.state_dim
-        self.input_dim = base.input_dim
-
-    def forward(self, states, t=None, p_dropout=0.0):
-        return self.base(states=states, t=t, p_dropout=p_dropout) * self.u_scale
-
-
-# CHANGE: centres spread over the OBSERVED state range, not randn's [-3, 3].
-# (Random within the range -- NOT sampled from data points.)
-# Conversions go via python lists: torch->numpy buffer sharing trips the
-# duplicate-numpy ABI mismatch present in this environment.
+# ====================================================================== policy ===
 _warm = None
-POLICY_KIND = _args.policy_kind or POLICY_KIND
-_warm_meta = None
+centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
     _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
-    _warm_meta = _warm.get("policy_meta")
-    if _warm_meta and _warm_meta.get("kind") != POLICY_KIND:
-        raise RuntimeError(
-            f"warm start mismatch: checkpoint is '{_warm_meta['kind']}' but "
-            f"POLICY_KIND is '{POLICY_KIND}'. Architectures are not interchangeable.")
-
-centers_init = lengthscales_init = None
-if POLICY_KIND == "rbf" and _warm_meta is not None:
-    # The standardizer is refitted on the UNION each iteration, so the same physical
-    # state maps to a DIFFERENT z. The loaded weights describe a function of the OLD
-    # z, so the centres are remapped:
-    #     centres_new = (centres_old * sd_old + mu_old - mu_new) / sd_new
-    # preserving the policy's behaviour in PHYSICAL units.
-    centers_init = np.array(np.asarray(_warm_meta["centers_init"]).tolist(),
-                            dtype=np.float64)
-    _mu_old = np.array(np.asarray(_warm["std_obs_mu"]).tolist(), dtype=np.float64)
-    _sd_old = np.array(np.asarray(_warm["std_obs_sd"]).tolist(), dtype=np.float64)
-    _mu_new = np.array(np.asarray(stats["std_obs_mu"]).tolist(), dtype=np.float64)
-    _sd_new = np.array(np.asarray(stats["std_obs_sd"]).tolist(), dtype=np.float64)
-    _shift = float(np.abs((_mu_old - _mu_new) / _sd_new).max())
-    _scale = float(np.abs(_sd_old / _sd_new - 1.0).max())
-    centers_init = (centers_init * _sd_old + _mu_old - _mu_new) / _sd_new
-    lengthscales_init = (np.array(np.asarray(_warm_meta["lengthscales_init"]).tolist(),
-                                  dtype=np.float64) * _sd_old / _sd_new)
-    print(f"[loop] z-space drift: max mean-shift={_shift:.3f} sigma, "
-          f"max scale change={100*_scale:.1f}%  -> centres remapped")
-    if _scale > 0.5:
-        print("[loop] WARNING: >50% scale change; the ACTION space rescaled too and "
-              "the output squashing makes that non-invertible -- warm start is "
-              "approximate on the action side.")
-elif _warm_meta is not None:
-    # MLP/KAN operate on z directly; their weights are NOT remappable when the
-    # z-space shifts. The warm start is therefore approximate for these variants.
-    print(f"[loop] warm start for '{POLICY_KIND}': weights loaded as-is. Unlike the "
-          f"rbf centres, these cannot be remapped when the standardizer refits, so "
-          f"the transfer is approximate.")
-
-# gate levels: PHYSICAL -> smpl min-max -> z, the same chain as everything else
-# The gate and its sparsity KL both act on discharge. With -discharge_csv that
-# channel is supplied externally, so both are switched off HERE -- before the policy
-# is constructed, since the gate is baked in at build time and disabling the flag
-# afterwards would leave the wrapper in place (and gate_prob undefined on it).
-if _args.discharge_csv and (USE_BERNOULLI_GATE or USE_GATE_SPARSITY_KL):
-    print("\n[override] discharge comes from a trace -> disabling the Bernoulli gate "
-          "and the ASRE sparsity KL; neither has anything left to act on")
-    USE_BERNOULLI_GATE = False
-    USE_GATE_SPARSITY_KL = False
-
-_g_off, _g_on = [], []
-if USE_BERNOULLI_GATE:
-    _mu_g = np.asarray(stats["std_act_mu"], dtype=np.float64)
-    _sd_g = np.asarray(stats["std_act_sd"], dtype=np.float64)
-    for i, ch in enumerate(GATE_CHANNELS):
-        lo, hi = pdata.MIN_ACT[ch], pdata.MAX_ACT[ch]
-        for val, out in ((GATE_OFF_PHYS[i], _g_off), (GATE_ON_PHYS[i], _g_on)):
-            out.append(float(((2.0 * (val - lo) / (hi - lo) - 1.0) - _mu_g[ch])
-                             / _sd_g[ch]))
-    print(f"\nBernoulli gate ON, channels "
-          f"{[pdata.ACT_NAMES[c] for c in GATE_CHANNELS]} "
-          f"(straight-through estimator; the paper notes it is BIASED)")
-    for i, ch in enumerate(GATE_CHANNELS):
-        print(f"    {pdata.ACT_NAMES[ch]:12s} off={GATE_OFF_PHYS[i]:8.1f} phys "
-              f"({_g_off[i]:7.3f} z)   on={GATE_ON_PHYS[i]:8.1f} phys "
-              f"({_g_on[i]:7.3f} z)")
-
-_GATE_TGT = torch.tensor(GATE_TARGET_DUTY, dtype=dtype, device=device)
-
-
-class DischargeOverride(torch.nn.Module):
-    """Replaces the policy's discharge with a recorded trace, looked up by ABSOLUTE
-    batch time.
-
-    WHY: exploration replays gpei's discharge, so the policy never deploys its own.
-    Training it against its own discharge would optimise under a regime it will not
-    experience -- the rollout's states would reflect a discharge the real run does not
-    use. Overriding here makes training and deployment consistent.
-
-    The replaced channel receives no gradient, so that head simply stays at its
-    initial value. It is excluded from the L2 term for the same reason.
-
-    NOTE the raw DISCHARGE_DEFAULT_PROFILE is NOT usable for this: it is a zero-order
-    hold that returns 4000 continuously from t=102 h to t=130 h, which empties the
-    vessel (an episode so driven terminated at 122 h). gpei's RECORDED actions are
-    2-hour pulses at 5.2% duty, so only the recorded column reproduces its behaviour.
-    """
-
-    def __init__(self, base, t_hours, values, idx=0):
-        super().__init__()
-        self.base = base
-        self.idx = idx
-        self.state_dim, self.input_dim = base.state_dim, base.input_dim
-        self.register_buffer("t_tr", torch.tensor(t_hours, dtype=dtype, device=device))
-        self.register_buffer("v_tr", torch.tensor(values, dtype=dtype, device=device))
-        self.window_t0 = 0.0            # absolute time of this window's first step
-
-    def value_at(self, t_abs):
-        # previous-value hold: interpolation would smear the pulses into ramps
-        k = int(torch.searchsorted(self.t_tr, torch.tensor(float(t_abs), dtype=dtype),
-                                   right=True).item()) - 1
-        return self.v_tr[min(max(k, 0), self.v_tr.numel() - 1)]
-
-    def forward(self, states, t=None, p_dropout=0.0):
-        a = self.base(states=states, t=t, p_dropout=p_dropout)
-        t_abs = self.window_t0 + (0 if t is None else float(t)) * HOURS_PER_STEP
-        cols = [a[:, j] for j in range(a.shape[1])]
-        cols[self.idx] = self.value_at(t_abs).expand(a.shape[0])
-        return torch.stack(cols, dim=1)
+    _m = _warm["policy_meta"]
+    # the standardizer refits on the union each iteration, so the same physical state
+    # maps to a different z; the centres are remapped to preserve behaviour in
+    # PHYSICAL units
+    c0 = np.array(np.asarray(_m["centers_init"]).tolist(), dtype=np.float64)
+    mo, so = np.asarray(_warm["std_obs_mu"]), np.asarray(_warm["std_obs_sd"])
+    mn, sn = stats["std_obs_mu"], stats["std_obs_sd"]
+    centers_init = (c0 * so + mo - mn) / sn
+    lengthscales_init = (np.array(np.asarray(_m["lengthscales_init"]).tolist(),
+                                  dtype=np.float64) * so / sn)
+    print(f"[warm] from {os.path.basename(_args.init_policy)}, centres remapped "
+          f"(max mean-shift {float(np.abs((mo-mn)/sn).max()):.3f} sigma)")
 
 policy, policy_meta = build_policy(
-    POLICY_KIND, STATE_DIM, INPUT_DIM,
-    u_max=(1.0 if ENFORCE_ACTION_LIMITS else U_MAX_FLAT),
-    dtype=dtype, device=device, rng=np.random.default_rng(0),
-    num_basis=NUM_BASIS, centers_init=centers_init,
-    lengthscales_init=lengthscales_init,
-    s_lo=s_lo.tolist(), s_hi=s_hi.tolist(), center_range_pad=CENTER_RANGE_PAD,
-    mlp_hidden=MLP_HIDDEN,
-    kan_hidden=KAN_HIDDEN, kan_grid=KAN_GRID, kan_range=KAN_RANGE,
-    gate_channels=(GATE_CHANNELS if USE_BERNOULLI_GATE else None),
-    gate_z_off=_g_off, gate_z_on=_g_on, gate_gain=GATE_GAIN)
-
-if ENFORCE_ACTION_LIMITS:
-    policy = BoundedPolicy(policy, U_MAX_Z)
-
+    "rbf", STATE_DIM, INPUT_DIM, u_max=U_MAX, dtype=dtype, device=device,
+    rng=np.random.default_rng(0), num_basis=NUM_BASIS,
+    centers_init=centers_init, lengthscales_init=lengthscales_init,
+    s_lo=s_lo.tolist(), s_hi=s_hi.tolist(), center_range_pad=CENTER_RANGE_PAD)
 if _warm is not None:
     policy.load_state_dict(_warm["policy_state_dict"])
-    _h = _warm.get("hist", [float("nan")])
-    print(f"[loop] warm-started from {_args.init_policy} (previous final W2 = {_h[-1]:.4f})")
 
-print(f"\npolicy '{POLICY_KIND}': in={STATE_DIM} out={INPUT_DIM} "
-      f"params={policy_meta['n_params']}"
-      f"{'  (per-channel bounded)' if ENFORCE_ACTION_LIMITS else f'  u_max={U_MAX_FLAT}'}")
-print(f"EPISODIC: T={STEPS_PER_EXPERT} steps ({EXPERT_DT} h) per window, "
-      f"{WINDOWS_PER_ITER} windows/iter x {N_ITERS} iters = "
-      f"{WINDOWS_PER_ITER*N_ITERS} policy updates")
-print(f"objective: E_s(E_a|s(W2))  states={NUM_STATES} x actions={K_ACTIONS} "
-      f"= {NUM_PARTICLES} particles;  means EXCLUDED (cross_dim)")
-print(f"world models: {'PHASE-SPECIFIC (3)' if USE_PHASE_MODELS else 'SINGLE'}")
+print(f"\npolicy rbf: in={STATE_DIM} out={INPUT_DIM} u_max={U_MAX} "
+      f"params={policy_meta['n_params']}")
+from policy_learning.wasserstein_loss import TRACE_NORMALIZE, SMOOTH_EPS
+print(f"L2: lambda={LAMBDA_A} on ALL SIX channels (additive)")
+print(f"W2 smoothing: eps={SMOOTH_EPS}"
+      + ("  -- sqrt(W2^2 + eps^2), derivative bounded by 1/(2*eps)="
+         f"{1/(2*SMOOTH_EPS):.1f}" if SMOOTH_EPS > 0 else "  -- OFF, derivative "
+         "diverges as the cost approaches 0"))
+print(f"W2 trace-normalisation: {'ON' if TRACE_NORMALIZE else 'OFF'}"
+      + ("  -- both spectra divided by their own trace, so only SHAPE is compared. "
+         "W2 values are NOT comparable to runs made before this change."
+         if TRACE_NORMALIZE else
+         "  -- WARNING: the raw comparison was measured to give W2 == 0 for every "
+         "channel across a in [-0.5, +0.5]"))
 
-# E_{a|s} is only meaningful if replicas of one state draw DIFFERENT actions
+# E_{a|s} is only real if replicas of one state draw DIFFERENT actions
 with torch.no_grad():
-    _st = POOLS[sorted(POOLS)[0]][:1].expand(K_ACTIONS, -1).contiguous()
-    _sp = policy(states=_st, t=0, p_dropout=P_DROPOUT).std(0).mean().item()
-print(f"action spread across {K_ACTIONS} replicas of ONE state: {_sp:.3e}"
-      f"{'   <-- WARNING: ~0 means E_a|s is degenerate' if _sp < 1e-4 else '   (ok)'}")
+    _sp = policy(states=POOL[:1].expand(K_ACTIONS, -1).contiguous(),
+                 t=0, p_dropout=P_DROPOUT).std(0).mean().item()
+print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
+      f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# Action bounds in Z-SCORED units -- the space the policy outputs in.
-#   physical -> smpl min-max -> z-score   (same chain as explore_with_policy.py)
+# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
-_mu_a = np.asarray(stats["std_act_mu"], dtype=np.float64)
-_sd_a = np.asarray(stats["std_act_sd"], dtype=np.float64)
-CC_LO = torch.tensor((_amin - _mu_a) / _sd_a, dtype=dtype, device=device)
-CC_HI = torch.tensor((_amax - _mu_a) / _sd_a, dtype=dtype, device=device)
-
-# widen the box to +/-inf on gated channels so they contribute nothing to the penalty
-CC_ACT_MASK = torch.ones(INPUT_DIM, dtype=dtype, device=device)
-if USE_BERNOULLI_GATE and CC_SKIP_GATED:
-    for _c in GATE_CHANNELS:
-        CC_LO[_c] = -float("inf")
-        CC_HI[_c] = float("inf")
-        CC_ACT_MASK[_c] = 0.0
-RECIPE_BOUNDS = None
-if USE_CHANCE_CONSTRAINT and CC_USE_RECIPE:
-    from pensimpy.examples.recipe import Recipe, RecipeCombo
-    from pensimpy.data.constants import (
-        FS, FOIL, FG, PRES, DISCHARGE, WATER,
-        FS_DEFAULT_PROFILE, FOIL_DEFAULT_PROFILE, FG_DEFAULT_PROFILE,
-        PRESS_DEFAULT_PROFILE, DISCHARGE_DEFAULT_PROFILE, WATER_DEFAULT_PROFILE)
-    # action order is [discharge, sugar, soilbean, aeration, backpressure, waterinj]
-    _keys = [DISCHARGE, FS, FOIL, FG, PRES, WATER]
-    _rc = RecipeCombo(recipe_dict={
-        DISCHARGE: Recipe(DISCHARGE_DEFAULT_PROFILE, DISCHARGE),
-        FS:        Recipe(FS_DEFAULT_PROFILE, FS),
-        FOIL:      Recipe(FOIL_DEFAULT_PROFILE, FOIL),
-        FG:        Recipe(FG_DEFAULT_PROFILE, FG),
-        PRES:      Recipe(PRESS_DEFAULT_PROFILE, PRES),
-        WATER:     Recipe(WATER_DEFAULT_PROFILE, WATER)})
-    RECIPE_BOUNDS = RecipeBounds(_rc, _keys, pdata.MIN_ACT, pdata.MAX_ACT,
-                                 _mu_a, _sd_a, frac=CC_RECIPE_FRAC,
-                                 floor_frac=CC_RECIPE_FLOOR,
-                                 smooth_h=CC_RECIPE_SMOOTH_H)
-
-if USE_CHANCE_CONSTRAINT:
-    print(f"\nchance constraints ON (Tan et al. Eq. 9): eps={CC_EPS} "
-          f"-> Phi^-1={phi_inv(CC_EPS):.4f}")
-    _skipped = ([pdata.ACT_NAMES[c] for c in GATE_CHANNELS]
-                if (USE_BERNOULLI_GATE and CC_SKIP_GATED) else [])
-    print(f"  static box   : {'ON' if CC_USE_STATIC else 'off'}  alpha={CC_ALPHA}"
-          + (f"   EXEMPT (gated): {', '.join(_skipped)}" if _skipped else ""))
-    print(f"  recipe band  : {'ON' if CC_USE_RECIPE else 'off'}  alpha={CC_ALPHA_RECIPE}"
-          f"  +/-{100*CC_RECIPE_FRAC:.0f}% of profile, floor {100*CC_RECIPE_FLOOR:.0f}% "
-          f"of span, smoothed +/-{CC_RECIPE_SMOOTH_H} h")
-    for i, nm in enumerate(pdata.ACT_NAMES):
-        if not torch.isfinite(CC_LO[i]):
-            print(f"    {nm:14s} static z-box  EXEMPT (Bernoulli gate)")
-            continue
-        line = f"    {nm:14s} static z-box [{CC_LO[i].item():7.3f}, {CC_HI[i].item():7.3f}]"
-        if RECIPE_BOUNDS is not None:
-            for _t in (10.0, 110.0):
-                _l, _h = RECIPE_BOUNDS.at(_t)
-                line += f"   t={_t:5.0f}h [{_l[i]:6.3f}, {_h[i]:6.3f}]"
-        print(line)
-
-# vessel-weight floor in Z-SCORED units (the space the GP predicts in)
-CC_STATE_IDX = pdata.OBS_NAMES.index(CC_STATE_CHANNEL)
-_o_lo, _o_hi = pdata.MIN_OBS[CC_STATE_IDX], pdata.MAX_OBS[CC_STATE_IDX]
-_wt_smpl = 2.0 * (CC_WT_MIN_PHYS - _o_lo) / (_o_hi - _o_lo) - 1.0
-CC_WT_MIN_Z = float((_wt_smpl - np.asarray(stats["std_obs_mu"])[CC_STATE_IDX])
-                    / np.asarray(stats["std_obs_sd"])[CC_STATE_IDX])
-if USE_CHANCE_CONSTRAINT and CC_USE_STATE:
-    print(f"  state floor  : ON  alpha={CC_ALPHA_STATE}  "
-          f"{CC_STATE_CHANNEL} >= {CC_WT_MIN_PHYS:.0f} physical "
-          f"= {CC_WT_MIN_Z:.3f} z  (channel {CC_STATE_IDX})")
-    # A floor that much of the TRAINING data already breaches cannot be satisfied by
-    # any policy, and the penalty then becomes a constant offset that swamps W2
-    # without guiding anything. Report the fraction so a mis-set floor is visible
-    # immediately rather than after a multi-hour run.
-    _wt_tr = MODELS[sorted(MODELS)[0]].gp_inputs[:, CC_STATE_IDX].detach().numpy()
-    _frac = float((_wt_tr < CC_WT_MIN_Z).mean())
-    print(f"                 training data below this floor: {100*_frac:.1f}%"
-          f"   (z range {_wt_tr.min():.2f} .. {_wt_tr.max():.2f})")
-    if _frac > 0.25:
-        print(f"                 WARNING: the floor sits inside the data distribution; "
-              f"lower CC_WT_MIN_PHYS or the constraint will dominate the loss")
-
-# --- CLI overrides: MUST come before the optimiser is built ---
-if _args.iters:
-    N_ITERS = _args.iters
-if _args.lam is not None:
-    LAMBDA_A = _args.lam
-_L2_W = torch.tensor(L2_CHANNEL_WEIGHTS, dtype=dtype, device=device)
-_exempt = [pdata.ACT_NAMES[i] for i, w in enumerate(L2_CHANNEL_WEIGHTS) if w == 0.0]
-print(f"\naction L2: {'ON' if (USE_ACTION_L2 and LAMBDA_A > 0) else 'off'}"
-      f"  lambda={LAMBDA_A}   multiplier: "
-      f"{'ON' if USE_ACTION_MULTIPLIER else 'off'}   N_ITERS={N_ITERS}")
-if USE_ACTION_L2 and LAMBDA_A > 0:
-    print(f"           channel weights: {L2_CHANNEL_WEIGHTS}"
-          + (f"   exempt: {', '.join(_exempt)}" if _exempt else "   (all channels)"))
-
-DISCH_OVERRIDE = None
-if _args.discharge_csv:
-    import csv as _csv
-    _hh = [c.strip() for c in next(_csv.reader(open(_args.discharge_csv)))]
-    _dd = np.genfromtxt(_args.discharge_csv, delimiter=",", skip_header=1)
-    _tt = np.asarray(_dd[:, _hh.index("Time Step")], dtype=np.float64)
-    _vv_phys = np.asarray(_dd[:, _hh.index("Discharge rate")], dtype=np.float64)
-    # physical -> smpl min-max -> z, the same chain as everywhere else
-    _lo_d, _hi_d = pdata.MIN_ACT[0], pdata.MAX_ACT[0]
-    _vv_z = (((2.0 * (_vv_phys - _lo_d) / (_hi_d - _lo_d) - 1.0)
-              - np.asarray(stats["std_act_mu"])[0]) / np.asarray(stats["std_act_sd"])[0])
-    DISCH_OVERRIDE = DischargeOverride(policy, _tt.tolist(), _vv_z.tolist(), idx=0)
-    policy = DISCH_OVERRIDE
-    L2_CHANNEL_WEIGHTS = [0.0] + list(L2_CHANNEL_WEIGHTS[1:])
-    _L2_W = torch.tensor(L2_CHANNEL_WEIGHTS, dtype=dtype, device=device)
-    _duty = float((_vv_phys > 0.5 * _vv_phys.max()).mean())
-    print(f"\ndischarge OVERRIDDEN from {os.path.basename(_args.discharge_csv)}: "
-          f"{len(_tt)} steps, duty={100*_duty:.1f}%, peak={_vv_phys.max():.0f} phys")
-    print(f"  the policy still emits channel 0 but the value is discarded, so that "
-          f"head gets no gradient; L2 weights now {L2_CHANNEL_WEIGHTS}")
+CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
+                     dtype=dtype, device=device)
+CC_HI = torch.tensor((_amax - stats["std_act_mu"]) / stats["std_act_sd"],
+                     dtype=dtype, device=device)
+WT_IDX = pdata.OBS_NAMES.index("Wt")
+_olo, _ohi = pdata.MIN_OBS[WT_IDX], pdata.MAX_OBS[WT_IDX]
+CC_WT_MIN_Z = float(((2.0 * (CC_WT_MIN_PHYS - _olo) / (_ohi - _olo) - 1.0)
+                     - stats["std_obs_mu"][WT_IDX]) / stats["std_obs_sd"][WT_IDX])
+print(f"\nchance constraints: eps={CC_EPS} -> Phi^-1={phi_inv(CC_EPS):.4f}")
+print(f"  action box  alpha={CC_ALPHA_ACT}")
+print(f"  vessel floor alpha={CC_ALPHA_STATE}  Wt >= {CC_WT_MIN_PHYS:.0f} phys "
+      f"({CC_WT_MIN_Z:.3f} z)")
+_wt_tr = POOL[:, WT_IDX].numpy()
+print(f"  training data below the floor: {100*float((_wt_tr < CC_WT_MIN_Z).mean()):.1f}%")
 
 optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# =====================================================================================
-# 4. WINDOW LOSS
-# =====================================================================================
-_acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
-_current_eig = None
-_acc_actions = []          # actions seen in the current window (for the chance constraint)
-_acc_mu, _acc_cov = [], []  # predicted next-state distribution, for the state constraint
-_cc_log = []               # per-window penalty, for logging
-_am_log = []               # per-window action-violation multiplier
-_l2_log = []               # per-window mean ||a||^2, logged even when lam=0
-_acc_gate_p = []           # gate open-probabilities in the current window
-_kl_log = []               # per-window sparsity KL
+# ================================================================== window loss ==
+_acc = {"var": None, "t0": 0}
+_acc_a = []
+_eig = None
+_log = {"w2": [], "l2": [], "cc_a": [], "cc_s": []}
 
 
 def window_loss(t, s, a, mu, cov, s_next):
+    """Accumulate the 5 steps into one 1-hour transition, then score it.
+
+    The GP step is 0.2 h and the expert's is 1.0 h, so five per-step variances are
+    summed (first order, treating the per-step noise as independent) before the
+    comparison -- otherwise a 0.2 h prediction would be matched against a 1.0 h one
+    and the expert's drift would look ~5x larger purely from the time span.
+    """
     global _acc
-    if _acc["mean"] is None:
-        _acc = {"mean": torch.zeros_like(mu), "var": torch.zeros_like(cov),
-                "s_start": s, "t_start": t}
-    _acc["mean"] = _acc["mean"] + (mu - s)
+    if _acc["var"] is None:
+        _acc = {"var": torch.zeros_like(cov), "t0": t}
     _acc["var"] = _acc["var"] + cov
-    _acc_actions.append(a)
-    if USE_GATE_SPARSITY_KL and USE_BERNOULLI_GATE:
-        with torch.enable_grad():
-            _acc_gate_p.append(policy.gate_prob(s, t=t, p_dropout=0.0))
-    _acc_mu.append(mu)          # predicted next-state mean, for the state constraint
-    _acc_cov.append(cov)        # and its (diagonal) variance
+    _acc_a.append(a)
 
-
-    if (t - _acc["t_start"] + 1) < STEPS_PER_EXPERT:
-        return torch.zeros((), dtype=mu.dtype, device=mu.device)
+    if (t - _acc["t0"] + 1) < STEPS_PER_EXPERT:
+        return torch.zeros((), dtype=cov.dtype, device=cov.device)
 
     var_1h = _acc["var"]
-    # computed inline, NOT via step_to_hours(): window_loss is defined ABOVE
-    # that function, so the name is not bound when this runs
-    t_hours = T_START_HOURS + _acc["t_start"] * HOURS_PER_STEP
-    _acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
+    _acc = {"var": None, "t0": 0}
 
-    d_all = w2_cross_dim_torch(var_1h, _current_eig)               # (P,)
-    w2 = d_all.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+    d = w2_cross_dim_torch(var_1h, _eig)                       # (P,)
+    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+    _log["w2"].append(float(w2.detach()))
 
-    # --- L2 action regularisation (additive) ---
-    if USE_ACTION_L2 and LAMBDA_A > 0.0 and _acc_actions:
-        _a_l2 = torch.cat(_acc_actions, dim=0)
-        _l2 = ((_a_l2 ** 2) * _L2_W).sum(dim=1).mean()      # per-channel weights
-        _l2_log.append(float(_l2.detach()))
-        w2 = w2 + LAMBDA_A * _l2
-    elif _acc_actions:
-        with torch.no_grad():
-            _l2_log.append(float((((torch.cat(_acc_actions, 0) ** 2) * _L2_W)
-                                  .sum(1).mean())))
+    a_all = torch.cat(_acc_a, 0)
+    n_rep = a_all.shape[0] // (NUM_STATES * K_ACTIONS)
 
-    # --- ASRE sparsity regularisation: pull the gate's duty cycle to the target ---
-    if USE_GATE_SPARSITY_KL and USE_BERNOULLI_GATE and _acc_gate_p:
-        _pg = torch.cat(_acc_gate_p, dim=0)                 # (N, n_gated)
-        _kl = gate_sparsity_kl(_pg, _GATE_TGT)
-        _kl_log.append(float(_kl.detach()))
-        w2 = w2 + LAMBDA_SPARSE * _kl
-    _acc_gate_p.clear()
+    l2 = (a_all ** 2).sum(dim=1).mean()
+    _log["l2"].append(float(l2.detach()))
 
-    # scale W2 by how far the window's actions left the static box
-    _mult = 1.0
-    if USE_ACTION_MULTIPLIER and _acc_actions:
-        _a_w = torch.cat(_acc_actions, dim=0)
-        _mult = action_violation_multiplier(_a_w, CC_LO, CC_HI,
-                                            beta=AM_BETA, cap=AM_CAP)
-        _am_log.append(float(_mult.detach()))
-        w2 = w2 * _mult
+    cc_a = action_chance_penalty(a_all, CC_LO, CC_HI,
+                                 num_states=NUM_STATES * n_rep, k_actions=K_ACTIONS,
+                                 eps=CC_EPS, alpha=CC_ALPHA_ACT)
+    cc_s = state_chance_penalty(mu, cov, WT_IDX, lo=CC_WT_MIN_Z, hi=None,
+                                num_states=NUM_STATES, k_actions=K_ACTIONS,
+                                eps=CC_EPS, alpha=CC_ALPHA_STATE)
+    _log["cc_a"].append(float(cc_a.detach()))
+    _log["cc_s"].append(float(cc_s.detach()))
+    _acc_a.clear()
 
-    # --- soft chance constraint on the ACTIONS taken in this window (Eq. 9) ---
-    # sigma is the spread across the K dropout samples drawn for the same state, i.e.
-    # the policy's own uncertainty -- the analogue of the GP predictive variance the
-    # paper backs off from.
-    if USE_CHANCE_CONSTRAINT and _acc_actions:
-        a_all = torch.cat(_acc_actions, dim=0)                     # (STEPS*P, da)
-        n_rep = a_all.shape[0] // (NUM_STATES * K_ACTIONS)
-        pen = torch.zeros((), dtype=a_all.dtype, device=a_all.device)
-        p_static = p_recipe = 0.0
-
-        if CC_USE_STATIC:
-            ps = action_chance_penalty(a_all, CC_LO, CC_HI,
-                                       num_states=NUM_STATES * n_rep,
-                                       k_actions=K_ACTIONS,
-                                       eps=CC_EPS, alpha=CC_ALPHA)
-            pen = pen + ps
-            p_static = float(ps.detach())
-
-        if CC_USE_RECIPE and RECIPE_BOUNDS is not None:
-            # bounds at THIS window's time -- the whole point of the recipe constraint
-            _lo, _hi = RECIPE_BOUNDS.at(t_hours)
-            lo_t = torch.tensor(_lo, dtype=a_all.dtype, device=a_all.device)
-            hi_t = torch.tensor(_hi, dtype=a_all.dtype, device=a_all.device)
-            pr = action_chance_penalty(a_all, lo_t, hi_t,
-                                       num_states=NUM_STATES * n_rep,
-                                       k_actions=K_ACTIONS,
-                                       eps=CC_EPS, alpha=CC_ALPHA_RECIPE)
-            pen = pen + pr
-            p_recipe = float(pr.detach())
-
-        p_state = 0.0
-        if CC_USE_STATE and _acc_mu:
-            mu_all = torch.cat(_acc_mu, dim=0)
-            cov_all = torch.cat(_acc_cov, dim=0)
-            n_rep_s = mu_all.shape[0] // (NUM_STATES * K_ACTIONS)
-            pst = state_chance_penalty(mu_all, cov_all, CC_STATE_IDX,
-                                       lo=CC_WT_MIN_Z, hi=None,
-                                       num_states=NUM_STATES * n_rep_s,
-                                       k_actions=K_ACTIONS,
-                                       eps=CC_EPS, alpha=CC_ALPHA_STATE)
-            pen = pen + pst
-            p_state = float(pst.detach())
-
-        _cc_log.append((float(pen.detach()), p_static, p_recipe, p_state))
-        _acc_actions.clear(); _acc_mu.clear(); _acc_cov.clear()
-        return w2 + pen
-    _acc_actions.clear(); _acc_mu.clear(); _acc_cov.clear()
-    return w2
+    return w2 + LAMBDA_A * l2 + cc_a + cc_s
 
 
-# =====================================================================================
-# 5. TRAINING LOOP
-# =====================================================================================
-hist = []
+# ==================================================================== training ===
+hist, l2_first = [], None
 for it in range(N_ITERS):
     order = rng.permutation(len(EXPERT_TIMES))[:WINDOWS_PER_ITER]
-    losses, gnorms, smax, amax = [], [], [], []
-    per_phase = {p: [] for p in MODELS}
+    L, G, S = [], [], []
+    for k in _log:
+        _log[k].clear()
 
     for idx in order:
         t_h = float(EXPERT_TIMES[idx])
-        _current_eig = EXPERT_EIGS[round(t_h, 6)]
-
-        # the expert time selects the world model AND the start-state pool, so the
-        # particles begin inside the region that model was trained on
+        _eig = EXPERT_EIGS[round(t_h, 6)]
         ph = phase_of(t_h)
-        mdl, pool = MODELS[ph], POOLS[ph]
+        st = sample_initial_particles(POOLS[ph], NUM_STATES, generator=rng,
+                                      dtype=dtype, device=device)
+        s0 = st.repeat_interleave(K_ACTIONS, dim=0)
+        _acc_a.clear()
 
-        s_states = sample_initial_particles(pool, NUM_STATES, generator=rng,
-                                            dtype=dtype, device=device)
-        s0 = s_states.repeat_interleave(K_ACTIONS, dim=0)
-
-        if DISCH_OVERRIDE is not None:
-            DISCH_OVERRIDE.window_t0 = t_h      # absolute time of this window
-        out = gp_rollout(model=mdl, policy=policy, s0=s0, T=STEPS_PER_EXPERT,
+        out = gp_rollout(model=MODELS[ph], policy=policy, s0=s0, T=STEPS_PER_EXPERT,
                          p_dropout=P_DROPOUT, particle_pred=True,
                          loss_fn=window_loss, graph_mode="full")
-
         loss = out["loss_total"]
         optimizer.zero_grad()
         loss.backward()
@@ -921,72 +414,48 @@ for it in range(N_ITERS):
                             if p.grad is not None)).item()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), CLIP)
         optimizer.step()
+        L.append(loss.item()); G.append(gn)
+        S.append(out["S"].detach().abs().max().item())
 
-        losses.append(loss.item()); gnorms.append(gn)
-        smax.append(out["S"].detach().abs().max().item())
-        amax.append(out["A"].detach().abs().max().item())
-        per_phase[ph].append(loss.item())
+    L, G, S = map(np.array, (L, G, S))
+    w2m = float(np.mean(_log["w2"])); l2m = float(np.mean(_log["l2"]))
+    if l2_first is None:
+        l2_first = l2m
+    hist.append(w2m)
+    print(f"iter {it:3d}  W2={w2m:.5f}  ||a||^2={l2m:.5f}  "
+          f"lam*||a||^2={LAMBDA_A*l2m:.3e}  loss={L.mean():.5f}", flush=True)
+    print(f"          cc_act={np.mean(_log['cc_a']):.3e} "
+          f"cc_state={np.mean(_log['cc_s']):.3e}   "
+          f"|grad| med={np.median(G):.3e} DEAD={int((G<1e-12).sum())}/{len(G)}  "
+          f"|s|max={np.median(S):.1f} (data {s_hi.max():.1f})", flush=True)
 
-    L, G, S, A = map(np.array, (losses, gnorms, smax, amax))
-    hist.append(L.mean())
-    print(f"iter {it:3d}  W2 mean={L.mean():.6e} min={L.min():.4e} max={L.max():.4e}", flush=True)
-    print(f"          |grad| med={np.median(G):.3e} max={G.max():.3e}  "
-          f"DEAD(<1e-12)={int((G < 1e-12).sum())}/{len(G)}  "
-          f"CLIPPED={int((G > CLIP).sum())}/{len(G)}", flush=True)
-    print(f"          |s|max med={np.median(S):.2f} max={S.max():.2f} "
-          f"(data {s_hi.max().item():.2f})   |a|max={A.max():.4f}"
-          f"{f' (limit {U_MAX_Z.max():.4f})' if ENFORCE_ACTION_LIMITS else ''}",
-          flush=True)
-    if USE_BERNOULLI_GATE:
-        with torch.no_grad():
-            _st = POOLS[sorted(POOLS)[0]][:256]
-            _pg = policy.gate_prob(_st, t=0, p_dropout=0.0).mean(0)
-        print("          gate open-prob: " + "  ".join(
-            f"{pdata.ACT_NAMES[c]}={_pg[i]:.3f}" for i, c in enumerate(GATE_CHANNELS))
-            + "   (reference duty cycle ~0.05)", flush=True)
-    if _kl_log:
-        _kla = np.array(_kl_log); _kl_log.clear()
-        print(f"          sparsity KL: mean={_kla.mean():.4f}  "
-              f"lambda*mean={LAMBDA_SPARSE*_kla.mean():.4e}", flush=True)
-    if _l2_log:
-        _l2a = np.array(_l2_log); _l2_log.clear()
-        print(f"          action ||a||^2: mean={_l2a.mean():.4f} max={_l2a.max():.4f}"
-              f"   lambda*mean={LAMBDA_A*_l2a.mean():.4e}", flush=True)
-    if _am_log:
-        _am = np.array(_am_log); _am_log.clear()
-        print(f"          action multiplier: mean={_am.mean():.3f} max={_am.max():.3f}  "
-              f"windows with violation={int((_am > 1.0 + 1e-9).sum())}/{len(_am)}",
-              flush=True)
-    if _cc_log:
-        _cc = np.array(_cc_log); _cc_log.clear()
-        _w2_only = max(L.mean() - _cc[:,0].mean(), 1e-12)
-        print(f"          chance penalty: total={_cc[:,0].mean():.3e} "
-              f"static={_cc[:,1].mean():.3e} recipe={_cc[:,2].mean():.3e} "
-              f"state={_cc[:,3].mean():.3e}   penalty/W2={_cc[:,0].mean()/_w2_only:.2f}x",
-              flush=True)
-        print(f"          windows violating: static={int((_cc[:,1] > 0).sum())}/{len(_cc)} "
-              f"recipe={int((_cc[:,2] > 0).sum())}/{len(_cc)} "
-              f"state={int((_cc[:,3] > 0).sum())}/{len(_cc)}", flush=True)
-    print("          per-phase W2: " + "  ".join(
-        f"ph{p}={np.mean(v):.4e}(n={len(v)})" for p, v in sorted(per_phase.items()) if v),
-        flush=True)
+print(f"\n||a||^2  first iter {l2_first:.5f}  ->  last {l2m:.5f}  "
+      f"({100*(l2m-l2_first)/max(l2_first,1e-12):+.1f}%)")
+print("  (with lambda>0 this should DECREASE; if it rises, the L2 term is not binding)")
 
-    if it % 5 == 0:
-        torch.save({"policy_state_dict": policy.state_dict(), "iter": it,
-                    "loss": float(L.mean()), "hist": hist,
-                    "u_max_z": U_MAX_Z, "policy_meta": policy_meta,
-                    "policy_kind": POLICY_KIND,
-                    "use_phase_models": USE_PHASE_MODELS},
-                   os.path.join(SAVE_DIR, f"cdil_policy_it{it}.pt"))
+print("\naction spread ACROSS WINDOWS (the quantity that collapsed):")
+with torch.no_grad():
+    _acts = []
+    for _t in (10.0, 50.0, 90.0, 130.0):
+        _acts.append(policy(states=POOLS[phase_of(_t)][:64], t=0,
+                            p_dropout=0.0).mean(0))
+    _A = torch.stack(_acts)
+print(f"  {'channel':14s}" + "".join(f"{f't={t:.0f}h':>10s}"
+                                     for t in (10, 50, 90, 130)) + f"{'std':>10s}")
+_SDA = np.asarray(stats["std_act_sd"])
+_SPA = pdata.MAX_ACT - pdata.MIN_ACT
+_GPEI = np.array([858.26, 24.98, 5.10, 8.90, 0.145, 151.21])
+for _i, _nm in enumerate(pdata.ACT_NAMES):
+    _sd = _A[:, _i].std().item()
+    print(f"  {_nm:14s}" + "".join(f"{_A[j, _i].item():10.4f}" for j in range(4))
+          + f"{_sd:10.4f}   ({100*_sd*_SDA[_i]*_SPA[_i]/2/_GPEI[_i]:.2f}% of gpei)")
 
-os.makedirs(SAVE_DIR, exist_ok=True)
-_tag = "phasemodels" if USE_PHASE_MODELS else "allmodel"
-_out = _args.out or os.path.join(SAVE_DIR, f"cdil_policy_{_tag}.pt")
-torch.save({"policy_state_dict": policy.state_dict(), "hist": hist,
-            "u_max_z": U_MAX_Z, "policy_meta": policy_meta,
-            "policy_kind": POLICY_KIND,
-            "use_phase_models": USE_PHASE_MODELS,
-            "model_paths": _paths,
-            "std_act_mu": stats["std_act_mu"], "std_act_sd": stats["std_act_sd"],
-            "std_obs_mu": stats["std_obs_mu"], "std_obs_sd": stats["std_obs_sd"]}, _out)
-print(f"\nsaved -> {_out}")
+torch.save({"policy_state_dict": policy.state_dict(), "policy_meta": policy_meta,
+            "policy_kind": "rbf", "hist": hist, "lam": LAMBDA_A,
+            "l2_first": l2_first, "l2_last": l2m,
+            "phase_prefix": _args.phase_prefix,
+            "std_obs_mu": stats["std_obs_mu"].tolist(),
+            "std_obs_sd": stats["std_obs_sd"].tolist(),
+            "std_act_mu": stats["std_act_mu"].tolist(),
+            "std_act_sd": stats["std_act_sd"].tolist()}, OUT)
+print(f"\nsaved -> {OUT}")

@@ -1,0 +1,88 @@
+==========================================
+Starting alpha = 0.04
+alpha*k = 0.04*5
+Job ID = 3613853
+Node = opencast.inf.ed.ac.uk
+==========================================
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-10.41, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+windows per model: phase 0: 47  phase 1: 25  phase 2: 78
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+Reptile: k=5 inner steps, eps=0.5, 10 tasks/meta-iter, 20 meta-iters
+  base lr=0.04  inner alpha=0.04000  (= lr*5/k, so alpha*k = 0.2000 is held fixed as k varies -- sweep -lr to move this deliberately)
+  gradient-agreement coefficient  0.5*k*(k-1)*alpha = 0.40000   (exactly 0 at k=1, which IS joint training)
+L2: lambda=0.01 on ALL SIX channels (additive)
+action spread across 5 replicas of one state: 3.323e-06   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+  training data below the floor: 0.0%
+meta   0  W2=0.22684  ||a||^2=0.00120  loss=0.22685  |phi-theta|=1.4469e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.895e-03 DEAD=0/50  |s|max=32.9 (data 40.4)
+meta   1  W2=0.31509  ||a||^2=0.00109  loss=0.31510  |phi-theta|=1.9353e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=6.201e-03 DEAD=0/50  |s|max=39.3 (data 40.4)
+meta   2  W2=0.16128  ||a||^2=0.00069  loss=0.16129  |phi-theta|=2.0515e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.854e-03 DEAD=0/50  |s|max=31.5 (data 40.4)
+meta   3  W2=0.36174  ||a||^2=0.00293  loss=0.36177  |phi-theta|=2.7490e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=1.262e-02 DEAD=0/50  |s|max=41.2 (data 40.4)
+meta   4  W2=0.27567  ||a||^2=0.00545  loss=0.27573  |phi-theta|=2.8644e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=1.285e-02 DEAD=0/50  |s|max=36.2 (data 40.4)
+meta   5  W2=0.24573  ||a||^2=0.01500  loss=0.24588  |phi-theta|=2.0707e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.132e-02 DEAD=0/50  |s|max=36.3 (data 40.4)
+meta   6  W2=0.25923  ||a||^2=0.02172  loss=0.25945  |phi-theta|=2.6280e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=2.812e-02 DEAD=0/50  |s|max=37.2 (data 40.4)
+meta   7  W2=0.22340  ||a||^2=0.04053  loss=0.22380  |phi-theta|=2.7586e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=3.276e-02 DEAD=0/50  |s|max=33.2 (data 40.4)
+meta   8  W2=0.27879  ||a||^2=0.05674  loss=0.27936  |phi-theta|=2.5351e+00
+          10 tasks x 5 inner steps  cc_act=0.000e+00 cc_state=0.000e+00  |grad| med=3.272e-02 DEAD=0/50  |s|max=35.1 (data 40.4)
+meta   9  W2=0.26040  ||a||^2=0.06944  loss=0.26145  |phi-theta|=2.4265e+00
+          10 tasks x 5 inner steps  cc_act=3.616e-04 cc_state=0.000e+00  |grad| med=2.935e-02 DEAD=0/50  |s|max=35.4 (data 40.4)
+meta  10  W2=0.23345  ||a||^2=0.11304  loss=0.23698  |phi-theta|=2.1035e+00
+          10 tasks x 5 inner steps  cc_act=2.400e-03 cc_state=0.000e+00  |grad| med=3.134e-02 DEAD=0/50  |s|max=34.4 (data 40.4)
+meta  11  W2=0.22759  ||a||^2=0.09349  loss=0.23221  |phi-theta|=1.9515e+00
+          10 tasks x 5 inner steps  cc_act=3.686e-03 cc_state=0.000e+00  |grad| med=4.639e-02 DEAD=0/50  |s|max=36.0 (data 40.4)
+meta  12  W2=0.16348  ||a||^2=0.09269  loss=0.16490  |phi-theta|=1.8184e+00
+          10 tasks x 5 inner steps  cc_act=4.911e-04 cc_state=0.000e+00  |grad| med=3.318e-02 DEAD=0/50  |s|max=31.8 (data 40.4)
+meta  13  W2=0.23553  ||a||^2=0.09127  loss=0.24574  |phi-theta|=1.8324e+00
+          10 tasks x 5 inner steps  cc_act=9.302e-03 cc_state=0.000e+00  |grad| med=4.302e-02 DEAD=0/50  |s|max=34.1 (data 40.4)
+meta  14  W2=0.20419  ||a||^2=0.10561  loss=0.21372  |phi-theta|=1.8449e+00
+          10 tasks x 5 inner steps  cc_act=8.472e-03 cc_state=0.000e+00  |grad| med=3.910e-02 DEAD=0/50  |s|max=34.5 (data 40.4)
+meta  15  W2=0.29052  ||a||^2=0.11844  loss=0.30491  |phi-theta|=2.6210e+00
+          10 tasks x 5 inner steps  cc_act=1.321e-02 cc_state=0.000e+00  |grad| med=4.126e-02 DEAD=0/50  |s|max=38.5 (data 40.4)
+meta  16  W2=0.23537  ||a||^2=0.11999  loss=0.24705  |phi-theta|=2.0520e+00
+          10 tasks x 5 inner steps  cc_act=1.049e-02 cc_state=0.000e+00  |grad| med=3.734e-02 DEAD=0/50  |s|max=32.2 (data 40.4)
+meta  17  W2=0.25415  ||a||^2=0.14637  loss=0.27001  |phi-theta|=1.6763e+00
+          10 tasks x 5 inner steps  cc_act=1.440e-02 cc_state=0.000e+00  |grad| med=3.606e-02 DEAD=0/50  |s|max=35.7 (data 40.4)
+meta  18  W2=0.18771  ||a||^2=0.10610  loss=0.19842  |phi-theta|=1.8448e+00
+          10 tasks x 5 inner steps  cc_act=9.652e-03 cc_state=0.000e+00  |grad| med=3.334e-02 DEAD=0/50  |s|max=35.4 (data 40.4)
+meta  19  W2=0.25117  ||a||^2=0.12738  loss=0.25963  |phi-theta|=1.6565e+00
+          10 tasks x 5 inner steps  cc_act=7.179e-03 cc_state=0.000e+00  |grad| med=4.212e-02 DEAD=0/50  |s|max=34.7 (data 40.4)
+
+||a||^2 0.00120 -> 0.12738 (+10514.5%)
+
+action spread ACROSS WINDOWS (the thing that collapsed before):
+  channel            t=10h     t=50h     t=90h    t=130h       std
+  discharge         0.0155    0.0341    0.0172    0.0172    0.0088
+  sugar             0.0498    0.0518    0.0609    0.0609    0.0059
+  soilbean          0.0525    0.0368   -0.0313   -0.0313    0.0443
+  aeration         -0.1573   -0.1400    0.0154    0.0154    0.0950
+  backpressure     -0.1567   -0.1544   -0.0415   -0.0415    0.0659
+  waterinj         -0.0254   -0.0277   -0.0517   -0.0517    0.0146
+  (a std of ~0 means one action for every window, whatever the meta-update)
+
+saved -> results_pensim/alpha_sweep/rep_alpha0.04.pt
+==========================================
+Finished alpha = 0.04
+==========================================
