@@ -1,0 +1,126 @@
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+EXACT GP INFERENCE SELECTED
+world models:
+  phase 0: [0,47.5) h  train pts=800
+  phase 1: [47.5,72.5) h  train pts=800
+  phase 2: [72.5,inf) h  train pts=800
+  -> one shared z-space (verified)
+combined state range: [-7.02, 40.38] z
+[PFQuery] loaded checkpoint flgfn_corrected.pt
+pre-caching 150 expert distributions (1..150 h) ...
+  eigenvalues @75h: [0.00018914 0.00684495 0.04047212]
+PHASE 0: t in [0, 47.5) h -> 47 windows
+windows per model: phase 0: 47
+windows: 47 total over 1..230 h  ->  47 with the W2 constraint (t<=150), 0 reward-only
+
+policy rbf: in=8 out=6 u_max=3.0 params=2808
+L2: lambda=0.2 on ALL SIX channels (additive)
+action spread across 5 replicas of one state: 6.586e-05   <-- WARNING: E_a|s degenerate
+
+chance constraints: eps=0.95 -> Phi^-1=1.6449
+  action box  alpha=1000.0
+  vessel floor alpha=1.0  Wt >= 50000 phys (-1.534 z)
+  training data below the floor: 0.0%
+EXACT GP INFERENCE SELECTED
+
+objective: -LCB_reward + 15.0*relu(W2_h - 0.35) + 0.2*||a||^2 + chance
+  reward GP : reward_model_base.pt  held-out R^2=0.8571  yield/step mu=3.2279 sd=1.4090
+  LCB       : mu_r - 1.0*sigma_r  (not the mean)
+  eta       : 0.35  -- measured, the converged W2 of imitation-only policies
+  alpha_W2  : 15.0  -- measured, puts the penalty on the reward's scale
+
+penalty targets (physical -> z):
+    discharge      lo=     0.0 phys ->  -0.401 z   (z=0 is    254.2 phys, the dataset mean)
+    sugar          lo=     7.0 phys ->  -3.865 z   (z=0 is     76.5 phys, the dataset mean)
+    soilbean       lo=    21.0 phys ->  -1.360 z   (z=0 is     26.0 phys, the dataset mean)
+    aeration       lo=    29.0 phys ->  -3.932 z   (z=0 is     61.0 phys, the dataset mean)
+    backpressure   lo=     0.5 phys ->  -3.915 z   (z=0 is      0.9 phys, the dataset mean)
+    waterinj       lo=     0.0 phys ->  -1.374 z   (z=0 is    153.7 phys, the dataset mean)
+discharge PINNED at 0.0 phys (-0.401 z)
+iter   0  loss=1.01606  reward(LCB)=-0.98239 (phys 1.844)  W2 mean=0.26475 max=0.28631
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.16835 lam*=3.367e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9824 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=1.213e-03 DEAD=0/47  |s|max=77.3 (data 40.4)
+iter   1  loss=1.00922  reward(LCB)=-0.96913 (phys 1.862)  W2 mean=0.26489 max=0.28707
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.20042 lam*=4.008e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9691 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=5.702e-03 DEAD=0/47  |s|max=78.2 (data 40.4)
+iter   2  loss=1.00460  reward(LCB)=-0.95711 (phys 1.879)  W2 mean=0.26460 max=0.28555
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.23741 lam*=4.748e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9571 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=6.386e-03 DEAD=0/47  |s|max=80.3 (data 40.4)
+iter   3  loss=0.99882  reward(LCB)=-0.94688 (phys 1.894)  W2 mean=0.26446 max=0.28558
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.25969 lam*=5.194e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9469 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=6.459e-03 DEAD=0/47  |s|max=77.7 (data 40.4)
+iter   4  loss=0.99776  reward(LCB)=-0.93893 (phys 1.905)  W2 mean=0.26462 max=0.28620
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.29412 lam*=5.882e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9389 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=6.876e-03 DEAD=0/47  |s|max=78.2 (data 40.4)
+iter   5  loss=0.99542  reward(LCB)=-0.93123 (phys 1.916)  W2 mean=0.26455 max=0.28595
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.32095 lam*=6.419e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9312 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=7.296e-03 DEAD=0/47  |s|max=75.4 (data 40.4)
+iter   6  loss=0.99436  reward(LCB)=-0.92817 (phys 1.920)  W2 mean=0.26449 max=0.28586
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.33096 lam*=6.619e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9282 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=6.868e-03 DEAD=0/47  |s|max=78.5 (data 40.4)
+iter   7  loss=0.99112  reward(LCB)=-0.92390 (phys 1.926)  W2 mean=0.26438 max=0.28650
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.33605 lam*=6.721e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9239 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=7.966e-03 DEAD=0/47  |s|max=80.7 (data 40.4)
+iter   8  loss=0.99536  reward(LCB)=-0.92280 (phys 1.928)  W2 mean=0.26439 max=0.28657
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.33597 lam*=6.719e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9228 late=nan
+          cc_act=5.363e-03 cc_state=0.000e+00   |grad| med=7.473e-03 DEAD=0/47  |s|max=77.0 (data 40.4)
+iter   9  loss=0.99345  reward(LCB)=-0.92590 (phys 1.923)  W2 mean=0.26479 max=0.28554
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.33772 lam*=6.754e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9259 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=7.178e-03 DEAD=0/47  |s|max=76.9 (data 40.4)
+iter  10  loss=0.99372  reward(LCB)=-0.92512 (phys 1.924)  W2 mean=0.26448 max=0.28543
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.34299 lam*=6.860e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9251 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=7.212e-03 DEAD=0/47  |s|max=77.3 (data 40.4)
+iter  11  loss=0.99130  reward(LCB)=-0.92006 (phys 1.932)  W2 mean=0.26448 max=0.28535
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.35617 lam*=7.123e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9201 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=7.326e-03 DEAD=0/47  |s|max=74.6 (data 40.4)
+iter  12  loss=0.99171  reward(LCB)=-0.92288 (phys 1.928)  W2 mean=0.26452 max=0.28536
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.34414 lam*=6.883e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9229 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=5.442e-03 DEAD=0/47  |s|max=76.1 (data 40.4)
+iter  13  loss=0.99310  reward(LCB)=-0.92179 (phys 1.929)  W2 mean=0.26443 max=0.28521
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.35651 lam*=7.130e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9218 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=6.513e-03 DEAD=0/47  |s|max=76.8 (data 40.4)
+iter  14  loss=0.98747  reward(LCB)=-0.91633 (phys 1.937)  W2 mean=0.26493 max=0.28739
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.35567 lam*=7.113e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9163 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=7.330e-03 DEAD=0/47  |s|max=76.1 (data 40.4)
+iter  15  loss=0.98697  reward(LCB)=-0.91589 (phys 1.937)  W2 mean=0.26448 max=0.28533
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.35539 lam*=7.108e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9159 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=8.565e-03 DEAD=0/47  |s|max=77.4 (data 40.4)
+iter  16  loss=0.98781  reward(LCB)=-0.91747 (phys 1.935)  W2 mean=0.26471 max=0.28532
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.35168 lam*=7.034e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9175 late=nan
+          cc_act=2.741e-06 cc_state=0.000e+00   |grad| med=9.627e-03 DEAD=0/47  |s|max=78.5 (data 40.4)
+iter  17  loss=0.99334  reward(LCB)=-0.92393 (phys 1.926)  W2 mean=0.26451 max=0.28610
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.34703 lam*=6.941e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9239 late=nan
+          cc_act=8.474e-06 cc_state=0.000e+00   |grad| med=9.934e-03 DEAD=0/47  |s|max=79.5 (data 40.4)
+iter  18  loss=0.99674  reward(LCB)=-0.93389 (phys 1.912)  W2 mean=0.26411 max=0.28582
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.31251 lam*=6.250e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9339 late=nan
+          cc_act=3.495e-04 cc_state=0.000e+00   |grad| med=1.068e-02 DEAD=0/47  |s|max=74.6 (data 40.4)
+iter  19  loss=0.99449  reward(LCB)=-0.93013 (phys 1.917)  W2 mean=0.26482 max=0.28568
+          eta=0.35 violating=0/47 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=0.32159 lam*=6.432e-02
+          windows: 47 imitation+reward, 0 reward-only (t>150 h)   reward early=-0.9301 late=nan
+          cc_act=5.034e-05 cc_state=0.000e+00   |grad| med=1.078e-02 DEAD=0/47  |s|max=79.4 (data 40.4)
+
+final W2=0.26482 vs eta=0.35 -> FEASIBLE
+      reward(LCB)=-0.93013 (physical yield/step ~ 1.917)
+      ||a||^2 0.16835 -> 0.32159 (+91.0%)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_rlloop/p_iter3_ph0.pt

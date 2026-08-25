@@ -105,3 +105,21 @@ iter  16  loss=-0.16647  reward(LCB)=0.16754 (phys 3.464)  W2 mean=0.19683 max=0
           eta=0.35 violating=0/25 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=8.60052 lam*=0.000e+00
           windows: 25 imitation+reward, 0 reward-only (t>150 h)   reward early=0.1675 late=nan
           cc_act=1.068e-03 cc_state=0.000e+00   |grad| med=2.683e-01 DEAD=0/25  |s|max=11.9 (data 40.4)
+iter  17  loss=-0.10019  reward(LCB)=0.13450 (phys 3.417)  W2 mean=0.19105 max=0.21258
+          eta=0.35 violating=0/25 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=7.25177 lam*=0.000e+00
+          windows: 25 imitation+reward, 0 reward-only (t>150 h)   reward early=0.1345 late=nan
+          cc_act=3.431e-02 cc_state=0.000e+00   |grad| med=6.766e-01 DEAD=0/25  |s|max=11.3 (data 40.4)
+iter  18  loss=-0.13168  reward(LCB)=0.13974 (phys 3.425)  W2 mean=0.19954 max=0.23136
+          eta=0.35 violating=0/25 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=8.63253 lam*=0.000e+00
+          windows: 25 imitation+reward, 0 reward-only (t>150 h)   reward early=0.1397 late=nan
+          cc_act=8.058e-03 cc_state=0.000e+00   |grad| med=3.646e-01 DEAD=0/25  |s|max=11.7 (data 40.4)
+iter  19  loss=-0.20609  reward(LCB)=0.20760 (phys 3.520)  W2 mean=0.19650 max=0.22233
+          eta=0.35 violating=0/25 excess=0.00000 penalty=0.00000 (pen/|rew|=0.00x)   ||a||^2=8.46671 lam*=0.000e+00
+          windows: 25 imitation+reward, 0 reward-only (t>150 h)   reward early=0.2076 late=nan
+          cc_act=1.509e-03 cc_state=0.000e+00   |grad| med=2.534e-01 DEAD=0/25  |s|max=12.4 (data 40.4)
+
+final W2=0.19650 vs eta=0.35 -> FEASIBLE
+      reward(LCB)=0.20760 (physical yield/step ~ 3.520)
+      ||a||^2 0.00242 -> 8.46671 (+349637.5%)
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_rlloop/p_iter2_ph1.pt

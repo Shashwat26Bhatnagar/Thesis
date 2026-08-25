@@ -144,6 +144,8 @@ from dcfba_pen.flgfn.pf_query import PFQuery
 
 torch.set_num_threads(1)
 dtype, device = torch.float64, torch.device("cpu")
+# seeded from -seed below; these are placeholders so the imports above are
+# deterministic before the arguments are parsed
 np.random.seed(0); torch.manual_seed(0)
 
 SAVE_DIR = os.path.join(_REPO, "results_rlimit")
@@ -189,7 +191,9 @@ EXPERT_COV_KEY = "cov_n"             # the network's OWN normalised covariance. 
                                      # fixed unclosable offset.
 
 _ap = argparse.ArgumentParser("CDIL policy optimization (clean)")
-_ap.add_argument("-phase_prefix", required=True,
+_ap.add_argument("-model", default=None,
+                 help="a SINGLE world model used for every phase")
+_ap.add_argument("-phase_prefix", default=None,
                  help="three world models <prefix>_phase{0,1,2}.pt, selected per "
                       "window by the expert time")
 _ap.add_argument("-reward_model", required=True, help="reward GP checkpoint")
@@ -197,16 +201,25 @@ _ap.add_argument("-eta", type=float, default=None)
 _ap.add_argument("-alpha_w2", type=float, default=None)
 _ap.add_argument("-kappa", type=float, default=None)
 _ap.add_argument("-lam", type=float, default=None, help="L2 weight on ||a||^2")
+_ap.add_argument("-seed", type=int, default=0,
+                 help="seeds the policy initialisation, the window draw and the "
+                      "particle sampling. Vary it to test robustness: everything "
+                      "else held fixed, a spread across seeds is run-to-run variance "
+                      "rather than a property of the method.")
 _ap.add_argument("-phase", type=int, default=-1, choices=[-1, 0, 1, 2],
                  help="train on this phase's windows only (-1 = all)")
 _ap.add_argument("-fix_discharge", type=float, default=None,
-                 help="pin discharge at this physical value (0 for the growth phase)")
+                 help="pin discharge at this physical value (0 in the growth phase)")
 _ap.add_argument("-iters", type=int, default=None)
 _ap.add_argument("-out", default=None)
 _ap.add_argument("-init_policy", default=None, help="warm start")
 _args = _ap.parse_known_args()[0]
 if _args.lam is not None:       LAMBDA_A = _args.lam
 PHASE = _args.phase
+SEED = _args.seed
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+print(f"seed = {SEED}  (policy init, window draw, particle sampling)")
 if _args.eta is not None:       ETA = _args.eta
 if _args.alpha_w2 is not None:  ALPHA_W2 = _args.alpha_w2
 if _args.kappa is not None:     KAPPA = _args.kappa
@@ -239,9 +252,23 @@ def load_model(path):
     return m, ck
 
 
+if not _args.model and not _args.phase_prefix:
+    raise SystemExit("give -model (single) or -phase_prefix (three phase models)")
+
 MODELS, CKS = {}, {}
-for _p in (0, 1, 2):
-    MODELS[_p], CKS[_p] = load_model(f"{_args.phase_prefix}_phase{_p}.pt")
+if _args.model:
+    # ONE model resolved to every phase. The per-phase particle pools, the phase-keyed
+    # expert query and the window schedule are unchanged, so the only difference from
+    # the -phase_prefix arm is the dynamics model itself.
+    _m, _c = load_model(_args.model)
+    for _p in (0, 1, 2):
+        MODELS[_p], CKS[_p] = _m, _c
+    SINGLE_MODEL = True
+else:
+    for _p in (0, 1, 2):
+        MODELS[_p], CKS[_p] = load_model(f"{_args.phase_prefix}_phase{_p}.pt")
+    SINGLE_MODEL = False
+print(f"ARM: {'SINGLE model shared across phases' if SINGLE_MODEL else 'THREE phase models'}")
 stats = {k: np.asarray(CKS[0][k]) for k in
          ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
 
@@ -327,7 +354,7 @@ if _args.init_policy and os.path.exists(_args.init_policy):
 
 policy, policy_meta = build_policy(
     "rbf", STATE_DIM, INPUT_DIM, u_max=U_MAX, dtype=dtype, device=device,
-    rng=np.random.default_rng(0), num_basis=NUM_BASIS,
+    rng=np.random.default_rng(SEED), num_basis=NUM_BASIS,
     centers_init=centers_init, lengthscales_init=lengthscales_init,
     s_lo=s_lo.tolist(), s_hi=s_hi.tolist(), center_range_pad=CENTER_RANGE_PAD)
 if _warm is not None:
@@ -437,7 +464,7 @@ if FIX_DISCHARGE is not None:
     print(f"discharge PINNED at {FIX_DISCHARGE:.1f} phys ({_FZ:.3f} z)")
 
 optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
-rng = np.random.default_rng(0)
+rng = np.random.default_rng(SEED)
 
 
 # ================================================================== window loss ==

@@ -1,0 +1,516 @@
+=== training world model: phase=2 (rl_it5_p2)  n_keep=800  n_epoch=2001  select=pivchol ===
+[loop] reusing frozen standardizer stats from /home/s2892016/Thesis/MCPILCO/results_pensim/rbf_model_bnd_rbf_iter0_phase0.pt
+[pensim] dataset folder (PENSIM_DATA_DIR): /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_rlloop  (17 CSVs)
+max observations: [2.76000000e+02 8.05261517e+00 3.62841400e+02 6.85863686e+00
+ 2.70000000e+02 1.80000012e+03 9.46039368e+02 1.26920055e+05
+ 2.39494171e+01]
+min observations: [1.6000001e-01 4.5955915e+00 2.3797954e+02 0.0000000e+00 0.0000000e+00
+ 0.0000000e+00 0.0000000e+00 5.0006516e+04 2.3598127e+00]
+dataset max observations: [2.3000000e+02 6.6375961e+00 2.9998679e+02 4.6791539e+00 2.2500000e+02
+ 9.1652979e+02 6.4989948e+02 1.0915405e+05 1.9388021e+01]
+dataset min observations: [0.0000000e+00 6.0929465e+00 2.9760306e+02 0.0000000e+00 0.0000000e+00
+ 9.9999997e-05 9.9999997e-05 6.2508551e+04 9.0607529e+00]
+max actions: [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+min actions: [ 0.   7.  21.  29.   0.5  0. ]
+dataset max actions: [4.094559e+03 1.470660e+02 3.580100e+01 7.514100e+01 1.132000e+00
+ 5.038400e+02]
+dataset min actions: [ 0.     7.361 21.249 29.636  0.545  0.   ]
+normalize: True
+using max/min observations and actions.
+[pensim] using SAVED standardizer statistics
+[pensim] loader time bounds: [0.16, 276.00] h
+[pensim] 19545 transitions | obs 8d act 6d
+[pensim] obs per-dim std: [0.4579 0.8179 1.0518 0.982  0.7693 0.7558 0.9306 1.8152]
+[pensim] time range: -0.00 .. 230.00 h
+[pensim]   phase 0 [0, 47.5) h: 4029 transitions
+[pensim]   phase 1 [47.5, 72.5) h: 2125 transitions
+[pensim]   phase 2 [72.5, inf) h: 13386 transitions
+[std] fitted on 19545 transitions (17.00 CSVs)  [PINNED via -std_from]
+[std] obs_sd = [0.0329  0.00339 0.03372 0.30286 0.17267 0.11814 0.34974 0.11855]
+[std] act_sd = [0.30882 0.24979 0.48691 0.34592 0.29527 0.43871]
+[pensim] phase 2: t in [72.5, inf) h  ->  13386 of 19545 transitions (68.5%)
+[pivchol] selected 800/13186 points  (residual trace 2.105e+03)
+train N=800   test N=200   gp input dim=14   num_gp=8
+training-set time span: 72.60 .. 230.00 h
+EXACT GP INFERENCE SELECTED
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100,
+        0.0100, 0.0100, 0.0100, 0.0100, 0.0100], dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 50.383281392990895
+Time elapsed: 0.46318507194519043
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-2.3908], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.8740, 3.2166, 1.8770, 0.6098, 2.5813, 0.4086, 2.1113, 0.7165, 2.7756,
+        3.0726, 3.5857, 3.5816, 3.5849, 4.1997], dtype=torch.float64)
+- log_lambda_par : tensor([0.2424], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -832.089848176191
+Time elapsed: 353.5666961669922
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-2.3691], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.9161, 3.4001, 1.8977, 0.6062, 2.7550, 0.4372, 2.1699, 0.7593, 2.7834,
+        3.1886, 3.8281, 4.2030, 4.0583, 4.4840], dtype=torch.float64)
+- log_lambda_par : tensor([0.3930], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -833.3936220264457
+Time elapsed: 366.27578115463257
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-2.3691], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.9161, 3.4001, 1.8977, 0.6062, 2.7550, 0.4372, 2.1699, 0.7593, 2.7834,
+        3.1886, 3.8281, 4.2030, 4.0583, 4.4840], dtype=torch.float64)
+- log_lambda_par : tensor([0.3930], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 0:  tensor(0.0045, dtype=torch.float64)
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 0.0100,  0.0100, -0.0100,  0.0100,  0.0100,  0.0100,  0.0100,  0.0100,
+         0.0100,  0.0100,  0.0100,  0.0100,  0.0100,  0.0100],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 139.43490674671497
+Time elapsed: 0.36628293991088867
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-2.2859], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.2700, -1.2037,  2.4415,  0.6364,  0.1819,  1.6962,  2.3923,  2.1872,
+         2.5245,  2.7319,  3.7034,  3.8585,  2.7476,  3.3588],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.2704], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -658.884888249531
+Time elapsed: 419.8692660331726
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-2.2293], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.5188, -1.2649,  2.4629,  0.6901,  0.1251,  1.1549,  2.2393,  2.6988,
+         2.4204,  3.9291,  4.7538,  4.4192,  3.8129,  4.6811],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.3476], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -666.8981017516402
+Time elapsed: 356.9914479255676
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-2.2293], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.5188, -1.2649,  2.4629,  0.6901,  0.1251,  1.1549,  2.2393,  2.6988,
+         2.4204,  3.9291,  4.7538,  4.4192,  3.8129,  4.6811],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.3476], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 1:  tensor(0.0055, dtype=torch.float64)
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.5952], dtype=torch.float64)
+- log_lengthscales_par : tensor([-0.0100, -0.0100, -0.0100, -0.0100,  0.0100,  0.0100, -0.0100,  0.0100,
+         0.0100,  0.0100,  0.0100,  0.0100,  0.0100,  0.0100],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 3897.916379121317
+Time elapsed: 0.3747081756591797
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-8.4249], dtype=torch.float64)
+- log_lengthscales_par : tensor([-2.2583,  2.6831, -6.3024,  6.9422,  7.5281,  4.2809,  3.6856,  5.7759,
+         1.1436,  7.4428,  4.0729,  2.2286,  6.1031,  3.0613],
+       dtype=torch.float64)
+- log_lambda_par : tensor([3.1485], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -530.7950853790043
+Time elapsed: 385.78446555137634
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-11.0536], dtype=torch.float64)
+- log_lengthscales_par : tensor([-2.8271,  1.9659, -7.4724, 10.9726, 10.5181,  9.3619, 10.6942,  7.5665,
+         2.3678, 11.0946,  9.8754,  5.7748,  9.5504,  4.9630],
+       dtype=torch.float64)
+- log_lambda_par : tensor([3.3546], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -1053.8524334947265
+Time elapsed: 380.87086939811707
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-11.0536], dtype=torch.float64)
+- log_lengthscales_par : tensor([-2.8271,  1.9659, -7.4724, 10.9726, 10.5181,  9.3619, 10.6942,  7.5665,
+         2.3678, 11.0946,  9.8754,  5.7748,  9.5504,  4.9630],
+       dtype=torch.float64)
+- log_lambda_par : tensor([3.3546], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 2:  tensor(2.4415e-13, dtype=torch.float64)
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100,
+        0.0100, 0.0100, 0.0100, 0.0100, 0.0100], dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 49.97486486878735
+Time elapsed: 0.36434102058410645
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-4.9164], dtype=torch.float64)
+- log_lengthscales_par : tensor([-3.1385,  3.6162,  3.5314,  1.7871,  4.5156,  5.6732,  4.1260,  5.5384,
+         5.0841,  5.6460,  5.7820,  4.2425,  5.6624,  6.1937],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.8178], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -1921.5915820686214
+Time elapsed: 401.6920471191406
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-4.7522], dtype=torch.float64)
+- log_lengthscales_par : tensor([-3.1279,  3.7213,  3.6275,  1.8273,  5.7212,  6.7851,  4.3943,  6.5656,
+         5.2807,  6.1593,  6.5543,  4.3676,  7.0717,  7.3693],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.6679], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -1934.5001053037965
+Time elapsed: 460.3497402667999
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-4.7522], dtype=torch.float64)
+- log_lengthscales_par : tensor([-3.1279,  3.7213,  3.6275,  1.8273,  5.7212,  6.7851,  4.3943,  6.5656,
+         5.2807,  6.1593,  6.5543,  4.3676,  7.0717,  7.3693],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.6679], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 3:  tensor(2.3659e-05, dtype=torch.float64)
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100,
+        0.0100, 0.0100, 0.0100, 0.0100, 0.0100], dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 2.7432250209231555
+Time elapsed: 0.3830447196960449
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-3.7329], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.8619, -0.7699,  5.7414,  4.0391, -0.2870,  0.8967,  2.9523,  2.5962,
+         5.4252,  3.1774,  4.0369,  3.7482,  2.8876,  4.2924],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-1.1535], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -2043.5881912633713
+Time elapsed: 361.09390568733215
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-3.5924], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 5.1547, -0.8548,  6.8338,  5.3931,  0.2150,  0.6233,  3.7224,  5.0521,
+         5.7512,  3.4753,  4.8534,  4.0529,  4.9848,  5.1997],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.7823], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -2082.4850209692386
+Time elapsed: 359.9302604198456
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-3.5924], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 5.1547, -0.8548,  6.8338,  5.3931,  0.2150,  0.6233,  3.7224,  5.0521,
+         5.7512,  3.4753,  4.8534,  4.0529,  4.9848,  5.1997],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.7823], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 4:  tensor(0.0006, dtype=torch.float64)
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 0.0100, -0.0100, -0.0100,  0.0100,  0.0100,  0.0100,  0.0100,  0.0100,
+         0.0100,  0.0100,  0.0100,  0.0100,  0.0100,  0.0100],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 429.0027460562594
+Time elapsed: 0.405627965927124
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-1.8974], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 4.1709, -1.3415,  5.9806,  4.2535, -0.0121, -0.3138,  3.2103,  4.1179,
+         5.8296,  4.0270,  4.2936,  4.0875,  4.2460,  4.4605],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.6989], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -730.2112140616553
+Time elapsed: 366.63879585266113
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-1.8929], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 5.1880, -1.3392,  6.6559,  5.0958,  0.0172, -0.2918,  3.5469,  5.0496,
+         6.1810,  4.9964,  5.4343,  5.1193,  5.5633,  5.5228],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.9143], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -745.924227497742
+Time elapsed: 358.7562930583954
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-1.8929], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 5.1880, -1.3392,  6.6559,  5.0958,  0.0172, -0.2918,  3.5469,  5.0496,
+         6.1810,  4.9964,  5.4343,  5.1193,  5.5633,  5.5228],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.9143], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 5:  tensor(0.0171, dtype=torch.float64)
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100,
+        0.0100, 0.0100, 0.0100, 0.0100, 0.0100], dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -37.50962038020835
+Time elapsed: 0.4098944664001465
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-5.1307], dtype=torch.float64)
+- log_lengthscales_par : tensor([2.7756, 3.8098, 4.6059, 2.6201, 3.9270, 4.1866, 0.0974, 4.0824, 1.5293,
+        3.4590, 3.8724, 3.7058, 3.8678, 3.4791], dtype=torch.float64)
+- log_lambda_par : tensor([-3.0753], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -3515.0390354376405
+Time elapsed: 357.9650185108185
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-5.1195], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 2.6600,  3.9946,  4.1559,  2.0755,  4.6764,  5.1476, -0.1628,  5.2219,
+         1.4364,  3.5594,  4.1603,  4.0633,  4.9397,  3.7896],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-4.1838], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -3540.29822245404
+Time elapsed: 363.92716097831726
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-5.1195], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 2.6600,  3.9946,  4.1559,  2.0755,  4.6764,  5.1476, -0.1628,  5.2219,
+         1.4364,  3.5594,  4.1603,  4.0633,  4.9397,  3.7896],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-4.1838], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 6:  tensor(3.1600e-05, dtype=torch.float64)
+
+Initial parameters:
+ parameters:
+- sigma_n_log : tensor([-4.6052], dtype=torch.float64)
+- log_lengthscales_par : tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+EPOCH: 0
+ parameters:
+- sigma_n_log : tensor([-4.6152], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100, 0.0100,
+        0.0100, 0.0100, 0.0100, 0.0100, 0.0100], dtype=torch.float64)
+- log_lambda_par : tensor([-0.0100], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: 10.843185981853644
+Time elapsed: 0.40242695808410645
+
+EPOCH: 1000
+ parameters:
+- sigma_n_log : tensor([-3.4670], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.6723, -0.8699,  2.5140,  1.0285,  3.4735,  0.7036,  0.0223,  0.5090,
+         3.9230,  3.7354,  3.8038,  2.7552,  3.2388,  4.2576],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.7344], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -1043.9670182011666
+Time elapsed: 362.3960313796997
+
+EPOCH: 2000
+ parameters:
+- sigma_n_log : tensor([-3.4386], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.7306, -0.8563,  2.5334,  1.0347,  4.2149,  0.7349,  0.0067,  0.5035,
+         3.9520,  4.4514,  4.5786,  2.8141,  3.3063,  4.9944],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.6806], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+Running loss: -1046.069700889539
+Time elapsed: 350.38445949554443
+
+Final parameters:
+ parameters:
+- sigma_n_log : tensor([-3.4386], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.7306, -0.8563,  2.5334,  1.0347,  4.2149,  0.7349,  0.0067,  0.5035,
+         3.9520,  4.4514,  4.5786,  2.8141,  3.3063,  4.9944],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.6806], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+MSE gp 7:  tensor(0.0002, dtype=torch.float64)
+
+Trained hyperparameters:
+GP 1:
+ parameters:
+- sigma_n_log : tensor([-2.3691], dtype=torch.float64)
+- log_lengthscales_par : tensor([0.9161, 3.4001, 1.8977, 0.6062, 2.7550, 0.4372, 2.1699, 0.7593, 2.7834,
+        3.1886, 3.8281, 4.2030, 4.0583, 4.4840], dtype=torch.float64)
+- log_lambda_par : tensor([0.3930], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+GP 2:
+ parameters:
+- sigma_n_log : tensor([-2.2293], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.5188, -1.2649,  2.4629,  0.6901,  0.1251,  1.1549,  2.2393,  2.6988,
+         2.4204,  3.9291,  4.7538,  4.4192,  3.8129,  4.6811],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.3476], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+GP 3:
+ parameters:
+- sigma_n_log : tensor([-11.0536], dtype=torch.float64)
+- log_lengthscales_par : tensor([-2.8271,  1.9659, -7.4724, 10.9726, 10.5181,  9.3619, 10.6942,  7.5665,
+         2.3678, 11.0946,  9.8754,  5.7748,  9.5504,  4.9630],
+       dtype=torch.float64)
+- log_lambda_par : tensor([3.3546], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+GP 4:
+ parameters:
+- sigma_n_log : tensor([-4.7522], dtype=torch.float64)
+- log_lengthscales_par : tensor([-3.1279,  3.7213,  3.6275,  1.8273,  5.7212,  6.7851,  4.3943,  6.5656,
+         5.2807,  6.1593,  6.5543,  4.3676,  7.0717,  7.3693],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.6679], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+GP 5:
+ parameters:
+- sigma_n_log : tensor([-3.5924], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 5.1547, -0.8548,  6.8338,  5.3931,  0.2150,  0.6233,  3.7224,  5.0521,
+         5.7512,  3.4753,  4.8534,  4.0529,  4.9848,  5.1997],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.7823], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+GP 6:
+ parameters:
+- sigma_n_log : tensor([-1.8929], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 5.1880, -1.3392,  6.6559,  5.0958,  0.0172, -0.2918,  3.5469,  5.0496,
+         6.1810,  4.9964,  5.4343,  5.1193,  5.5633,  5.5228],
+       dtype=torch.float64)
+- log_lambda_par : tensor([0.9143], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+GP 7:
+ parameters:
+- sigma_n_log : tensor([-5.1195], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 2.6600,  3.9946,  4.1559,  2.0755,  4.6764,  5.1476, -0.1628,  5.2219,
+         1.4364,  3.5594,  4.1603,  4.0633,  4.9397,  3.7896],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-4.1838], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+GP 8:
+ parameters:
+- sigma_n_log : tensor([-3.4386], dtype=torch.float64)
+- log_lengthscales_par : tensor([ 3.7306, -0.8563,  2.5334,  1.0347,  4.2149,  0.7349,  0.0067,  0.5035,
+         3.9520,  4.4514,  4.5786,  2.8141,  3.3063,  4.9944],
+       dtype=torch.float64)
+- log_lambda_par : tensor([-0.6806], dtype=torch.float64)
+- mean_par : tensor([0.], dtype=torch.float64)
+
+held-out NEXT-STATE MSE (model units) -- phase 2 (rl_it5_p2):
+  0 pH     model=1.248088e-02  persistence=3.343745e-02  OK
+  1 T      model=5.493075e-02  persistence=1.946473e-01  OK
+  2 Fa     model=3.744694e-01  persistence=1.213537e+00  OK
+  3 Fb     model=5.727071e-02  persistence=1.193344e-01  OK
+  4 Fc     model=4.040495e-02  persistence=6.636029e-02  OK
+  5 Fh     model=4.885102e-02  persistence=1.064442e+00  OK
+  6 Wt     model=6.676757e-05  persistence=3.166769e-04  OK
+  7 DO2    model=1.163461e-01  persistence=1.031834e-01  WORSE
+
+mean MSE 8.810256e-02   persistence 3.494072e-01
+model beats persistence: True
+[pensim] statistics saved -> /home/s2892016/Thesis/MCPILCO/results_rlloop/pensim_stats_rl_it5_p2.json
+
+saved -> /home/s2892016/Thesis/MCPILCO/results_rlloop/rbf_model_rl_it5_p2.pt
+saved -> /home/s2892016/Thesis/MCPILCO/results_rlloop/rbf_metrics_rl_it5_p2.json

@@ -1,0 +1,26 @@
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+[units] PeniControlData obs bounds: time [0.16, 276.00] h
+[units] PeniControlData act bounds: [ 0.   7.  21.  29.   0.5  0. ] .. [4.10e+03 1.51e+02 3.60e+01 7.60e+01 1.20e+00 5.10e+02]
+[policy] stripped 'base.' prefix from a wrapped checkpoint
+[phase] 0: B_s3_ph0.pt  t in [0, 47.5) h  trained on ? windows
+[phase] 1: B_s3_ph1.pt  t in [47.5, 72.5) h  trained on ? windows
+[phase] 2: B_s3_ph2.pt  t in [72.5, inf) h  trained on ? windows
+[phase] boundaries from PENSIM_PHASE_BOUNDS=47.5,72.5 -- these MUST match the ones the policies were trained with
+[policy] /home/s2892016/Thesis/MCPILCO/results_ablation/B_s3_ph0.pt
+[policy] kind=rbf state_dim=8 u_max=3.0 | final training W2 = 0.1044
+[action] recipe setpoint (physical): [254.173  76.519  25.965  60.961   0.905 153.74 ]
+[action] clipping: OFF (env bounds only)
+
+collecting 1 episodes -> /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_abl
+    dropped terminal error_reward row at t=125.0 h
+  episode 0: 625 steps, final t=124.8 h, total yield=1867.0930  ->  B_s3_e1_batch_0.csv
+
+summary:
+  episodes written: 1/1
+  total yield  mean=1867.0930  min=1867.0930  max=1867.0930
+  yield/step   mean=2.9873  min=2.9873  max=2.9873   (SMPL paper baseline: 3.3071)
+  files written to /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim_abl
+[pensim] dataset folder: /home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv  (12 CSVs)
+
+NOTE: this folder is NOT the one the trainer reads (/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensimenv).
+      Copy the CSVs there (or repoint default_dataset_folder) to retrain on them.

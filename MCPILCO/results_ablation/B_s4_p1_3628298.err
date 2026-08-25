@@ -1,0 +1,9 @@
+usage: CDIL policy optimization (clean) [-h] -phase_prefix PHASE_PREFIX
+                                        -reward_model REWARD_MODEL [-eta ETA]
+                                        [-alpha_w2 ALPHA_W2] [-kappa KAPPA]
+                                        [-lam LAM] [-seed SEED]
+                                        [-phase {-1,0,1,2}]
+                                        [-fix_discharge FIX_DISCHARGE]
+                                        [-iters ITERS] [-out OUT]
+                                        [-init_policy INIT_POLICY]
+CDIL policy optimization (clean): error: the following arguments are required: -phase_prefix
