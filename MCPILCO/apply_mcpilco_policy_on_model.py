@@ -1,13 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors:    Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-            Fabio Amadio (fabioamadio93@gmail.com)
-MERL:	    Diego Romeres (romeres@merl.com)
-"""
-
-
 """
 File to load from the logs the final policy obtained with MC-PILCO4 and test it in the learned model of the cart-pole system
 """
@@ -33,36 +23,28 @@ torch.set_num_threads(1)
 dtype = torch.float64
 device = torch.device("cpu")
 
-# define paths
 seed = 1
 folder_path = "results_tmp/" + str(seed) + "/"
 config_file_path = folder_path + "/config_log.pkl"
 saving_path = folder_path + "/reproduce_policy_log.pkl"
 
-# number of simulated particles
 num_particles = 50
 
-# select the policy obtained at trial 'num_trial'
 num_trial = 5
 
-# initialize the object
 config_dict = pkl.load(open(config_file_path, "rb"))
 PL_obj = MC_PILCO.MC_PILCO(**config_dict["MC_PILCO_init_dict"])
 T_control = config_dict["reinforce_param_dict"]["T_control"]
 initial_state = config_dict["reinforce_param_dict"]["initial_state"]
 initial_state_var = config_dict["reinforce_param_dict"]["initial_state_var"]
 
-# initial particle distribution
 particles_initial_state_mean = torch.tensor(initial_state, dtype=dtype, device=device)
 particles_initial_state_var = torch.tensor(initial_state_var, dtype=dtype, device=device)
 
-# load policy
 PL_obj.load_policy_from_log(num_trial, folder=folder_path)
 
-# load model
 PL_obj.load_model_from_log(num_trial, folder=folder_path)
 
-# apply policy on model
 particles_states, particles_inputs = PL_obj.apply_policy(
     particles_initial_state_mean=particles_initial_state_mean,
     particles_initial_state_var=particles_initial_state_var,
@@ -75,12 +57,10 @@ particles_states, particles_inputs = PL_obj.apply_policy(
     p_dropout=0.0,
 )
 
-# pass particles data to numpy
 particles_states = particles_states.detach().numpy()
 particles_inputs = particles_inputs.detach().numpy()
 
 
-# plot trajectories
 plt.figure()
 plt.subplot(3, 1, 1)
 plt.grid()

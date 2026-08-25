@@ -1,134 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/cdil_policy_phase.py
-
-CDIL policy optimization, rebuilt clean. Writes to results_clean/ and does not touch
-any existing file.
-
-ONE POLICY PER FERMENTATION PHASE, WITH DISCHARGE PINNED IN THE GROWTH PHASE
-
-    -fix_discharge holds the discharge channel at a fixed physical value (0 by
-    default) for the whole run, so the policy optimises the other five only.
-
-    WHY, FOR PHASE 0. Phase 0 is biomass growth: the vessel should be filling, not
-    draining. The gpei reference holds discharge at exactly 0 for the first ~100 h and
-    only pulses afterwards. So on physical grounds the channel has no business being
-    free there.
-
-    It also removes a channel the objective cannot guide. A per-hour evaluation of the
-    single time-invariant policy found that at four of five hours in t = 1-41, the MEAN
-    action was itself the best of 200 random samples -- no action beat doing nothing.
-    Early on, the expert's covariance barely moves (sigma_S 1.24 -> 1.36 -> 1.27,
-    sigma_V 0.27 -> 0.44 -> 0.31 over t = 0-50), so a covariance-only W2 has little to
-    prefer between actions, and a free discharge channel is six-dimensional search
-    over a direction the loss is nearly blind to.
-
-    WHAT THIS DOES NOT FIX. gpei DOES act early -- sugar 30.7, aeration ramping
-    39 -> 54 -- so the reference is not idle, and the objective still cannot see why,
-    because the effect of early feeding is on WHERE the state goes (the mean), which
-    the Cai-Lim projection distance discards by construction. Pinning discharge
-    removes a distraction; it does not give the loss sight of the mean.
-
-    -phase P trains on the windows of phase P ONLY, against that phase's world model.
-    Deployment selects by time, which is available at run time, so this needs no extra
-    observation channel.
-
-    WHY. A per-hour evaluation of the single time-invariant policy (tn_lam0.pt) showed
-    it does not fall uniformly short -- it SPECIALISES, and the early hours pay for it:
-
-        t [h]      policy vs mean action     gap to best of 200 random
-        1-41            -23% to -32%              0.050 - 0.062
-        51-71           +26% to +30%              0.027 - 0.040
-        81-141          +7%  to +17%              0.008 - 0.032
-
-    At four of the five early hours the mean action IS the best of 200 random samples,
-    so doing nothing is genuinely optimal there -- and the policy is dragged off it by
-    what it learned for the later hours. Those breakpoints fall almost exactly on the
-    phase boundaries already used by the world models (47.5 h, 72.5 h).
-
-    The barycenter literature reaches the same conclusion from theory: minimising
-    sum_h W2(P_theta, Q_h) over ONE theta is the Wasserstein barycenter problem, and
-    barycenters of phase-varying distributions are unrepresentative. The remedy is a
-    CONDITIONAL barycenter, which is what one policy per phase is.
-
-    Everything else is unchanged from cdil_policy_tracenorm.py -- same trace-normalised
-    and smoothed W2, same chance constraints, same 5-step windows, same 20 iterations.
-
-WHY THE IMITATION TERM WAS SILENT BEFORE THE TRACE-NORMALISATION FIX
-
-    w2_cross_dim_torch now trace-normalises both spectra before comparing (see the
-    note in that function). Without it the loss was EXACTLY ZERO -- no loss, no
-    gradient -- for all six action channels across a in [-0.5, +0.5], measured at
-    t=75 h with the summed 5-step covariance that training actually uses. The trained
-    policies sat at z ~ 0.01-0.07, inside that dead zone.
-
-    The cause was a normalisation mismatch, not the distance itself. The expert's
-    cov_n comes from state/[20, 80, 2.5] with no centring; the GP's covariance comes
-    from physical -> smpl min-max -> z-score, whose per-channel divisors span 103x.
-    The two spectra overlapped only by coincidence of independent rescalings, and
-    that overlap put the expert's eigenvalues inside the Cai-Lim clamp band, where
-    s_star == gamma and the cost is identically zero.
-
-    WHAT THAT EXPLAINS. With W2 silent, the only live gradients were the action L2 and
-    the chance box, and BOTH pull toward z = 0 -- which, under z-scoring, IS the
-    dataset-mean action. So the policy converged to the mean on every channel, at
-    ~1% of the reference's action variance, and nine successive objectives (L1, L2,
-    minimum-action, reward maximisation, Bernoulli gate, ASRE sparsity KL, a separate
-    valve policy, PPO, Reptile) all produced the same collapse -- eight of them were
-    regularisers layered on a term contributing nothing, and the meta-updates were
-    redistributing a gradient that was zero.
-
-    AFTER THE FIX, measured: no zeros anywhere, every channel varies with a range of
-    0.10-0.29. The distance no longer reaches 0 (a 3-shape and an 8-shape cannot
-    coincide, so there is a floor near 0.05-0.16) and the landscape is jagged rather
-    than smooth. W2 VALUES FROM THIS FILE ARE NOT COMPARABLE to any earlier run.
-
-WHAT IS IN
-    W2      E_s[ E_{a|s}[ W2( P(s'|s,a) || P_expert(s'|s) ) ] ]
-            Cai-Lim cross-dimensional distance, 8-D model vs 3-D expert. Means drop
-            out by construction -- the objective matches covariance spectra only.
-    L2      lambda * mean||a||^2 over ALL SIX channels, ADDITIVE.
-    chance  Tan et al. Eq. 8-9 soft chance constraints: the static action box, and a
-            floor on the predicted vessel weight.
-
-WHAT IS OUT (deliberately, after all of these were tried and did not survive)
-    Bernoulli gate on discharge      the gate contradicted the chance constraint
-                                     (a two-point distribution has maximal variance,
-                                     so the variance back-off flagged it in 150/150
-                                     windows and the penalty reached 1156x the W2
-                                     term). Adding a learned magnitude then gave the
-                                     gate a degenerate optimum -- hold it open and set
-                                     the level near zero -- which is the continuous
-                                     head it was meant to replace.
-    ASRE sparsity KL                 fixes the marginal duty cycle, not the temporal
-                                     structure; the deployed policy still flickered
-                                     (51 opens of 0.22 h against the reference's 6 of
-                                     2.0 h).
-    multiplicative violation penalty confounded with the L2 term.
-    separate valve policy            its state-matching target was minimised by not
-                                     discharging at all (duty went to 0 by iteration 7
-                                     and stayed).
-    discharge override               useful as an ablation, not as a policy.
-
-VERIFYING THAT L2 ACTUALLY BINDS
-    In an earlier sweep lambda=0.001 came back with an action norm 1.656x the
-    lambda=0 reference -- more regularisation, larger actions. That is backwards, and
-    either the term was not reaching the loss or run-to-run variance swamped it. This
-    file therefore logs mean||a||^2 EVERY iteration alongside lambda*||a||^2, and
-    prints the first-to-last change at the end, so the effect of lambda is visible
-    directly rather than inferred from the sweep table.
-
-STRUCTURE (MC-PILCO, Amadio et al. 2022)
-    Each expert hour is one self-contained episode: T = 5 steps, a FRESH
-    in-distribution start state, one graph, one backward, one update. A single long
-    continuing rollout instead drove |s| to ~140 z-units against training data
-    spanning [-5.5, 11.2], which killed the gradient twice over -- the GP's predictive
-    variance saturated at the prior, and the policy's RBF basis abandoned its centres.
-
-    python policy_learning/cdil_policy_phase.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 -lam 0.01 -iters 20
-"""
 import argparse
 import os
 import sys
@@ -164,37 +35,26 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) ---
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- episodic structure ---
 T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
 EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
 WINDOWS_PER_ITER = 150
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
-# --- policy ---
 NUM_BASIS, U_MAX = 200, 3.0
 CENTER_RANGE_PAD = 1.10
 
-# --- L2 ---
-LAMBDA_A = 0.0                       # set with -lam; 0.0 is the sweep reference
+LAMBDA_A = 0.0
 
-# --- chance constraints (Tan et al. Eq. 8-9) ---
-CC_EPS = 0.95                        # paper: 95% -> Phi^-1 = 1.6449
-CC_ALPHA_ACT = 1000.0                # paper's alpha for the action box
-CC_ALPHA_STATE = 1.0                 # calibrated: at 1000 the vessel penalty was
-                                     # ~700x the W2 term and the policy optimised the
-                                     # constraint alone
-CC_WT_MIN_PHYS = 50000.0             # reference runs stay above 91000; batches start
-                                     # near 62500
+CC_EPS = 0.95
+CC_ALPHA_ACT = 1000.0
+CC_ALPHA_STATE = 1.0
+CC_WT_MIN_PHYS = 50000.0
 
-EXPERT_COV_KEY = "cov_n"             # the network's OWN normalised covariance. The
-                                     # physical one has eigenvalues ~349x larger than
-                                     # the GP's z-scored ones, which made the loss a
-                                     # fixed unclosable offset.
+EXPERT_COV_KEY = "cov_n"
 
 _ap = argparse.ArgumentParser("CDIL policy optimization (clean)")
 _ap.add_argument("-phase_prefix", required=True,
@@ -219,7 +79,6 @@ OUT = _args.out or os.path.join(SAVE_DIR,
         f"ph{PHASE}_lam{str(LAMBDA_A).replace('.','p')}.pt")
 
 
-# ================================================================ world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -248,7 +107,6 @@ for _p in (0, 1, 2):
 stats = {k: np.asarray(CKS[0][k]) for k in
          ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
 
-# every model must share one z-space or switching between them is meaningless
 _ref_sd = np.asarray(CKS[0]["std_obs_sd"])
 for _p in (1, 2):
     _d = float(np.abs(np.asarray(CKS[_p]["std_obs_sd"]) - _ref_sd).max())
@@ -276,7 +134,6 @@ def phase_of(t_h):
     return 2
 
 
-# ====================================================================== expert ===
 _q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
 print(f"pre-caching {len(EXPERT_TIMES)} expert distributions ...", flush=True)
@@ -309,15 +166,11 @@ for _t in EXPERT_TIMES:
 print("windows per model: " + "  ".join(f"phase {k}: {v}" for k, v in sorted(_cnt.items())))
 
 
-# ====================================================================== policy ===
 _warm = None
 centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
     _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
     _m = _warm["policy_meta"]
-    # the standardizer refits on the union each iteration, so the same physical state
-    # maps to a different z; the centres are remapped to preserve behaviour in
-    # PHYSICAL units
     c0 = np.array(np.asarray(_m["centers_init"]).tolist(), dtype=np.float64)
     mo, so = np.asarray(_warm["std_obs_mu"]), np.asarray(_warm["std_obs_sd"])
     mn, sn = stats["std_obs_mu"], stats["std_obs_sd"]
@@ -346,14 +199,12 @@ print(f"W2 trace-normalisation: {'ON' if TRACE_NORMALIZE else 'OFF'}"
          "  -- WARNING: the raw comparison was measured to give W2 == 0 for every "
          "channel across a in [-0.5, +0.5]"))
 
-# E_{a|s} is only real if replicas of one state draw DIFFERENT actions
 with torch.no_grad():
     _sp = policy(states=POOL[:1].expand(K_ACTIONS, -1).contiguous(),
                  t=0, p_dropout=P_DROPOUT).std(0).mean().item()
 print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
       f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -371,7 +222,6 @@ print(f"  vessel floor alpha={CC_ALPHA_STATE}  Wt >= {CC_WT_MIN_PHYS:.0f} phys "
 _wt_tr = POOL[:, WT_IDX].numpy()
 print(f"  training data below the floor: {100*float((_wt_tr < CC_WT_MIN_Z).mean()):.1f}%")
 
-# ---- optional: pin discharge to a fixed physical value ----
 FIX_DISCHARGE = _args.fix_discharge
 if FIX_DISCHARGE is not None:
     _lo_d, _hi_d = pdata.MIN_ACT[0], pdata.MAX_ACT[0]
@@ -403,7 +253,6 @@ optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# ================================================================== window loss ==
 _acc = {"var": None, "t0": 0}
 _acc_a = []
 _eig = None
@@ -430,8 +279,8 @@ def window_loss(t, s, a, mu, cov, s_next):
     var_1h = _acc["var"]
     _acc = {"var": None, "t0": 0}
 
-    d = w2_cross_dim_torch(var_1h, _eig)                       # (P,)
-    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+    d = w2_cross_dim_torch(var_1h, _eig)
+    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()
     _log["w2"].append(float(w2.detach()))
 
     a_all = torch.cat(_acc_a, 0)
@@ -453,7 +302,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     return w2 + LAMBDA_A * l2 + cc_a + cc_s
 
 
-# ==================================================================== training ===
 hist, l2_first = [], None
 for it in range(N_ITERS):
     order = rng.permutation(len(EXPERT_TIMES))[:WINDOWS_PER_ITER]

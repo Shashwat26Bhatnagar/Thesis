@@ -1,12 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors: 	Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-         	Fabio Amadio (fabioamadio93@gmail.com)
-MERL contact:	Diego Romeres (romeres@merl.com)
-"""
-
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
@@ -28,10 +19,9 @@ class Expected_cost(torch.nn.modules.loss._Loss):
         inputs_sequence.shape: [num_instants, num_particles, input_dim]
         """
 
-        # Returns the sum of the expected costs
         costs = self.cost_function(states_sequence, inputs_sequence, trial_index)
-        mean_costs = torch.mean(costs, 1)  # average cost at each time step over particles ...
-        std_costs = torch.std(costs.detach(), 1)  # ... and corresponding std
+        mean_costs = torch.mean(costs, 1)
+        std_costs = torch.std(costs.detach(), 1)
 
         return torch.sum(mean_costs), torch.sum(std_costs)
 
@@ -42,24 +32,19 @@ class Expected_distance(Expected_cost):
     """
 
     def __init__(self, target_state, lengthscales, active_dims):
-        # get the distance function as a function of states and inputs
         f_cost = lambda x, u, trial_index: distance_from_target(
             x, u, trial_index, target_state=target_state, lengthscales=lengthscales, active_dims=active_dims
         )
-        # initit the superclass with the lambda function
         super(Expected_distance, self).__init__(f_cost)
 
 
 def distance_from_target(states_sequence, inputs_sequence, trial_index, target_state, lengthscales, active_dims):
-    # normalize states and targets (consider only used states)
     norm_states = states_sequence[:, :, active_dims] / lengthscales
     norm_target = target_state / lengthscales
 
-    # get the square distance
     dist = torch.sum(norm_states**2, dim=2, keepdim=True)
     dist = dist + torch.sum(norm_target**2, dim=1, keepdim=True).transpose(0, 1)
     dist -= 2 * torch.matmul(norm_states, norm_target.transpose(dim0=0, dim1=1))
-    # return the cost
     return dist
 
 
@@ -69,11 +54,9 @@ class Expected_saturated_distance(Expected_cost):
     """
 
     def __init__(self, target_state, lengthscales, active_dims):
-        # get the saturated distance function as a function of states and inputs
         f_cost = lambda x, u, trial_index: saturated_distance_from_target(
             x, u, trial_index, target_state=target_state, lengthscales=lengthscales, active_dims=active_dims
         )
-        # initit the superclass with the lambda function
         super(Expected_saturated_distance, self).__init__(f_cost)
 
 
@@ -85,13 +68,10 @@ def saturated_distance_from_target(
     1 - exp(-(target_state - states_sequence)^T*(diag(lengthscales^2)^(-1)*(target_state - states_sequence))
     """
 
-    # get state components evaluated in the cost
     active_states = states_sequence[:, :, active_dims]
 
-    # normalize states and targets
     norm_states = active_states / lengthscales
     norm_target = target_state / lengthscales
-    # get the square distance
     dist = torch.sum(norm_states**2, dim=2, keepdim=True)
     dist = dist + torch.sum(norm_target**2, dim=1, keepdim=True).transpose(0, 1)
     dist -= 2 * torch.matmul(norm_states, norm_target.transpose(dim0=0, dim1=1))
@@ -107,7 +87,6 @@ class Expected_saturated_distance_from_trajectory(Expected_cost):
     """
 
     def __init__(self, target_traj, lengthscales, flg_var_lengthscales=False, used_indeces=None):
-        # get the saturated distance function as a function of states and inputs
         f_cost = lambda x, u, trial_index: saturated_distance_from_trajectory(
             x,
             u,
@@ -117,7 +96,6 @@ class Expected_saturated_distance_from_trajectory(Expected_cost):
             flg_var_lengthscales=flg_var_lengthscales,
             used_indeces=used_indeces,
         )
-        # initit the superclass with the lambda function
         super(Expected_saturated_distance_from_trajectory, self).__init__(f_cost)
 
 
@@ -131,7 +109,6 @@ def saturated_distance_from_trajectory(
     if used_indeces == None:
         used_indeces = list(range(0, states_sequence.shape[2]))
 
-    # get state components evaluated in the cost
     targets = target_traj.repeat(1, states_sequence.shape[1]).view(states_sequence.shape)
     if flg_var_lengthscales:
         dist = torch.sum(
@@ -153,7 +130,6 @@ class Cart_pole_cost(Expected_cost):
     """
 
     def __init__(self, target_state, lengthscales, angle_index, pos_index):
-        # get the saturated distance function as a function of states and inputs
         f_cost = lambda x, u, trial_index: cart_pole_cost(
             x,
             u,
@@ -163,7 +139,6 @@ class Cart_pole_cost(Expected_cost):
             angle_index=angle_index,
             pos_index=pos_index,
         )
-        # initit the superclass with the lambda function
         super(Cart_pole_cost, self).__init__(f_cost)
 
 

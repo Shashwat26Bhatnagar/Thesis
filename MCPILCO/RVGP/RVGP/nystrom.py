@@ -1,26 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Out-of-sample extension of connection-Laplacian eigenvectors (the RVGP positional
-encoding U_c) to new points, via the Nystrom scheme of
-
-    Singer & Wu, "Vector Diffusion Maps and the Connection Laplacian",
-    Comm. Pure Appl. Math. 2012, Section 7.
-
-For a training point the eigenvector of the (random-walk) connection-Laplacian obeys
-
-    v_l(i) = (1/mu_l) * [ sum_j K(||x_i - x_j||) O_ij v_l(j) ] / [ sum_j K(||x_i - x_j||) ]   (Eq. 7.3)
-
-The Nystrom extension keeps the training eigenvectors {v_l} and eigenvalues fixed and
-evaluates the same right-hand side at a NEW point y, giving v_l(y). Concatenating
-v_1(y),...,v_k(y) column-wise yields (U_c)_y, which mapped through the local frame T_y
-is the positional encoding P_y = T_y (U_c)_y that the trained GP consumes.
-
-Verified property (see module test): if the neighbour set / weights of y match the
-graph, the extension reproduces the training encoding to machine precision, and the
-ambient result is invariant to the (arbitrary) choice of local frame T_y in O(m).
-"""
-
 import numpy as np
 from scipy.spatial import cKDTree
 
@@ -31,10 +10,10 @@ def _local_pca_frame(y, nbr_pos, m, weights=None):
 
     Note: the sign/rotation of this frame is arbitrary; the final ambient encoding
     P_y = T_y (U_c)_y is invariant to it, so it need not match ptu_dijkstra's frame."""
-    E = np.asarray(nbr_pos, float) - np.asarray(y, float)      # (nnbr, p)
+    E = np.asarray(nbr_pos, float) - np.asarray(y, float)
     if weights is not None:
         E = E * np.sqrt(np.asarray(weights, float))[:, None]
-    U, _, _ = np.linalg.svd(E.T, full_matrices=False)          # columns of U span T_yM
+    U, _, _ = np.linalg.svd(E.T, full_matrices=False)
     return U[:, :m]
 
 
@@ -88,15 +67,13 @@ def nystrom_extend(data, X_new,
     """
     X_new = np.atleast_2d(np.asarray(X_new, float))
     Xtr = np.asarray(data.vertices, float)
-    gauges = np.asarray(data.gauges, float)                 # (n, p, m)
+    gauges = np.asarray(data.gauges, float)
     n, p, m = gauges.shape
     k = int(np.asarray(data.evals_Lc).reshape(-1).shape[0])
-    lam = np.asarray(data.evals_Lc, float).reshape(-1)      # (k,)
+    lam = np.asarray(data.evals_Lc, float).reshape(-1)
 
-    # Recover the raw tangent-coordinate eigenvector blocks (U_c)_i = T_i^T P_i.
-    # (data.evecs_Lc stores the ambient P_i = T_i (U_c)_i; T_i has orthonormal columns.)
     P = np.asarray(data.evecs_Lc, float).reshape(n, p, k)
-    Uc_raw = np.einsum('npm,npk->nmk', gauges, P)           # (n, m, k)
+    Uc_raw = np.einsum('npm,npk->nmk', gauges, P)
 
     if n_neighbors is None:
         degs = np.array([d for _, d in data.G.degree()]) if hasattr(data, 'G') else None
@@ -107,9 +84,9 @@ def nystrom_extend(data, X_new,
     out_tan = np.zeros((len(X_new), m, k))
 
     for a, y in enumerate(X_new):
-        d, nbr = tree.query(y, k=n_neighbors + 1)           # +1 in case y hits a vertex
+        d, nbr = tree.query(y, k=n_neighbors + 1)
         d = np.atleast_1d(d); nbr = np.atleast_1d(nbr)
-        keep = d > 1e-12                                     # drop self if y == some x_j
+        keep = d > 1e-12
         if keep.sum() >= n_neighbors:
             d, nbr = d[keep][:n_neighbors], nbr[keep][:n_neighbors]
         else:
@@ -128,15 +105,15 @@ def nystrom_extend(data, X_new,
 
         acc = np.zeros((m, k))
         for wj, j in zip(w, nbr):
-            acc += wj * (_align(Ty, gauges[j]) @ Uc_raw[j])  # (m,m)@(m,k)
+            acc += wj * (_align(Ty, gauges[j]) @ Uc_raw[j])
 
         deg = w.sum()
         denom = deg * (1.0 - lam) if normalization == 'rw' else (deg - lam)
         denom = np.where(np.abs(denom) < eps, np.sign(denom) * eps + eps * (denom == 0), denom)
 
-        Uc_y = acc / denom[None, :]                          # (m, k)
+        Uc_y = acc / denom[None, :]
         out_tan[a] = Uc_y
-        out[a] = Ty @ Uc_y                                   # (p, k)
+        out[a] = Ty @ Uc_y
 
     return (out, out_tan) if return_tangent else out
 
@@ -145,8 +122,8 @@ def predict_out_of_sample(gp, data, X_new, **kwargs):
     """Convenience wrapper: Nystrom-extend then run a trained RVGP GP at new points.
 
     Returns (mean, var) each of shape (n_new, p)."""
-    P_new = nystrom_extend(data, X_new, **kwargs)            # (n_new, p, k)
+    P_new = nystrom_extend(data, X_new, **kwargs)
     n_new, p, k = P_new.shape
-    Xin = P_new.reshape(n_new * p, k)                        # same layout as training input
+    Xin = P_new.reshape(n_new * p, k)
     mean, var = gp.predict_f(Xin)
     return mean.numpy().reshape(n_new, p), var.numpy().reshape(n_new, p)

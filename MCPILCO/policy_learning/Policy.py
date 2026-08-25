@@ -1,11 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors: 	Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-         	Fabio Amadio (fabioamadio93@gmail.com)
-MERL contact:	Diego Romeres (romeres@merl.com)
-"""
 import numpy as np
 import torch
 from scipy import signal
@@ -20,16 +12,13 @@ class Policy(torch.nn.Module):
         self, state_dim, input_dim, flg_squash=False, u_max=1, dtype=torch.float64, device=torch.device("cpu")
     ):
         super(Policy, self).__init__()
-        # model parameters
         self.state_dim = state_dim
         self.input_dim = input_dim
         self.dtype = dtype
         self.device = device
-        # set squashing function
         if flg_squash:
             self.f_squash = lambda x: self.squashing(x, u_max)
         else:
-            # assign the identity function
             self.f_squash = lambda x: x
 
     def forward(self, states, t=None, p_dropout=0.0):
@@ -86,7 +75,6 @@ class Random_exploration(Policy):
         self.u_max = u_max
 
     def forward(self, states, t):
-        # returns random control action
         rand_u = self.u_max * (2 * np.random.rand(self.input_dim) - 1).reshape([-1, self.input_dim])
         return torch.tensor(rand_u, dtype=self.dtype, device=self.device)
 
@@ -116,7 +104,6 @@ class Sum_of_sinusoids(Policy):
         self.num_sin = num_sin
         amplitude_min = np.array(amplitude_min)
         amplitude_max = np.array(amplitude_max)
-        # generate random parameters
         self.amplitudes = torch.nn.Parameter(
             torch.tensor(
                 amplitude_min + (amplitude_max - amplitude_min) * np.random.rand(num_sin, input_dim),
@@ -144,7 +131,6 @@ class Sum_of_sinusoids(Policy):
         )
 
     def forward(self, states, t):
-        # returns the sinusoid values at time t
         return self.f_squash(
             torch.sum(self.amplitudes * (torch.sin(self.omega * t + self.phases)), dim=0).reshape([-1, self.input_dim])
         )
@@ -181,16 +167,13 @@ class Sum_of_gaussians(Policy):
         super(Sum_of_gaussians, self).__init__(
             state_dim=state_dim, input_dim=input_dim, flg_squash=flg_squash, u_max=u_max, dtype=dtype, device=device
         )
-        # set number of gaussian basis functions
         self.num_basis = num_basis
-        # get initial log lengthscales
         if lengthscales_init is None:
             lengthscales_init = np.ones(state_dim)
         self.log_lengthscales = torch.nn.Parameter(
             torch.tensor(np.log(lengthscales_init), dtype=self.dtype, device=self.device).reshape([1, -1]),
             requires_grad=flg_train_lengthscales,
         )
-        # get initial centers
         if centers_init is None:
             centers_init = centers_init_min * np.ones([num_basis, state_dim]) + (
                 centers_init_max - centers_init_min
@@ -198,21 +181,17 @@ class Sum_of_gaussians(Policy):
         self.centers = torch.nn.Parameter(
             torch.tensor(centers_init, dtype=self.dtype, device=self.device), requires_grad=flg_train_centers
         )
-        # initilize the linear ouput layer
         self.f_linear = torch.nn.Linear(in_features=num_basis, out_features=input_dim, bias=flg_bias)
-        # check weight initialization
         if not (weight_init is None):
             self.f_linear.weight.data = torch.tensor(weight_init, dtype=dtype, device=device)
         else:
             self.f_linear.weight.data = torch.tensor(np.ones([input_dim, num_basis]), dtype=dtype, device=device)
 
         self.f_linear.weight.requires_grad = flg_train_weight
-        # check bias initialization
         if flg_bias:
             self.f_linear.bias.requires_grad = flg_train_bias
             if not (bias_init is None):
                 self.f_linear.bias.data = torch.tensor(bias_init)
-        # set type and device
         self.f_linear.type(self.dtype)
         self.f_linear.to(self.device)
 
@@ -220,7 +199,6 @@ class Sum_of_gaussians(Policy):
             scale_factor = np.ones(state_dim)
         self.scale_factor = torch.tensor(scale_factor, dtype=self.dtype, device=self.device).reshape([1, -1])
 
-        # set dropout
         if flg_drop == True:
             self.f_drop = torch.nn.functional.dropout
         else:
@@ -245,23 +223,17 @@ class Sum_of_gaussians(Policy):
         with input given by the the distances between that state
         and the vector of centers of the gaussian functions
         """
-        # get the lengthscales from log
         lengthscales = torch.exp(self.log_lengthscales)
-        # unsqueeze states
         states = states.reshape([-1, self.state_dim]).unsqueeze(1)
         states = states / self.scale_factor
-        # normalize states and centers
         norm_states = states / lengthscales
         norm_centers = self.centers / lengthscales
-        # get the square distance
         dist = torch.sum(norm_states**2, dim=2, keepdim=True)
         dist = dist + torch.sum(norm_centers**2, dim=1, keepdim=True).transpose(0, 1)
         dist -= 2 * torch.matmul(norm_states, norm_centers.transpose(dim0=0, dim1=1))
-        # apply exp and get output
         exp_dist_dropped = self.f_drop(torch.exp(-dist), p_dropout)
         inputs = self.f_linear(exp_dist_dropped).reshape([-1, self.input_dim])
 
-        # returns the constrained control action
         return self.f_squash(inputs)
 
 
@@ -321,7 +293,6 @@ class Sum_of_gaussians_with_angles(Sum_of_gaussians):
         )
 
     def forward(self, states, t=None, p_dropout=0.0):
-        # build a state with non angle features and cos,sin of angle features
         states = states.reshape([-1, self.state_dim - self.num_angle_indices])
         new_state = torch.cat(
             [
@@ -331,7 +302,6 @@ class Sum_of_gaussians_with_angles(Sum_of_gaussians):
             ],
             1,
         )
-        # call the forward method of the superclass
         return super().forward(new_state, t=t, p_dropout=p_dropout)
 
 
@@ -388,16 +358,12 @@ class Sum_of_gaussians_with_target_trajectory(Sum_of_gaussians):
 
     def forward(self, states, t=None, p_dropout=0.0):
         if states.dim() == 1:
-            # single state
             target = self.target_traj[t, :]
             policy_in = torch.cat((states, target - states), 0)
-            # policy_in = target-states
         elif states.dim() == 2:
-            # particles batch
             target = self.target_traj[t, :]
             particle_targets = target.repeat(1, states.shape[0]).view(states.shape)
             policy_in = torch.cat((states, particle_targets - states), 1)
-            # policy_in = particle_targets-states
         u = super().forward(policy_in, t=t, p_dropout=p_dropout)
 
         return u

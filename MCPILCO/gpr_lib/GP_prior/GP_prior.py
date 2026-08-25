@@ -1,11 +1,3 @@
-# Copyright (C) 2023 Alberto Dalla Libera
-#
-# SPDX-License-Identifier: MIT
-
-"""
-Author: Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-"""
-
 import time
 
 import matplotlib.pyplot as plt
@@ -14,9 +6,6 @@ import torch
 
 from .. import Likelihood
 
-# import scipy
-# import quadprog
-# from qpth.qp import QPFunction
 
 
 class GP_prior(torch.nn.Module):
@@ -38,20 +27,16 @@ class GP_prior(torch.nn.Module):
         -device
         -active dims"""
         super(GP_prior, self).__init__()
-        # model name
         self.name = name
-        # device
         self.dtype = dtype
         if device is None:
             self.device = torch.device("cpu")
         else:
             self.device = device
-        # active dims
         if active_dims is None:
             self.active_dims = active_dims
         else:
             self.active_dims = torch.tensor(active_dims, requires_grad=False, device=device, dtype=torch.long)
-        # sigma_noise measurement noise
         if sigma_n_init is None:
             self.GP_with_noise = False
         else:
@@ -60,7 +45,6 @@ class GP_prior(torch.nn.Module):
                 torch.tensor(np.log(sigma_n_init), dtype=self.dtype, device=self.device),
                 requires_grad=flg_train_sigma_n,
             )
-        # standard deviation of the rounding errors
         if sigma_n_num is not None:
             self.sigma_n_num = torch.tensor(sigma_n_num, dtype=self.dtype, device=self.device)
         else:
@@ -98,18 +82,13 @@ class GP_prior(torch.nn.Module):
         else:
             K_X = self.get_covariance(X)
 
-        # inverse with LU decomposition (NO grad in logdet)
-        # K_X_inv, LU = torch.gesv(torch.eye(K_X.size()[0], dtype=self.dtype, device=self.device), K_X)
-        # log_det = torch.sum(torch.log(torch.diag(LU)**2))/2
 
-        # inverse with cholesky
         U = torch.cholesky(K_X, upper=True)
         log_det = 2 * torch.sum(torch.log(torch.diag(U)))
 
         U_inv = torch.inverse(U)
         K_X_inv = torch.matmul(U_inv, U_inv.transpose(0, 1))
 
-        # K_X_inv = torch.cholesky_inverse(U, upper=True)
 
         m_X = self.get_mean(X)
         return m_X, K_X, K_X_inv, log_det
@@ -138,15 +117,11 @@ class GP_prior(torch.nn.Module):
         """Performs estimation on X_test given the alpha coefficient associated to X.
         If K_X_inv is given the method returns also the confidence intervals (variance of the gaussian)
         If Y_test is given the method prints the MSE"""
-        # get covariance and mean
         K_X_test_X = self.get_covariance(X_test, X)
         m_X_test = self.get_mean(X_test)
-        # get the estimate
         Y_hat = m_X_test + torch.matmul(K_X_test_X, alpha)
-        # print the MSE is Y_test is given
         if not (Y_test is None):
             print("MSE:", torch.sum((Y_test - Y_hat) ** 2) / Y_test.size()[0])
-        # if K_X_inv is given compute the confidence intervals
         if K_X_inv is not None:
             num_test = X_test.size()[0]
             var = self.get_diag_covariance(X_test) - torch.sum(torch.matmul(K_X_test_X, K_X_inv) * (K_X_test_X), dim=1)
@@ -160,11 +135,8 @@ class GP_prior(torch.nn.Module):
         -a vector containing the sigma squared confidence intervals
         -the vector of the coefficient
         -the K_X inverse in case required through flg_return_K_X_inv"""
-        # get the coefficent and the mean
         alpha, m_X, K_X_inv = self.get_alpha(X, Y)
-        # get the estimate and the confidence intervals
         Y_hat, var = self.get_estimate_from_alpha(X, X_test, alpha, m_X, K_X_inv=K_X_inv, Y_test=Y_test)
-        # return the opportune values
         if flg_return_K_X_inv:
             return Y_hat, var, alpha, m_X, K_X_inv
         else:
@@ -182,38 +154,28 @@ class GP_prior(torch.nn.Module):
         optimizer=None,
         criterion=None,
         N_epoch=1,
-        N_epoch_print=1,  # flg_time=False,
+        N_epoch_print=1,
         f_saving_model=None,
         f_print=None,
     ):
         """Performs the optimization of the model. The function considered is the forward fucntion,
         i.e. the inputs of the criterion are [m_X, K_X, K_X_inv, log_det]"""
-        # print initial parametes and initial estimates
         print("\nInitial parameters:")
         self.print_model()
-        # iterate over the training data for N_epochs
         t_start = time.time()
         for epoch in range(0, N_epoch):
-            # initialize loss grad and counter
             running_loss = 0.0
             N_btc = 0
             optimizer.zero_grad()
-            # iterate over the training set
-            # print('\nEPOCH:', epoch)
             for i, data in enumerate(trainloader, 0):
-                # get the training data
                 inputs, labels = data
-                # zero the parameter gradients
                 optimizer.zero_grad()
-                # forward + backward + optimize
                 out_GP_priors = self(inputs)
                 loss = criterion(out_GP_priors, labels)
                 loss.backward(retain_graph=False)
                 optimizer.step()
-                # update the running loss
                 running_loss = running_loss + loss.item()
                 N_btc = N_btc + 1
-            # print statistics and save the model
             if epoch % N_epoch_print == 0:
                 print("\nEPOCH:", epoch)
                 self.print_model()
@@ -225,7 +187,6 @@ class GP_prior(torch.nn.Module):
                     f_saving_model(epoch)
                 if f_print is not None:
                     f_print()
-        # print the final parameters
         print("\nFinal parameters:")
         self.print_model()
 
@@ -235,18 +196,13 @@ class GP_prior(torch.nn.Module):
         SOD: most importants subset of data
         """
         print("\nSelection of the inducing inputs...")
-        # get number of samples
         num_samples = X.shape[0]
-        # init the set of inducing inputs with the first sample
         SOD = X[0:1, :]
         inducing_inputs_indices = [0]
-        # get a permuation of the inputs
         perm_indices = torch.arange(1, num_samples)
         if flg_permutation:
             perm_indices = perm_indices[torch.randperm(num_samples - 1)]
-        # iterate all the samples
         for sample_index in perm_indices:
-            # get the estimate
             _, var, _ = self.get_estimate(
                 X[inducing_inputs_indices, :], Y[inducing_inputs_indices, :], X[sample_index : sample_index + 1, :]
             )
@@ -262,16 +218,13 @@ class Combine_GP(GP_prior):
 
     def __init__(self, *gp_priors_obj):
         """Initialize the multiple kernel object"""
-        # initialize a new GP object
         super(Combine_GP, self).__init__(
             active_dims=None,
             sigma_n_num=gp_priors_obj[0].sigma_n_num,
             dtype=gp_priors_obj[0].dtype,
             device=gp_priors_obj[0].device,
         )
-        # build a list with all the models
         self.gp_list = torch.nn.ModuleList(gp_priors_obj)
-        # check the noise flag
         GP_with_noise = False
         for gp in self.gp_list:
             GP_with_noise = GP_with_noise or gp.GP_with_noise
@@ -313,35 +266,23 @@ class Sum_Independent_GP(Combine_GP):
 
     def get_covariance(self, X1, X2=None, flg_noise=False):
         """Returns the sum of the covariances of the gp_list"""
-        # get dimensions
         N1 = X1.size()[0]
         if X2 is None:
             N2 = N1
         else:
             N2 = X2.size()[0]
-        # #initialize the covariance
-        # cov = torch.zeros(N1,N2, dtype=self.dtype, device=self.device)
-        # #sum all the covariances
-        # for gp in self.gp_list:
-        #     cov += gp.get_covariance(X1,X2, flg_noise=False)
-        # f_gp = lambda gp : (gp.get_covariance(X1,X2,flg_noise=False)).unsqueeze(0)
-        # cov = torch.sum(torch.cat(list(map(f_gp, self.gp_list)),0),0)
         cov = torch.sum(
             torch.cat([(gp.get_covariance(X1, X2, flg_noise=False)).unsqueeze(0) for gp in self.gp_list], 0), 0
         )
-        # add the noise
         if flg_noise & self.GP_with_noise:
             cov += self.get_sigma_n_2() * torch.eye(N1, dtype=self.dtype, device=self.device)
         return cov
 
     def get_diag_covariance(self, X, flg_noise=False):
         """Returns the sum of the diagonals of the covariances in the gp list"""
-        # initialize the vector
         diag = torch.zeros(X.size()[0], dtype=self.dtype, device=self.device)
-        # iterate in the list and sum the diagonals
         for gp in self.gp_list:
             diag += gp.get_diag_covariance(X, flg_noise=False)
-        # add the noise
         if flg_noise & self.GP_with_noise:
             diag += self.get_sigma_n_2()
         return diag
@@ -356,46 +297,32 @@ class Multiply_GP_prior(Combine_GP):
 
     def get_mean(self, X):
         """Returns the product of the means of the GP in gp_list"""
-        # initilize the mean vector
         N = X.size()[0]
         mean = torch.ones(N, 1, dtype=self.dtype, device=self.device)
-        # multiply all the means
         for gp in self.gp_list:
             mean = mean * gp.get_mean(X)
         return mean
 
     def get_covariance(self, X1, X2=None, flg_noise=False):
         """Returns the element-wise product of the covariances og the GP in gp_list"""
-        # get size
         N1 = X1.size()[0]
         if X2 is None:
             N2 = N1
         else:
             N2 = X2.size()[0]
-        # #initilize the covariance
-        # cov = torch.ones(N1,N2, dtype=self.dtype, device=self.device)
-        # #multiply all the covariances
-        # for gp in self.gp_list:
-        #     cov *=gp.get_covariance(X1,X2, flg_noise=False)
-        # f_gp = lambda gp : (gp.get_covariance(X1,X2,flg_noise=False)).unsqueeze(0)
-        # cov = torch.prod(torch.cat(list(map(f_gp, self.gp_list)),0),0)
         cov = torch.prod(
             torch.cat([(gp.get_covariance(X1, X2, flg_noise=False)).unsqueeze(0) for gp in self.gp_list], 0), 0
         )
-        # add the noise
         if flg_noise & self.GP_with_noise:
             cov += self.get_sigma_n_2() * torch.eye(N1, dtype=self.dtype, device=self.device)
         return cov
 
     def get_diag_covariance(self, X, flg_noise=False):
         """Returns the product of the diagonals vector relative to the covariance of the GP in gp_list"""
-        # initilize the diagona
         N = X.size()[0]
         diag = torch.ones(N, dtype=self.dtype, device=self.device)
-        # multiply all the diagonals
         for gp in self.gp_list:
             diag *= gp.get_diag_covariance(X, flg_noise=False)
-        # add the nosie
         if flg_noise & self.GP_with_noise:
             diag += self.get_sigma_n_2()
         return diag
@@ -417,7 +344,6 @@ def Scale_GP_prior(
     The function a() can be parametrize respect to a set of trainable prameters.
     This class retuns an instance of a new class defined inside"""
 
-    # define the new class
     class Scaled_GP(GP_prior_class):
         """Class that extends the GP_prior_class with the scaling parameters"""
 
@@ -432,9 +358,7 @@ def Scale_GP_prior(
             flg_train_free_par_f,
             additional_par_f_list,
         ):
-            # initialize the object of the superclass
             super(Scaled_GP, self).__init__(**GP_prior_par_dict)
-            # save the scaling info
             self.f_scale = f_scale
             self.active_dims_f_scale = active_dims_f_scale
             self.additional_par_f_list = additional_par_f_list
@@ -469,23 +393,17 @@ def Scale_GP_prior(
 
         def get_mean(self, X):
             """Calls the get_mean of the superclass and apply the scaling"""
-            # get the supercalss mean
             return self.get_scaling(X) * super(Scaled_GP, self).get_mean(X)
 
         def get_covariance(self, X1, X2=None, flg_noise=False):
             """Calls the get covariance of the superclass and apply the scaling"""
-            # get the scaling functions
             a_X1 = self.get_scaling(X1)
-            # if required evaluate the scaling function in X2 and get the covariance
             if X2 is None:
-                # print(super(Scaled_GP, self).get_covariance(X1, X2, flg_noise=False))
                 K = a_X1 * super(Scaled_GP, self).get_covariance(X1, X2, flg_noise=False) * (a_X1.transpose(0, 1))
             else:
                 a_X2 = self.get_scaling(X2)
                 K = a_X1 * super(Scaled_GP, self).get_covariance(X1, X2, flg_noise=False) * (a_X2.transpose(0, 1))
-            # if required add the noise and return the covariance
             if flg_noise & self.GP_with_noise:
-                # print('noise')
                 N = K.size()[0]
                 return K + self.get_sigma_n_2() * torch.eye(N, dtype=self.dtype, device=self.device)
             else:
@@ -493,16 +411,13 @@ def Scale_GP_prior(
 
         def get_diag_covariance(self, X, flg_noise=False):
             """Calls the get_diag_covariance of the superclass and apply the scaling"""
-            # evaluate the scaling function in X1
             a_X = self.get_scaling(X1)
             diag = a_X**2 * super(Scaled_GP, self).get_diag_covariance(X, flg_noise=False)
-            # if required add the noise and return the covariance
             if flg_noise & self.GP_with_noise:
                 return diag + self.get_sigma_n_2()
             else:
                 return diag
 
-    # return an object of the new class
     return Scaled_GP(
         GP_prior_par_dict,
         f_scale,

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 from RVGP.utils import load_mesh
 from RVGP.geometry import furthest_point_sampling
 import RVGP
@@ -15,7 +14,6 @@ np.random.seed(0)
 
 results, results_lap = [], []
 for alpha in np.linspace(0.01,0.08,10):
-    # Subsample and create data object
     sample_ind, _ = furthest_point_sampling(vertices, spacing=alpha)
     X = vertices[sample_ind]
     d = RVGP.create_data_object(X, n_eigenpairs=n_eigenpairs)
@@ -30,11 +28,9 @@ for alpha in np.linspace(0.01,0.08,10):
         test_ind = list(test_ind)
         test_f = d.vectors[test_ind]
         
-        #with manifold kernel (connection Laplacian)
         vector_field_GP = RVGP.fit(d, train_ind=train_ind, noise_variance=0.001)
         f_pred_mean, _ = vector_field_GP.transform(d, test_ind)
         
-        #with RBF kernel, treating entries channelwise
         vector_field_GP_lap = RVGP.fit(d, kernel='rbf', noise_variance=0.001)
         f_pred_mean_lap, _ = vector_field_GP.transform(d, test_ind)
         

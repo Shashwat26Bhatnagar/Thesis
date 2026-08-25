@@ -1,9 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Test MC-PILCO on a simulated cart-pole system with the RVGP (Matern-on-manifold) kernel.
-Cloned from test_mcpilco_cartpole_rbf_ker.py; only the model-learning block is changed.
-"""
 import argparse
 import pickle as pkl
 import matplotlib.pyplot as plt
@@ -19,7 +13,6 @@ import policy_learning.MC_PILCO as MC_PILCO
 import policy_learning.Policy as Policy
 import simulation_class.ode_systems as f_ode
 
-# ---- seed / device ----
 p = argparse.ArgumentParser("test cartpole rvgp")
 p.add_argument("-seed", type=int, default=1, help="seed")
 locals().update(vars(p.parse_known_args()[0]))
@@ -41,13 +34,9 @@ u_max = 10.0
 std_noise = 10 ** (-2)
 std_list = [std_noise, std_noise, std_noise, std_noise]
 
-# =====================================================================================
-#  MODEL LEARNING  ---  RVGP (Matern-on-manifold), ONE joint GP over the state
-# =====================================================================================
 print("---- Set model learning parameters (RVGP) ----")
 f_model_learning = ML.Model_learning_RVGP
 
-# Matern kernel init (replaces the RBF init_dict). REQUIRES sigma_n_init (low-rank block).
 matern_init = {}
 matern_init["nu_init"] = 1.5
 matern_init["kappa_init"] = 5.0
@@ -61,21 +50,18 @@ matern_init["flg_train_sigma_n"] = True
 matern_init["dtype"] = dtype
 matern_init["device"] = device
 
-# RVGP manifold build options (all singular-value / Laplacian machinery is hidden here)
 rvgp_dict = {}
 rvgp_dict["n_neighbors"] = 10
 rvgp_dict["explained_variance"] = 0.8
-rvgp_dict["n_eigenpairs"] = 50            # k ; must stay well below N * D_e
+rvgp_dict["n_eigenpairs"] = 50
 
-# Model_learning_RVGP constructor kwargs (NOTE: different signature than the RBF class)
 model_learning_par = {}
 model_learning_par["init_dict"] = matern_init
 model_learning_par["rvgp_dict"] = rvgp_dict
-model_learning_par["angle_indices"] = [2]          # pole angle -> (cos, sin)
-model_learning_par["not_angle_indices"] = [0, 1, 3]  # cart pos, cart vel, pole angvel
+model_learning_par["angle_indices"] = [2]
+model_learning_par["not_angle_indices"] = [0, 1, 3]
 model_learning_par["dtype"] = dtype
 model_learning_par["device"] = device
-# D_e = 3 + 2*1 = 5 ; manifold ambient p = 5 + 1(action) = 6  (matches RBF gp_input_dim=6)
 
 print("\n---- Set exploration policy ----")
 f_rand_exploration_policy = Policy.Random_exploration
@@ -141,15 +127,13 @@ MC_PILCO_init_dict["device"] = device
 PL_obj = MC_PILCO.MC_PILCO(**MC_PILCO_init_dict)
 
 print("\n---- Set MC-PILCO options ----")
-# Model optimization options  (num_gp = 1 for RVGP -> list of length 1)
 model_optimization_opt_dict = {}
 model_optimization_opt_dict["f_optimizer"] = "lambda p : torch.optim.Adam(p, lr=0.01)"
 model_optimization_opt_dict["criterion"] = Likelihood.Marginal_log_likelihood
 model_optimization_opt_dict["N_epoch"] = 1501
 model_optimization_opt_dict["N_epoch_print"] = 500
-model_optimization_opt_list = [model_optimization_opt_dict]     # length 1 (one joint GP)
+model_optimization_opt_list = [model_optimization_opt_dict]
 
-# Policy optimization options
 policy_optimization_dict = {}
 policy_optimization_dict["num_particles"] = 400
 policy_optimization_dict["opt_steps_list"] = [2000, 4000, 4000, 4000, 4000]
@@ -162,14 +146,10 @@ policy_optimization_dict["alpha_diff_cost"] = 0.99
 policy_optimization_dict["min_diff_cost"] = 0.08
 policy_optimization_dict["num_min_diff_cost"] = 200
 
-# initial state distribution
 initial_state = np.array([0.0, 0.0, 0.0, 0.0])
 initial_state_var = 1e-4 * np.ones(state_dim)
 
 print("\n---- Run MC-PILCO ----")
-# reinforce() runs the whole loop: get_data_from_system -> add_data -> reinforce_model
-# (model learning) -> reinforce_policy (policy opt).  For MODEL-LEARNING ONLY, keep the
-# first trial and inspect the model before trusting the policy step (see notes).
 
 os.makedirs(MC_PILCO_init_dict["log_path"], exist_ok=True)
 
@@ -181,7 +161,6 @@ PL_obj.reinforce(
     initial_state_var=initial_state_var,
     model_optimization_opt_list=model_optimization_opt_list,
     policy_optimization_dict=policy_optimization_dict,
-#    policy_reinit_dict=policy_reinit_dict,
     flg_init_uniform=False,
     flg_init_multi_gauss=False,
 )

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import scipy
 import numpy as np
 
@@ -21,14 +20,11 @@ def scalar_diffusion(x, t, method="matrix_exp", par=None):
             eigenvalues, eigenvectors!"
         evals, evecs = par
 
-        # Transform to spectral
         x_spec = np.mm(evecs.T, x)
 
-        # Diffuse
         diffusion_coefs = np.exp(-evals[...,None] * t)
         x_diffuse_spec = diffusion_coefs * x_spec
 
-        # Transform back to per-vertex
         return evecs.mm(x_diffuse_spec)
 
     raise NotImplementedError
@@ -49,7 +45,6 @@ def vector_diffusion(x, t, Lc, L=None, method="spectral", normalise=True):
     ) == 0, "Data dimension must be an integer multiple of the dimensions \
          of the connection Laplacian!"
 
-    # vector diffusion with connection Laplacian
     out = x.reshape(nd, -1)
     out = scalar_diffusion(out, t, method, Lc)
     out = out.reshape(x.shape)

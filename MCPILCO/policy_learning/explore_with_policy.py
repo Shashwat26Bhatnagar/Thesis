@@ -1,144 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/explore_with_policy.py
-
-Run the CDIL-trained policy on the REAL PenSim environment and save each episode as
-a time-series CSV in the exact format PeniControlData reads, so the data can be fed
-straight back into world-model training.
-
-    python policy_learning/explore_with_policy.py -n 1 -max_steps 20     # smoke test
-    python policy_learning/explore_with_policy.py -n 10 -p_dropout 0.25
-    python policy_learning/explore_with_policy.py -n 10 -clip10 -tag cdil10pct
-
-NO WORLD MODEL IS NEEDED HERE. The phase models were only used to train the policy;
-exploration runs the policy against the real simulator.
-
-=== UNIT CHAIN (the part that silently breaks things) ===
-The policy lives in z-scored space, the env in physical units, separated by TWO
-transforms:
-
-    physical  --PeniControlData min-max-->  [-1,1]  --Standardizer-->  z-scored
-              <--------------------------          <----------------
-
-CRITICAL: the Standardizer was fitted on data normalised by PeniControlData's OWN
-bounds, which are NOT PenSimEnvGym's defaults -- they come out exactly half (time
-276.0 vs 552.0). Using the env's bounds here would put every channel on the wrong
-scale. The bounds are therefore read off a PeniControlData instance at runtime.
-
-=== NUMPY ABI NOTE ===
-This environment has two numpy module objects loaded, so torch's .numpy() returns an
-ndarray of a FOREIGN type: multiplying it by a normal array raises a ufunc error, and
-numpy then crashes while formatting that error ("TypeError" from dtype_is_implied).
-Every torch->numpy hop therefore goes through .tolist().
-
-=== DISCHARGE FROM A gpei CSV (-discharge_csv) ===
-Replays the discharge column of a recorded gpei batch, looked up by absolute time.
-
-USE THIS RATHER THAN -recipe_discharge. DISCHARGE_DEFAULT_PROFILE is a ZERO-ORDER
-HOLD: get_value_at returns 4000 continuously from t=102 h until the next entry at
-t=130 h, i.e. 28 hours at full rate, which drains the vessel and terminated the
-episode at ~122 h (yield 1744 over 614 steps). gpei's RECORDED actions are 2-hour
-pulses at 5.2% duty -- so gpei does not execute the raw profile, its controller
-modulates it. Only the recorded column reproduces what gpei actually did.
-
-=== RECIPE DISCHARGE ABLATION (-recipe_discharge) ===
-Overrides the discharge channel with the DEFAULT RECIPE PROFILE at the current time,
-while the loaded policy supplies channels 1..5. This is an ABLATION, not a policy:
-gpei's discharge is an open-loop schedule (0 until t=100 h, then 4000 held), so a run
-using it is not learned control on that channel.
-
-It answers one question: how much of the remaining yield gap is the valve?
-    ~3835 (gpei level) -> discharge was the whole gap; channels 1..5 are already
-                          reference-quality and the valve is the only thing missing
-    ~3345 (split level) -> discharge contributes nothing; the gap is elsewhere. The
-                          normalized-action deviations point at aeration (0.202) and
-                          back pressure (0.195), the two channels gpei ramps most
-                          (aeration 39->73, back pressure 0.66->1.19) and ours holds
-                          flat.
-
-Run with -p_dropout 0: the earlier 3735 figure came from dropout noise perturbing
-discharge, not from learned behaviour, so only a deterministic run is comparable.
-
-=== PHASE POLICIES (-phase_policies) ===
-Takes a PREFIX and loads <prefix>_ph0.pt, _ph1.pt, _ph2.pt, selecting by the current
-batch time using the same PENSIM_PHASE_BOUNDS the world models were split on.
-
-WHY. A per-hour evaluation of the single time-invariant policy showed it does not fall
-uniformly short of what is reachable -- it specialises, and the early hours pay:
-23-32% WORSE than the mean action at t = 1-41, 26-30% BETTER at t = 51-71, 7-17%
-better at t = 81-141. At four of the five early hours the mean action was itself the
-best of 200 random samples, so doing nothing is genuinely optimal there and the policy
-is dragged off it by what it learned for the later hours. Those breakpoints fall on
-the phase boundaries already used by the world models.
-
-One policy per phase removes that compromise. Time is available at deployment, so this
-costs no extra observation.
-
-=== SPLIT POLICY (-valve_policy) ===
-With -valve_policy, discharge comes from a separately trained policy P_C and channels
-1..5 from the frozen policy given by -policy (P_B):
-
-    action = concat( P_C([state, hours_open]) , P_B(state)[1:] )
-
-P_C sees a 9th input, the hours the valve has been open, which is carried across the
-episode and reset at env.reset(). That input is the reason P_C can CLOSE the valve:
-the 8-D observation cannot distinguish "just opened" from "open for two hours", and
-discharging drives vessel weight monotonically further into the region that triggered
-the open, so every single-policy configuration opened at the right time (t=102.2 h
-against the recipe's 102.0) and then never closed.
-
-P_C emits GATE x MAGNITUDE -- a Bernoulli gate for open/shut and a continuous level
-for how far open -- because the reference valve is bimodal rather than binary: zero
-for 94.8% of steps, and 3705..4058 when open.
-
-DO NOT combine -valve_policy with -clip10. The static band is roughly [229, 280] for
-discharge, which crushes the gate's {0, ~4000} into a continuous mid-range value and
-silently undoes the whole mechanism -- that is exactly what happened on the first
-gated run.
-
-=== ACTION CLIPPING: STATIC vs TIME-VARYING (-clip10 vs -cliprecipe) ===
--clip10 clips to +/-10% of the DATASET-MEAN action, one fixed band for all 230 h.
-That band is wrong, and measurably so. DISCHARGE_DEFAULT_PROFILE is a STEP function:
-0 until t=100 h, then pulses 0 <-> 4000 every 20 h. Its dataset mean is ~200 -- a value
-the recipe never actually holds. So the static band [180, 220] FORCES ~180 L/h of
-discharge during the first 100 h, when the correct action is 0.
-
-Measured in bnd_rbf_iter0_batch_2.csv: discharge sits at 180.05 (exactly 0.9*mean) for
-the whole second half of the batch, i.e. the policy wants to go LOWER and the clip
-stops it. Continuously draining ~180 L/h removes product that should be accumulating,
-which is consistent with the yield gap (gpei 3.30/step vs CDIL ~3.00).
-
--cliprecipe instead clips to +/-10% of the recipe profile AT THE CURRENT TIME, read
-from RecipeCombo.get_values_dict_at(t). Two adjustments are needed because the profile
-is a step function:
-    floor    a zero setpoint gives a zero-width band, which is unsatisfiable
-    smooth   the profile jumps 0->4000 within 2 h; an unsmoothed edge makes the bound
-             discontinuous between consecutive 12-minute steps
-
-=== ACTION MAGNITUDE WARNING ===
-The policy was trained with a flat u_max = 3.0 in z-units. The PenSim docs restrict
-the search space to +/-10% of the setpoint recipe, which in z-units is
-    [0.023, 0.323, 0.554, 0.628, 0.702, 0.103]
-i.e. the policy may emit actions 4x-128x wider than the process permits. Actions are
-always clipped to the env's own physical bounds; pass -clip10 to additionally clip to
-+/-10% of the recipe setpoint, which is what a real reactor would accept.
-
-=== TERMINAL error_reward (fixed) ===
-At episode termination PenSim's done_calculator returns error_reward = -100 INSTEAD
-of a yield. Writing that row put a spurious -100 in every CSV -- always the last row,
-regardless of what the policy did (the actions on that step are unremarkable and well
-inside every bound). It depressed every batch total by exactly 100 and, since the
-shipped gpei/random baselines contain no such row, biased every comparison against
-our runs: one file measured 3712.3 with it and 3812.3 without, i.e. 3.3179 mean/step
-against the paper's 3.3071 baseline -- above it rather than 13% below.
-
-The terminal row is therefore DROPPED: it carries no yield information, and the state
-it records is the post-termination state.
-
-CSV FORMAT (matches random_batch_*.csv exactly, 16 columns):
-    Time Step, <6 actions>, <8 observations>, Yield Per Step
-"""
 import argparse
 import os
 import sys
@@ -165,7 +26,6 @@ from smpl.envs.pensimenv import PenSimEnvGym, PeniControlData
 
 dtype, device = torch.float64, torch.device("cpu")
 
-# ----------------------------------------------------------------- config ----
 OUT_DIR = "/home/s2892016/Thesis/deps/smpl/smpl/configdata/pensim"
 POLICY_PATH_DEFAULT = os.path.join(_REPO, "results_pensim", "cdil_policy_phasemodels.pt")
 
@@ -179,8 +39,8 @@ CSV_COLUMNS = [
     "Yield Per Step",
 ]
 
-U_MAX_FLAT = 3.0                 # must match training (ENFORCE_ACTION_LIMITS was False)
-ERROR_REWARD = -100.0            # PenSimEnvGym error_reward, returned at termination
+U_MAX_FLAT = 3.0
+ERROR_REWARD = -100.0
 ACTION_LIMIT_FRAC = 0.10
 
 _p = argparse.ArgumentParser("explore PenSim with the CDIL-trained policy")
@@ -238,9 +98,6 @@ def _to_np(t):
     return np.array(t.detach().reshape(-1).tolist(), dtype=np.float64)
 
 
-# ============================================================== unit chain ====
-# PeniControlData's bounds are what the Standardizer was fitted through -- read them
-# from an instance rather than assuming PenSimEnvGym's defaults (they differ by 2x).
 _pcd = PeniControlData(dataset_folder=pdata.default_dataset_folder(), normalize=True)
 PCD_MAX_OBS = np.array(np.asarray(_pcd.max_observations).tolist(), dtype=np.float64)
 PCD_MIN_OBS = np.array(np.asarray(_pcd.min_observations).tolist(), dtype=np.float64)
@@ -249,16 +106,12 @@ PCD_MIN_ACT = np.array(np.asarray(_pcd.min_actions).tolist(), dtype=np.float64)
 print(f"[units] PeniControlData obs bounds: time [{PCD_MIN_OBS[0]:.2f}, {PCD_MAX_OBS[0]:.2f}] h")
 print(f"[units] PeniControlData act bounds: {np.round(PCD_MIN_ACT,2)} .. {np.round(PCD_MAX_ACT,2)}")
 
-# -phase_policies supplies three policies selected by time, but the block that
-# loads them runs AFTER this point -- and this load is unconditional. Point it at
-# phase 0's file so the single-policy path has a valid checkpoint to read the
-# standardiser and metadata from; _policy_at() overrides the policy itself per step.
 if args.phase_policies and not os.path.exists(args.policy):
     args.policy = f"{args.phase_policies}_ph0.pt"
 ck = torch.load(args.policy, map_location=device, weights_only=False)
-STD_OBS_MU = np.array(np.asarray(ck["std_obs_mu"]).tolist(), dtype=np.float64)   # (8,)
+STD_OBS_MU = np.array(np.asarray(ck["std_obs_mu"]).tolist(), dtype=np.float64)
 STD_OBS_SD = np.array(np.asarray(ck["std_obs_sd"]).tolist(), dtype=np.float64)
-STD_ACT_MU = np.array(np.asarray(ck["std_act_mu"]).tolist(), dtype=np.float64)   # (6,)
+STD_ACT_MU = np.array(np.asarray(ck["std_act_mu"]).tolist(), dtype=np.float64)
 STD_ACT_SD = np.array(np.asarray(ck["std_act_sd"]).tolist(), dtype=np.float64)
 
 
@@ -275,9 +128,6 @@ def act_z_to_phys(a_z):
     return (a_n + 1.0) / 2.0 * (PCD_MAX_ACT - PCD_MIN_ACT) + PCD_MIN_ACT
 
 
-# ================================================================== policy ====
-# Rebuild whatever architecture the checkpoint records. Older checkpoints predate
-# policy_meta and are always Sum_of_gaussians, so fall back to that.
 _meta = ck.get("policy_meta")
 if _meta is None:
     centers_init = np.array(np.asarray(ck["centers_init"]).tolist(), dtype=np.float64)
@@ -290,17 +140,12 @@ if _meta is None:
                                    else np.ones(state_dim).tolist())}
 policy = rebuild_policy(_meta, dtype=dtype, device=device)
 _sd = ck["policy_state_dict"]
-# policies saved through a wrapper (_Pin, _TimeAware, BernoulliGatePolicy) carry a
-# "base." prefix on every key, while rebuild_policy constructs the bare module. The
-# wrapper's own behaviour is re-applied here by -fix_discharge, so only the inner
-# weights are needed.
 if any(k.startswith("base.") for k in _sd):
     _sd = {k[5:]: v for k, v in _sd.items() if k.startswith("base.")}
     print("[policy] stripped 'base.' prefix from a wrapped checkpoint")
 policy.load_state_dict(_sd)
 policy.eval()
 state_dim = _meta["state_dim"]
-# --- optional: three per-phase policies, selected by time ---
 PHASE_POLS = None
 if args.phase_policies:
     PHASE_POLS = {}
@@ -309,8 +154,6 @@ if args.phase_policies:
         _pc = torch.load(_pp, map_location=device, weights_only=False)
         _pol = rebuild_policy(_pc["policy_meta"], dtype=dtype, device=device)
         _psd = _pc["policy_state_dict"]
-        # same wrapper prefix as above: policies saved through _Pin / _TimeAware /
-        # BernoulliGatePolicy carry "base." on every key
         if any(k.startswith("base.") for k in _psd):
             _psd = {k[5:]: v for k, v in _psd.items() if k.startswith("base.")}
         _pol.load_state_dict(_psd)
@@ -335,7 +178,6 @@ def _policy_at(t_h):
     return PHASE_POLS[2]
 
 
-# --- optional: replay a recorded discharge trace ---
 DISCH_TRACE = None
 if args.discharge_csv:
     import csv as _csv
@@ -349,7 +191,6 @@ if args.discharge_csv:
           f"{len(_d)} steps, duty={100*_hi.mean():.1f}%, peak={DISCH_TRACE[1].max():.0f}, "
           f"volume={(DISCH_TRACE[1]*0.2).sum():.0f}")
 
-# --- optional: discharge from the recipe profile (ablation) ---
 DISCH_RECIPE = None
 if args.recipe_discharge:
     DISCH_RECIPE = Recipe(DISCHARGE_DEFAULT_PROFILE, DISCHARGE)
@@ -359,7 +200,6 @@ if args.recipe_discharge:
     if args.valve_policy:
         print("[ablation] WARNING: -recipe_discharge overrides -valve_policy")
 
-# --- optional split policy: P_C on discharge, the loaded policy on channels 1..5 ---
 VALVE = None
 if args.valve_policy:
     _ckv = torch.load(args.valve_policy, map_location=device, weights_only=False)
@@ -387,7 +227,6 @@ print(f"[policy] {args.policy}")
 print(f"[policy] kind={_meta['kind']} state_dim={state_dim} u_max={U_MAX_FLAT}"
       + (f" | final training W2 = {_hist[-1]:.4f}" if _hist else ""))
 
-# +/-10% band around the recipe setpoint, in PHYSICAL units
 SETPOINT_PHYS = (STD_ACT_MU + 1.0) / 2.0 * (PCD_MAX_ACT - PCD_MIN_ACT) + PCD_MIN_ACT
 LIM_LO = SETPOINT_PHYS * (1.0 - ACTION_LIMIT_FRAC)
 LIM_HI = SETPOINT_PHYS * (1.0 + ACTION_LIMIT_FRAC)
@@ -398,7 +237,6 @@ if args.cliprecipe: _modes.append("time-varying +/-10% of recipe profile")
 print(f"[action] clipping: {' + '.join(_modes) if _modes else 'OFF (env bounds only)'}")
 
 
-# ===================================================================== env ====
 recipe_dict = {FS: Recipe(FS_DEFAULT_PROFILE, FS),
                FOIL: Recipe(FOIL_DEFAULT_PROFILE, FOIL),
                FG: Recipe(FG_DEFAULT_PROFILE, FG),
@@ -406,8 +244,6 @@ recipe_dict = {FS: Recipe(FS_DEFAULT_PROFILE, FS),
                DISCHARGE: Recipe(DISCHARGE_DEFAULT_PROFILE, DISCHARGE),
                WATER: Recipe(WATER_DEFAULT_PROFILE, WATER),
                PAA: Recipe(PAA_DEFAULT_PROFILE, PAA)}
-# the seed goes in the constructor; some smpl releases also expose .seed(), this one
-# may not -- hence the hasattr guard
 def make_env(seed):
     """A FRESH env per episode.
 
@@ -424,20 +260,14 @@ def make_env(seed):
     return e
 
 
-env = make_env(args.seed)          # module-level instance: only used for action bounds
+env = make_env(args.seed)
 ENV_MIN_ACT_ = np.array(np.asarray(env.min_actions).tolist(), dtype=np.float64)
 ENV_MAX_ACT_ = np.array(np.asarray(env.max_actions).tolist(), dtype=np.float64)
 
-# time-varying recipe band, in PHYSICAL units (the env is run with normalize=False).
-# The action vector order is [discharge, sugar, soilbean, aeration, backpressure,
-# waterinj]; PAA is in recipe_dict for the simulator but is not a policy action.
 RECIPE_BOUNDS = None
 if args.cliprecipe:
     _keys = [DISCHARGE, FS, FOIL, FG, PRES, WATER]
     _rc = RecipeCombo(recipe_dict={k: recipe_dict[k] for k in _keys})
-    # identity standardizer: we want the band in PHYSICAL units here, not z-scored
-    # RecipeBounds maps physical -> smpl min-max -> z. Passing mu=0, sd=1 leaves the
-    # result in smpl-normalised units, so it is converted back below.
     _ident_mu = np.zeros(pdata.ACT_DIM)
     _ident_sd = np.ones(pdata.ACT_DIM)
     RECIPE_BOUNDS = RecipeBounds(_rc, _keys, ENV_MIN_ACT_, ENV_MAX_ACT_,
@@ -455,11 +285,10 @@ ENV_MIN_ACT = np.array(np.asarray(env.min_actions).tolist(), dtype=np.float64)
 ENV_MAX_ACT = np.array(np.asarray(env.max_actions).tolist(), dtype=np.float64)
 
 
-# ================================================================ rollout ====
 def run_episode(ep, seed):
-    env = make_env(seed)                       # fresh env -- no cross-episode leakage
+    env = make_env(seed)
     if VALVE is not None:
-        VALVE["hours"] = 0.0                   # or the counter leaks between episodes
+        VALVE["hours"] = 0.0
     o = np.array(np.asarray(env.reset()).reshape(-1).tolist(), dtype=np.float64)
     rows, total_yield, t = [], 0.0, 0
     while True:
@@ -469,7 +298,6 @@ def run_episode(ep, seed):
             _a = _policy_at(float(o[pdata.TIME_INDEX]))(
                 states=_s, t=t, p_dropout=args.p_dropout)
             if VALVE is not None:
-                # P_C sees [state, hours_open]; the counter is what lets it close
                 _sa = torch.cat([_s, torch.tensor([[VALVE["hours"]]], dtype=dtype,
                                                   device=device)], dim=1)
                 _u = VALVE["pc"](states=_sa, t=t, p_dropout=args.p_dropout)
@@ -485,41 +313,31 @@ def run_episode(ep, seed):
         a_phys = act_z_to_phys(a_z)
         if args.fix_discharge is not None \
                 and float(o[pdata.TIME_INDEX]) < args.fix_until:
-            # growth phase: the vessel should fill, not drain. gpei holds discharge at
-            # exactly 0 for the first ~100 h.
             a_phys[0] = float(args.fix_discharge)
         if DISCH_TRACE is not None:
-            # previous-value hold: linear interpolation would smear the 2-hour pulses
             _tt, _dd = DISCH_TRACE
             _k = int(np.searchsorted(_tt, float(o[pdata.TIME_INDEX]), side="right") - 1)
             a_phys[0] = float(_dd[min(max(_k, 0), len(_dd) - 1)])
         if DISCH_RECIPE is not None:
-            # the profile is a zero-order hold keyed on absolute batch time
             a_phys[0] = float(DISCH_RECIPE.get_value_at(float(o[pdata.TIME_INDEX])))
-        if args.clip10:                        # static band (dataset mean)
+        if args.clip10:
             a_phys = np.clip(a_phys, LIM_LO, LIM_HI)
-        if RECIPE_BOUNDS is not None:          # time-varying band (recipe profile)
-            t_h = float(o[pdata.TIME_INDEX])   # current time, physical hours
+        if RECIPE_BOUNDS is not None:
+            t_h = float(o[pdata.TIME_INDEX])
             _lo_n, _hi_n = RECIPE_BOUNDS.at(t_h)
-            # RecipeBounds returns smpl-normalised units; convert back to physical
             _span = ENV_MAX_ACT_ - ENV_MIN_ACT_
             lo_p = (np.asarray(_lo_n) + 1.0) / 2.0 * _span + ENV_MIN_ACT_
             hi_p = (np.asarray(_hi_n) + 1.0) / 2.0 * _span + ENV_MIN_ACT_
             a_phys = np.clip(a_phys, lo_p, hi_p)
-        a_phys = np.clip(a_phys, ENV_MIN_ACT, ENV_MAX_ACT)        # env bounds always
+        a_phys = np.clip(a_phys, ENV_MIN_ACT, ENV_MAX_ACT)
 
         step = env.step(a_phys)
         o_next = np.array(np.asarray(step[0]).reshape(-1).tolist(), dtype=np.float64)
         reward, done = float(step[1]), bool(step[2])
 
-        # PenSim returns error_reward (-100) INSTEAD of a yield at termination. That
-        # row carries no yield information, so it is neither summed nor written --
-        # otherwise every episode total is 100 low and the shipped baselines (which
-        # have no such row) look artificially better.
         is_error_row = reward <= ERROR_REWARD + 1e-9
         if not is_error_row:
             total_yield += reward
-            # CSV row: time, 6 actions, 8 observations (time dropped), yield
             rows.append([o_next[pdata.TIME_INDEX]] + list(a_phys) +
                         list(np.delete(o_next, pdata.TIME_INDEX)) + [reward])
             n_err = 0
@@ -538,13 +356,9 @@ def run_episode(ep, seed):
         _d = rows[:, 1]
         _hi = _d > 0.5 * max(_d.max(), 1e-9)
         _tr = np.diff(_hi.astype(int))
-        # total volume matters as much as the duty cycle: a policy can satisfy a low
-        # duty by barely discharging at all, which looks valve-like and does nothing
         print(f"    valve: duty={100*_hi.mean():5.1f}%  opens={int((_tr==1).sum())}  "
               f"peak={_d.max():7.1f}  total volume={(_d*0.2).sum():9.0f}"
               f"   (gpei: duty 5.2%, 6 opens, peak ~4000, volume ~46000)", flush=True)
-    # a diverged simulator writes non-finite observations, which then poison any model
-    # trained on the file -- discard the whole episode instead
     if rows.size and not np.isfinite(rows).all():
         print(f"    non-finite values ({int((~np.isfinite(rows)).sum())}) -- "
               f"simulator diverged; episode discarded", flush=True)
@@ -554,7 +368,7 @@ def run_episode(ep, seed):
 
 print(f"\ncollecting {args.n} episodes -> {args.out}", flush=True)
 summary = []
-MIN_STEPS = 100        # anything shorter is an aborted reset, not a real rollout
+MIN_STEPS = 100
 for ep in range(args.n):
     for attempt in range(4):
         rows, y, n_steps = run_episode(ep, args.seed + 1000 * attempt + ep)

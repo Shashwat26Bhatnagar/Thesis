@@ -1,26 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-check_w2_per_hour.py   (repo root)
-
-Per-hour W2 for a trained policy, against two references at every hour:
-    - the MEAN action (z = 0), which is what the collapsed policies emit
-    - the best of N random actions, i.e. roughly what is achievable
-
-    python check_w2_per_hour.py -policy results_tracenorm/tn_lam0.pt
-
-WHY PER HOUR RATHER THAN THE MEAN OVER HOURS. The training log reports one averaged
-W2, which cannot distinguish "uniformly mediocre everywhere" from "good in some hours,
-bad in others". Those call for different responses: the first is an optimisation
-problem, the second means the single time-invariant policy is being pulled between
-incompatible per-hour optima -- and a random search already showed the per-hour
-optima ARE incompatible, with discharge wanting +0.76 at t=75 and -1.59 at t=130.
-
-The gap column is the one to read: policy_W2 - best_W2. If it is large and roughly
-CONSTANT across hours, the policy is uniformly short of what is reachable. If it is
-small at some hours and large at others, the policy has specialised -- which would be
-the first evidence of genuine time-dependence rather than a compromise.
-"""
 import argparse
 import os
 import sys

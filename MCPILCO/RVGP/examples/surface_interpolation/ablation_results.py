@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import pickle
 import matplotlib.pyplot as plt
 import numpy as np
@@ -57,14 +56,6 @@ plt.xscale('log')
 plt.savefig('ablation_eigenvectors.svg')
 
 
-# fig = plt.figure()
-# ablation_density_results = [r.mean(0) for r in ablation_density_results]
-# ablation_density_results = np.array(ablation_density_results)
-# plt.errorbar(100*density, ablation_density_results[:,0], yerr = ablation_density_results[:,1].T)
-# plt.xlabel('Average distance between sample points (% manifold diam.)')
-# plt.ylabel('Mean alignment')
-# plt.ylim([0,1.1])
-# plt.savefig('ablation_density.svg')
 
 
 fig = plt.figure()

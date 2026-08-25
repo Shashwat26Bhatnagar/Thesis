@@ -1,10 +1,3 @@
-# Copyright (C) 2023 Alberto Dalla Libera
-#
-# SPDX-License-Identifier: MIT
-
-"""
-Author: Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-"""
 """
 This file contains a collections of functions that can be used to scale GP_prior.
 the inputs of the scaling funcitons are:

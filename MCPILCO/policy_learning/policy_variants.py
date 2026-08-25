@@ -1,58 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/policy_variants.py
-
-Three interchangeable policy architectures for the CDIL / Dyna pipeline:
-
-    "rbf"  Policy.Sum_of_gaussians          (existing MC-PILCO policy, unchanged)
-    "mlp"  plain feed-forward network
-    "kan"  Kolmogorov-Arnold network with RADIAL BASIS (Gaussian) edge functions
-
-All three satisfy the SAME contract, so nothing downstream changes:
-
-    policy(states=(P,ds), t=int, p_dropout=float) -> (P,da) in [-u_max, u_max]
-    policy.state_dim, policy.input_dim
-    policy.parameters()                    for Adam + clip_grad_norm_
-    build_policy(...) -> (policy, meta)    meta is saved into the checkpoint so a
-                                           warm start can rebuild the same object
-
-ARCHITECTURAL DIFFERENCE (the point of the ablation)
-
-    RBF   u = W . phi(||s - c_k||)      basis is JOINT over all input dims: one
-                                        Gaussian per centre in R^ds. Local: a state
-                                        far from every centre gives phi ~ 0, hence
-                                        u ~ 0 AND a vanishing gradient (this is the
-                                        "centre abandonment" failure seen when
-                                        rollouts diverged to |s| ~ 140).
-
-    MLP   u = W2 . tanh(W1 . s + b1)    activations fixed, weights learned. Global:
-                                        no dead regions, but no locality either.
-
-    KAN   u_j = sum_i psi_ij(s_i)       activations LEARNED, on edges, and each is
-          psi(x) = sum_g w_g exp(...)   UNIVARIATE. Per-dimension grids mean each
-                                        input is resolved independently -- useful
-                                        here because the 8 channels have very
-                                        different dynamics (pH vs vessel weight).
-
-PARAMETER BUDGET -- matched to the existing RBF policy (2808 params for ds=8, da=6):
-    rbf : 200 centres x 8 + 6 x 200 + 8            = 2808
-    mlp : 8x64 + 64 + 64x64 + 64 + 64x6 + 6        = 5062   (hidden=48 -> 3126)
-    kan : (8x10 + 10x6) x grid(16) + biases        = 2246   (grid=20 -> 2806)
-Defaults below are chosen to land near 2808; print_param_count() reports the actual.
-
-DROPOUT. The nested objective E_s(E_{a|s}) needs the K replicas of a state to draw
-DIFFERENT actions. The existing RBF policy's dropout gives a spread of only ~1e-5,
-i.e. E_{a|s} is nearly degenerate. MLP and KAN here draw a PER-ROW mask, so replicas
-genuinely differ. This is a deliberate behavioural difference -- flag it when
-comparing, since it changes what the inner expectation actually estimates.
-"""
 import numpy as np
 import torch
 import torch.nn as nn
 
 
-# =====================================================================================
 def _squash(x, u_max):
     """Bound to [-u_max, u_max]. tanh, matching the smooth saturating form used by
     Sum_of_gaussians (MC-PILCO's own squash is the periodic 9sin+sin3 variant; tanh
@@ -60,7 +12,6 @@ def _squash(x, u_max):
     return u_max * torch.tanh(x)
 
 
-# =====================================================================================
 class MLPPolicy(nn.Module):
     """Plain feed-forward policy: fixed activations, learned weights."""
 
@@ -73,7 +24,7 @@ class MLPPolicy(nn.Module):
         for i in range(len(dims) - 1):
             layers.append(nn.Linear(dims[i], dims[i + 1], dtype=dtype, device=device))
         self.layers = nn.ModuleList(layers)
-        for l in self.layers:                       # small init -> starts near u=0
+        for l in self.layers:
             nn.init.normal_(l.weight, std=0.1)
             nn.init.zeros_(l.bias)
 
@@ -84,13 +35,11 @@ class MLPPolicy(nn.Module):
             if i < len(self.layers) - 1:
                 x = torch.tanh(x)
                 if p_dropout > 0:
-                    # PER-ROW mask: replicas of one state must get different actions
                     m = (torch.rand_like(x) > p_dropout).to(x.dtype)
                     x = x * m / max(1.0 - p_dropout, 1e-6)
         return _squash(x, self.u_max)
 
 
-# =====================================================================================
 class RBFKANLayer(nn.Module):
     """One KAN layer with radial-basis (Gaussian) edge functions.
 
@@ -108,24 +57,20 @@ class RBFKANLayer(nn.Module):
         self.in_dim, self.out_dim, self.grid_size = in_dim, out_dim, grid_size
         grid = torch.linspace(grid_range[0], grid_range[1], grid_size,
                               dtype=dtype, device=device)
-        self.register_buffer("grid", grid)                       # (G,)
+        self.register_buffer("grid", grid)
         h = (grid_range[1] - grid_range[0]) / max(grid_size - 1, 1)
         self.register_buffer("h", torch.tensor(h, dtype=dtype, device=device))
-        # spline coefficients: one weight per (input, output, grid point)
         self.coef = nn.Parameter(
             0.1 * torch.randn(in_dim, out_dim, grid_size, dtype=dtype, device=device))
-        # a linear residual path keeps gradients alive when x falls off the grid
-        # (the RBF policy's failure mode: basis -> 0 => gradient -> 0)
         self.res = nn.Parameter(
             0.1 * torch.randn(in_dim, out_dim, dtype=dtype, device=device))
         self.bias = nn.Parameter(torch.zeros(out_dim, dtype=dtype, device=device))
 
-    def forward(self, x):                                        # x: (P, in_dim)
-        # basis: (P, in_dim, G)
+    def forward(self, x):
         z = (x.unsqueeze(-1) - self.grid) / self.h
         b = torch.exp(-z * z)
-        y = torch.einsum("pig,iog->po", b, self.coef)            # spline part
-        y = y + x @ self.res                                     # residual part
+        y = torch.einsum("pig,iog->po", b, self.coef)
+        y = y + x @ self.res
         return y + self.bias
 
 
@@ -144,12 +89,11 @@ class KANPolicy(nn.Module):
     def forward(self, states, t=None, p_dropout=0.0):
         h = self.l1(states)
         if p_dropout > 0:
-            m = (torch.rand_like(h) > p_dropout).to(h.dtype)     # per-row mask
+            m = (torch.rand_like(h) > p_dropout).to(h.dtype)
             h = h * m / max(1.0 - p_dropout, 1e-6)
         return _squash(self.l2(h), self.u_max)
 
 
-# =====================================================================================
 class BernoulliGatePolicy(nn.Module):
     """Wraps a policy and replaces selected action channels with a BERNOULLI GATE.
 
@@ -199,17 +143,16 @@ class BernoulliGatePolicy(nn.Module):
         return torch.sigmoid(self.gain * u[:, self.gate_channels])
 
     def forward(self, states, t=None, p_dropout=0.0):
-        u = self.base(states=states, t=t, p_dropout=p_dropout)      # (P, da)
-        cols = [u[:, j] for j in range(u.shape[1])]                 # avoid in-place
+        u = self.base(states=states, t=t, p_dropout=p_dropout)
+        cols = [u[:, j] for j in range(u.shape[1])]
         for i, ch in enumerate(self.gate_channels):
-            p = torch.sigmoid(self.gain * u[:, ch])                 # open probability
-            hard = torch.bernoulli(p)                               # {0,1}, no grad
-            gate = hard + p - p.detach()                            # straight-through
+            p = torch.sigmoid(self.gain * u[:, ch])
+            hard = torch.bernoulli(p)
+            gate = hard + p - p.detach()
             cols[ch] = self.z_off[i] + gate * (self.z_on[i] - self.z_off[i])
         return torch.stack(cols, dim=1)
 
 
-# =====================================================================================
 class TimeBandPolicy(nn.Module):
     """Wraps a policy so its output is CONSTRUCTED inside a time-varying band:
 
@@ -261,19 +204,13 @@ class TimeBandPolicy(nn.Module):
         return lo + (hi - lo) * torch.sigmoid(raw)
 
 
-# =====================================================================================
 def build_policy(kind, state_dim, input_dim, u_max=3.0, dtype=torch.float64,
                  device=torch.device("cpu"), rng=None,
-                 # --- rbf ---
                  num_basis=200, centers_init=None, lengthscales_init=None,
                  s_lo=None, s_hi=None, center_range_pad=1.10,
-                 # --- mlp ---
                  mlp_hidden=(48, 48),
-                 # --- kan ---
                  kan_hidden=10, kan_grid=20, kan_range=(-3.0, 3.0),
-                 # --- Bernoulli gate (bang-off-bang channels) ---
                  gate_channels=None, gate_z_off=None, gate_z_on=None, gate_gain=2.0,
-                 # --- time-varying band, constructed rather than clipped ---
                  band_lo=None, band_hi=None):
     """Construct a policy of the requested kind.
 
@@ -370,7 +307,6 @@ def rebuild_policy(meta, dtype=torch.float64, device=torch.device("cpu")):
     raise ValueError(kind)
 
 
-# =====================================================================================
 if __name__ == "__main__":
     ds, da, P, K = 8, 6, 20, 5
     lo, hi = -np.ones(ds) * 10, np.ones(ds) * 10
@@ -384,7 +320,6 @@ if __name__ == "__main__":
             rep = pol(states=s[:1].expand(K, -1).contiguous(), t=0, p_dropout=0.25)
         print(f"{kind:6s}{meta['n_params']:>9}  "
               f"[{u.min():8.3f}, {u.max():8.3f}]  {rep.std(0).mean():>24.3e}")
-        # gradient sanity
         s.requires_grad_(True)
         pol(states=s, t=0).sum().backward()
         gp = max(p.grad.abs().max().item() for p in pol.parameters()

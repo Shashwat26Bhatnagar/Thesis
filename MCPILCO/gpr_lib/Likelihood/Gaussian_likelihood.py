@@ -1,10 +1,3 @@
-# Copyright (C) 2023 Alberto Dalla Libera
-#
-# SPDX-License-Identifier: MIT
-"""
-Author: Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-"""
-
 import numpy as np
 import torch
 
@@ -19,8 +12,7 @@ class Marginal_log_likelihood(torch.nn.modules.loss._Loss):
         Y = Y - m_X
         N = Y.size()[0]
         MLL = torch.matmul(Y.transpose(0, 1), torch.matmul(K_X_inv, Y))
-        # MLL += log_det + N*np.log( 2*np.pi)
-        MLL += log_det  # + N*np.log( 2*np.pi)
+        MLL += log_det
         return 0.5 * MLL
 
 
@@ -30,8 +22,6 @@ class Posterior_log_likelihood(torch.nn.modules.loss._Loss):
     covariance matrix is diagonal"""
 
     def forward(self, Y, Y_hat, var):
-        # subtract the mean
         Y -= Y_hat
-        # get the approximate likelihood
         MLL = torch.sum(Y**2 / (2 * var) + 0.5 * torch.log(var))
         return MLL

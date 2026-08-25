@@ -1,55 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/cdil_policy_reps.py
-
-Reward maximisation subject to a per-hour Wasserstein constraint. A separate
-experiment: cdil_policy_clean.py is untouched, and this writes to results_reps/.
-
-THE OBJECTIVE  (REPS-style: maximise return subject to a similarity constraint)
-
-    max_theta  E[ r(s,a) ]     s.t.   W2_h(theta) <= eta   for every hour h
-
-as a Lagrangian, per window:
-
-    loss = -LCB_reward  +  ALPHA_W2 * relu(W2_h - eta)  +  chance penalties
-
-    W2_h        the SAME per-hour Cai-Lim cross-dimensional distance used
-                throughout, means excluded, E_s(E_a|s(.)).
-    LCB_reward  mu_r - KAPPA*sigma_r from the reward GP. The LOWER confidence bound,
-                not the mean: maximising a GP's mean invites the policy into regions
-                where the model is uncertain and optimistically wrong, and this
-                pipeline has already shown predictive variance saturating at the prior
-                once particles leave the data.
-    relu(...)   ONE-SIDED. Below eta the imitation term contributes nothing and the
-                policy is free to pursue reward; above it, the penalty switches on.
-                That is the constraint, not a weighted sum.
-
-ETA IS MEASURED, NOT CHOSEN
-    Per-hour W2 in TRAINING units (p_dropout=0.25, particle_pred=True), for policies
-    trained with W2 as the ONLY objective:
-        cdil_policy_selected.pt        final 0.2288
-        clean_lam0.pt                  final 0.2189
-        phase_bnd_rbf0_lam0p01         0.2530 -> 0.2368 over the first iterations
-    In EVALUATION units (deterministic, mean propagation) the same policies measure
-    0.11235 and 0.12115 per hour; the ~2x gap is dropout plus particle sampling.
-
-        eta = 0.23
-
-    i.e. "pursue reward freely, provided imitation is at least as good as the
-    pure-imitation policy already achieves". It is the value the unconstrained
-    lambda=0 policy converges to, so it is this architecture's best imitation and the
-    natural feasibility boundary -- not a tuned number.
-
-WHAT IS LOGGED EVERY ITERATION
-    W2 mean/min/max per hour, eta, the number of hours violating it, the raw penalty,
-    the reward term, and the combined loss -- so it is visible whether the constraint
-    is active or inert rather than inferred afterwards.
-
-    python policy_learning/cdil_policy_reps.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 \\
-        -reward_model results_pensim/reward_model_base.pt -iters 20
-"""
 import argparse
 import os
 import sys
@@ -85,54 +35,29 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) ---
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- episodic structure ---
 T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
 EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
 WINDOWS_PER_ITER = 150
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
-# --- policy ---
 NUM_BASIS, U_MAX = 200, 3.0
 CENTER_RANGE_PAD = 1.10
 
-# --- L2 ---
-# --- REPS constraint: max reward s.t. W2_h <= eta -------------------------------
-# ETA IS MEASURED, NOT CHOSEN. Policies trained with W2 as the ONLY objective converge
-# to these per-hour values in TRAINING units (p_dropout=0.25, particle_pred=True):
-#     cdil_policy_selected.pt   0.2288
-#     clean_lam0.pt             0.2189
-#     phase_bnd_rbf0_lam0p01    0.2530 -> 0.2368
-# In EVALUATION units the same policies measure 0.11235 and 0.12115; the ~2x gap is
-# dropout plus particle sampling. So 0.23 is this architecture's best imitation and
-# the natural feasibility boundary -- below it the constraint is inert and the policy
-# is free to pursue yield.
 ETA = 0.23
-ALPHA_W2 = 100.0                     # Lagrange weight on relu(W2 - eta)
-KAPPA = 1.0                          # reward LCB: mu_r - KAPPA*sigma_r. NOT the mean:
-                                     # maximising a GP's mean sends the policy where
-                                     # the model is uncertain and optimistic, and this
-                                     # pipeline has already shown predictive variance
-                                     # saturating at the prior off-distribution.
-LAMBDA_A = 0.0                       # optional action L2, off by default
+ALPHA_W2 = 100.0
+KAPPA = 1.0
+LAMBDA_A = 0.0
 
-# --- chance constraints (Tan et al. Eq. 8-9) ---
-CC_EPS = 0.95                        # paper: 95% -> Phi^-1 = 1.6449
-CC_ALPHA_ACT = 1000.0                # paper's alpha for the action box
-CC_ALPHA_STATE = 1.0                 # calibrated: at 1000 the vessel penalty was
-                                     # ~700x the W2 term and the policy optimised the
-                                     # constraint alone
-CC_WT_MIN_PHYS = 50000.0             # reference runs stay above 91000; batches start
-                                     # near 62500
+CC_EPS = 0.95
+CC_ALPHA_ACT = 1000.0
+CC_ALPHA_STATE = 1.0
+CC_WT_MIN_PHYS = 50000.0
 
-EXPERT_COV_KEY = "cov_n"             # the network's OWN normalised covariance. The
-                                     # physical one has eigenvalues ~349x larger than
-                                     # the GP's z-scored ones, which made the loss a
-                                     # fixed unclosable offset.
+EXPERT_COV_KEY = "cov_n"
 
 _ap = argparse.ArgumentParser("CDIL policy optimization (clean)")
 _ap.add_argument("-phase_prefix", required=True,
@@ -156,7 +81,6 @@ if _args.iters:
 OUT = _args.out or os.path.join(SAVE_DIR, f"clean_lam{str(LAMBDA_A).replace('.','p')}.pt")
 
 
-# ================================================================ world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -185,7 +109,6 @@ for _p in (0, 1, 2):
 stats = {k: np.asarray(CKS[0][k]) for k in
          ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
 
-# every model must share one z-space or switching between them is meaningless
 _ref_sd = np.asarray(CKS[0]["std_obs_sd"])
 for _p in (1, 2):
     _d = float(np.abs(np.asarray(CKS[_p]["std_obs_sd"]) - _ref_sd).max())
@@ -213,7 +136,6 @@ def phase_of(t_h):
     return 2
 
 
-# ====================================================================== expert ===
 _q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
 print(f"pre-caching {len(EXPERT_TIMES)} expert distributions ...", flush=True)
@@ -230,15 +152,11 @@ for _t in EXPERT_TIMES:
 print("windows per model: " + "  ".join(f"phase {k}: {v}" for k, v in sorted(_cnt.items())))
 
 
-# ====================================================================== policy ===
 _warm = None
 centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
     _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
     _m = _warm["policy_meta"]
-    # the standardizer refits on the union each iteration, so the same physical state
-    # maps to a different z; the centres are remapped to preserve behaviour in
-    # PHYSICAL units
     c0 = np.array(np.asarray(_m["centers_init"]).tolist(), dtype=np.float64)
     mo, so = np.asarray(_warm["std_obs_mu"]), np.asarray(_warm["std_obs_sd"])
     mn, sn = stats["std_obs_mu"], stats["std_obs_sd"]
@@ -260,14 +178,12 @@ print(f"\npolicy rbf: in={STATE_DIM} out={INPUT_DIM} u_max={U_MAX} "
       f"params={policy_meta['n_params']}")
 print(f"L2: lambda={LAMBDA_A} on ALL SIX channels (additive)")
 
-# E_{a|s} is only real if replicas of one state draw DIFFERENT actions
 with torch.no_grad():
     _sp = policy(states=POOL[:1].expand(K_ACTIONS, -1).contiguous(),
                  t=0, p_dropout=P_DROPOUT).std(0).mean().item()
 print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
       f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -285,7 +201,6 @@ print(f"  vessel floor alpha={CC_ALPHA_STATE}  Wt >= {CC_WT_MIN_PHYS:.0f} phys "
 _wt_tr = POOL[:, WT_IDX].numpy()
 print(f"  training data below the floor: {100*float((_wt_tr < CC_WT_MIN_Z).mean()):.1f}%")
 
-# ---------------------------------------------------------------- reward GP ----
 _rck = torch.load(_args.reward_model, map_location=device, weights_only=False)
 _rinit = dict(active_dims=np.arange(0, GP_INPUT_DIM),
               lengthscales_init=np.ones(GP_INPUT_DIM), flg_train_lengthscales=True,
@@ -318,7 +233,6 @@ optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# ================================================================== window loss ==
 _acc = {"var": None, "t0": 0}
 _acc_a, _acc_s = [], []
 _eig = None
@@ -346,11 +260,10 @@ def window_loss(t, s, a, mu, cov, s_next):
     var_1h = _acc["var"]
     _acc = {"var": None, "t0": 0}
 
-    d = w2_cross_dim_torch(var_1h, _eig)                       # (P,)
-    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+    d = w2_cross_dim_torch(var_1h, _eig)
+    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()
     _log["w2"].append(float(w2.detach()))
 
-    # --- reward over the window, lower confidence bound ---
     a_all_r = torch.cat(_acc_a, 0)
     s_all_r = torch.cat(_acc_s, 0)
     r_in = torch.cat([s_all_r, a_all_r], dim=1)
@@ -360,7 +273,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     reward = r_lcb.mean()
     _log["r"].append(float(reward.detach()))
 
-    # --- the constraint: ONE-SIDED, inert while W2 <= eta ---
     viol = torch.relu(w2 - ETA)
     pen = ALPHA_W2 * viol
     _log["viol"].append(float(viol.detach()))
@@ -382,11 +294,9 @@ def window_loss(t, s, a, mu, cov, s_next):
     _log["cc_s"].append(float(cc_s.detach()))
     _acc_a.clear()
 
-    # maximise reward -> minimise its negative; W2 enters ONLY through the constraint
     return -reward + pen + LAMBDA_A * l2 + cc_a + cc_s
 
 
-# ==================================================================== training ===
 hist, l2_first = [], None
 for it in range(N_ITERS):
     order = rng.permutation(len(EXPERT_TIMES))[:WINDOWS_PER_ITER]

@@ -1,36 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-plot_sample_efficiency.py   (repo root)
-
-Per-seed learning curves for the Dyna loop: yield against the number of real batches
-collected, one subplot per seed.
-
-    python plot_sample_efficiency.py
-    python plot_sample_efficiency.py -pattern 'pensim_rlloop_s*' -tag rl_iter
-    python plot_sample_efficiency.py -out figs/sample_efficiency.html -csv figs/yields.csv
-
-WHAT IT PLOTS, per seed:
-    batch yield          the yield of each real episode, in collection order
-    average yield so far running mean -- does the loop improve on average?
-    max yield so far     running max -- has it ever found a better policy?
-
-The x axis counts REAL BATCHES, not policy-optimisation iterations, because the
-expensive resource here is simulator episodes: each is 1150 ODE solves, while a policy
-update is free by comparison. Sample efficiency is the quantity that matters for a
-method meant to reduce real-plant experimentation.
-
-TWO THINGS THE PLOT MAKES VISIBLE that a single mean would hide. Whether a seed
-IMPROVES across iterations or merely fluctuates -- across every configuration tried in
-this project, yield has stayed within 2728-3486 with no clear trend, and a flat running
-mean is the signature of that. And whether the seeds AGREE: if the spread between seeds
-is as large as the differences previously attributed to method changes, those
-differences were run-to-run variance.
-
-EARLY-TERMINATING EPISODES ARE KEPT. A policy that drains the vessel at 121 h has a low
-yield because it failed; dropping it would flatter the run. Episodes are marked in the
-hover text with their end time so a short batch is identifiable.
-"""
 import argparse
 import csv
 import glob
@@ -72,7 +41,6 @@ def read_yield(path):
     return float(d[:, -1].sum()), float(d[-1, 0]), len(d)
 
 
-# ---------------------------------------------------------------- collect ----
 folders = sorted(glob.glob(os.path.join(args.root, args.pattern)))
 if not folders:
     raise SystemExit(f"no folders match {args.pattern} under {args.root}")
@@ -88,7 +56,7 @@ for fo in folders:
         if k and r:
             rows.append((int(k.group(1)), int(k.group(2)), *r))
     if rows:
-        rows.sort()                       # by iteration, then batch
+        rows.sort()
         SEEDS[seed] = rows
 
 if not SEEDS:
@@ -115,7 +83,6 @@ with open(args.csv, "w", newline="") as fh:
                         f"{np.mean(ys):.4f}", f"{np.max(ys):.4f}"])
 print(f"\nsaved -> {args.csv}")
 
-# ------------------------------------------------------------------ plot ----
 try:
     import plotly.graph_objects as go
     from plotly.subplots import make_subplots

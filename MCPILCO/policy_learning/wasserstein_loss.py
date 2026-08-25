@@ -1,46 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/wasserstein_loss.py
-
-2-Wasserstein distance between Gaussians, in two forms:
-
-  * wasserstein_gaussian(...)        numpy  -- reference implementation, used for
-                                    testing / analysis. NOT differentiable.
-  * w2_gaussian_torch(...)           torch  -- differentiable, batched over
-                                    particles. Used inside the CDIL rollout.
-
-EQUAL DIMENSION (Bures-Wasserstein):
-    W2^2 = ||mu1-mu2||^2 + tr(S1) + tr(S2) - 2 tr((S1^1/2 S2 S1^1/2)^1/2)
-
-DIFFERENT DIMENSION (Cai-Lim projection distance):
-    gamma = eigenvalues of the SMALLER cov (desc), lambda = of the LARGER (desc)
-    s_i*  = clamp(gamma_i, lambda_{n-m+i}, lambda_i)
-    W2^2  = sum_i (sqrt(gamma_i) - sqrt(s_i*))^2
-
-*** IMPORTANT: in the cross-dimensional branch the MEANS DROP OUT. ***
-The Cai-Lim distance absorbs the mean difference into a free translation, so the
-cost depends ONLY on the covariance spectra. For CDIL this means a pure cross-dim
-loss gives the policy NO signal about where the trajectory goes -- only about the
-shape of its uncertainty. See `mode` in cdil_w2_loss() for the alternatives.
-
-DIFFERENTIABILITY NOTES (torch version)
-    - Our GP covariance is DIAGONAL (num_gp independent scalar GPs), so its
-      eigenvalues are just the sorted diagonal: torch.sort, no eigendecomposition,
-      no unstable eigh backward. This is why the cross-dim branch is cheap and safe.
-    - The expert covariance is a CONSTANT target; its eigenvalues are computed once
-      and detached, so no gradient passes through the expert at all.
-    - The equal-dim branch needs a matrix square root -> eigh on a symmetric PSD
-      matrix. eigh's backward contains 1/(lambda_i - lambda_j) terms and can blow up
-      when eigenvalues are nearly degenerate; `jitter` guards this.
-"""
 import numpy as np
 import torch
 
 
-# =====================================================================================
-# NUMPY REFERENCE  (unchanged behaviour -- for tests and offline analysis)
-# =====================================================================================
 def _sym_sqrt(S):
     U, s, _ = np.linalg.svd(S)
     return (U * np.sqrt(np.clip(s, 0, None))) @ U.T
@@ -70,9 +33,6 @@ def wasserstein_gaussian(mu1, mu2, sigma1, sigma2):
     return np.sqrt(max(cost, 0.0))
 
 
-# =====================================================================================
-# TORCH  -- differentiable, batched over particles
-# =====================================================================================
 def _sym_sqrt_torch(S, eps=1e-12):
     """Matrix square root of a symmetric PSD matrix (..., d, d) via eigh."""
     w, V = torch.linalg.eigh(S)
@@ -80,33 +40,8 @@ def _sym_sqrt_torch(S, eps=1e-12):
     return (V * torch.sqrt(w).unsqueeze(-2)) @ V.transpose(-1, -2)
 
 
-# Trace-normalise both spectra inside w2_cross_dim_torch. See the long note in the
-# function body for why; set False to recover the previous behaviour exactly.
 TRACE_NORMALIZE = True
 
-# --- SMOOTHING: W2_eps = sqrt(W2^2 + eps^2) ---------------------------------------
-# Chewi et al., "Averaging on the Bures-Wasserstein manifold": W2(Sigma, .) "is
-# neither geodesically convex nor geodesically smooth, nor Euclidean convex nor
-# Euclidean smooth ... it poses challenges for optimization. We therefore smooth the
-# objective before optimization", with exactly this W_{2,eps} := sqrt(W2^2 + eps^2).
-#
-# The un-smoothed distance ends in sqrt(cost), whose derivative is 1/(2*sqrt(cost)) --
-# unbounded as cost -> 0. Every particle sitting near a zero of the cost therefore
-# contributes an enormous, near-random gradient direction, and averaged over 500
-# particles those directions largely cancel.
-#
-# MEASURED CONSEQUENCE. At t=75 h, W2 along the discharge axis reads 0.309, 0.310,
-# 0.164, 0.315 at a = -0.5, 0, +0.5, +1: a gradient that reverses within half a unit.
-# A random search over 400 actions per hour found actions beating the mean action by
-# 87-90% at t = 50..150, with the winners differing completely between hours
-# (discharge +0.76 at t=75 vs -1.59 at t=130) -- so far better policies EXIST. But 15
-# Adam steps on a single window moved the loss by ~1% and INCREASED it on four of
-# seven windows. That is the classic symptom: "large steps ... indicative of stable
-# local minima ... Classical descent, Adam, and Adamax are particularly susceptible"
-# (Tropical Gradient Descent, on Wasserstein projection problems).
-#
-# EPS is on the scale of W2 itself, which after trace-normalisation runs 0.05-0.40.
-# Larger eps smooths harder and biases the distance upward by ~eps at the minimum.
 SMOOTH_EPS = 0.05
 
 
@@ -125,58 +60,25 @@ def w2_cross_dim_torch(cov_big_diag, eig_small, eps=1e-12):
     if m > n:
         raise ValueError("eig_small must be the smaller dimension")
 
-    # eigenvalues of a diagonal matrix are its diagonal -> just sort (differentiable)
     if TRACE_NORMALIZE:
-        # --- put the two spectra on a common scale before comparing ---
-        #
-        # They arrive on unrelated ones. The expert's cov_n comes from dividing the
-        # state by a hand-picked [20, 80, 2.5] with NO centring, so its normalised
-        # values sit in [0,1] with means 0.27-0.38. The GP's covariance comes from
-        # physical -> smpl min-max -> z-score, a THREE-stage chain whose per-channel
-        # divisors span 103x (std_obs_sd 0.0034 .. 0.350). Nothing links the two.
-        #
-        # That mismatch is what produced the dead zone. w2_cross_dim_torch clamps the
-        # expert eigenvalue gamma into the band between the model's 3rd-smallest and
-        # 3rd-largest diagonal entries; when gamma lands INSIDE, s_star == gamma, the
-        # cost is exactly 0 and clamp has zero derivative -- no loss and no gradient.
-        # Measured at t=75 h with the summed 5-step covariance, W2 was 0.00000 for
-        # ALL SIX action channels across a in [-0.5, +0.5], which is precisely where
-        # the trained policies sat (z ~ 0.01-0.07). The only live gradients were the
-        # L2 and the chance box, both of which pull toward z=0 -- the dataset mean.
-        # That is why the actions collapsed to constants at ~1% of the reference's
-        # variance, and why nine different objectives all gave the same answer.
-        #
-        # Dividing each spectrum by its own trace cancels every accumulated scaling on
-        # both sides and leaves only the SHAPE, which is the one quantity the two can
-        # honestly be compared on without an 8->3 projection. Measured after this
-        # change: the zeros are gone, every channel varies (range 0.10-0.29).
-        #
-        # TWO COSTS, stated rather than hidden. The distance can no longer reach 0 --
-        # a 3-shape and an 8-shape never coincide exactly, so there is a floor around
-        # 0.05-0.16. And the landscape is jagged rather than smooth: at t=75 discharge
-        # reads 0.309, 0.310, 0.164, 0.315 at a = -0.5, 0, +0.5, +1.
         _cb = cov_big_diag / cov_big_diag.sum(dim=1, keepdim=True).clamp_min(eps)
         _es = eig_small.detach() / eig_small.detach().sum().clamp_min(eps)
     else:
         _cb, _es = cov_big_diag, eig_small.detach()
 
-    lam, _ = torch.sort(_cb, dim=1, descending=True)               # (P, n)
-    gam, _ = torch.sort(_es, descending=True)                      # (m,)
+    lam, _ = torch.sort(_cb, dim=1, descending=True)
+    gam, _ = torch.sort(_es, descending=True)
 
     idx = torch.arange(m, device=cov_big_diag.device)
-    lo = lam[:, n - m + idx]                                       # (P, m) lower band
-    hi = lam[:, idx]                                               # (P, m) upper band
-    g = gam.unsqueeze(0).expand(P, -1)                             # (P, m)
+    lo = lam[:, n - m + idx]
+    hi = lam[:, idx]
+    g = gam.unsqueeze(0).expand(P, -1)
 
-    # s* = clamp(gamma, lo, hi) -- torch.clamp with tensor bounds is differentiable
-    # w.r.t. whichever argument is selected (subgradient at the boundaries).
     s_star = torch.minimum(torch.maximum(g, lo), hi)
 
     cost = ((torch.sqrt(torch.clamp(g, min=eps))
              - torch.sqrt(torch.clamp(s_star, min=eps))) ** 2).sum(dim=1)
     if SMOOTH_EPS > 0.0:
-        # sqrt(W2^2 + eps^2) == sqrt(cost + eps^2), since cost IS W2^2 here. The
-        # derivative is bounded by 1/(2*eps) instead of diverging as cost -> 0.
         return torch.sqrt(torch.clamp(cost, min=0.0) + SMOOTH_EPS ** 2)
     return torch.sqrt(torch.clamp(cost, min=0.0) + eps)
 
@@ -194,7 +96,7 @@ def w2_equal_dim_torch(mu1, S1, mu2, S2, eps=1e-12, jitter=1e-8):
         S2 = S2.unsqueeze(0).expand_as(S1)
     d = S1.shape[-1]
     I = torch.eye(d, dtype=S1.dtype, device=S1.device).expand_as(S1)
-    S1 = S1 + jitter * I                    # guard eigh backward near degeneracy
+    S1 = S1 + jitter * I
     S2 = S2 + jitter * I
 
     s1h = _sym_sqrt_torch(S1, eps)
@@ -206,9 +108,6 @@ def w2_equal_dim_torch(mu1, S1, mu2, S2, eps=1e-12, jitter=1e-8):
     return torch.sqrt(torch.clamp(mean + tr, min=0.0) + eps)
 
 
-# =====================================================================================
-# CDIL entry point
-# =====================================================================================
 def cdil_w2_loss(mu_model, cov_model_diag, expert_b, expert_cov,
                  mode="cross_dim", project_mu=None, project_cov=None,
                  mean_weight=1.0):
@@ -228,7 +127,7 @@ def cdil_w2_loss(mu_model, cov_model_diag, expert_b, expert_cov,
                    weighted by mean_weight. Keeps the projection-free covariance
                    comparison but restores a trajectory-tracking signal.
     """
-    eig_e = torch.linalg.eigvalsh(expert_cov.detach())        # (de,) ascending
+    eig_e = torch.linalg.eigvalsh(expert_cov.detach())
 
     if mode == "cross_dim":
         return w2_cross_dim_torch(cov_model_diag, eig_e).mean()
@@ -236,8 +135,8 @@ def cdil_w2_loss(mu_model, cov_model_diag, expert_b, expert_cov,
     if mode == "projected":
         if project_mu is None or project_cov is None:
             raise ValueError("mode='projected' needs project_mu and project_cov")
-        mu_p = project_mu(mu_model)                            # (P, de)
-        cov_p = project_cov(cov_model_diag)                    # (P, de, de)
+        mu_p = project_mu(mu_model)
+        cov_p = project_cov(cov_model_diag)
         return w2_equal_dim_torch(mu_p, cov_p, expert_b.detach(),
                                   expert_cov.detach()).mean()
 
@@ -252,7 +151,6 @@ def cdil_w2_loss(mu_model, cov_model_diag, expert_b, expert_cov,
     raise ValueError("mode must be 'cross_dim', 'projected' or 'hybrid'")
 
 
-# =====================================================================================
 if __name__ == "__main__":
     rng = np.random.default_rng(0)
     print("--- numpy reference sanity checks ---")

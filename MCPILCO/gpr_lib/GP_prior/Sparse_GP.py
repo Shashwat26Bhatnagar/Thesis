@@ -1,10 +1,3 @@
-# Copyright (C) 2023 Alberto Dalla Libera
-#
-# SPDX-License-Identifier: MIT
-"""
-Author: Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-"""
-
 import numpy as np
 import torch
 
@@ -39,7 +32,6 @@ def get_SOR_GP(exact_GP_object):
     - K(U,U) = kernel matrix associated to the inducing inputs
     """
 
-    # create the SOR_GP class dynamically
     class SOR_GP(type(exact_GP_object)):
         """
         SUBSET OF REGRESSORS APPROXIMATION
@@ -49,7 +41,6 @@ def get_SOR_GP(exact_GP_object):
             """
             Initialize the object inheriting all the exact_GP_object parameters
             """
-            # initialize the GP object randomly
             GP_prior.GP_prior.__init__(
                 self,
                 active_dims=[0],
@@ -60,10 +51,8 @@ def get_SOR_GP(exact_GP_object):
                 sigma_n_num=None,
                 device=exact_GP_object.device,
             )
-            # assign all the variables of the exact_GP_object
             self.__dict__ = exact_GP_object.__dict__
             self.name = "SOR_GP " + self.name
-            # self.U =  torch.nn.Parameter(torch.tensor([],dtype=self.dtype, device=self.device), requires_grad=False)
 
         def init_inducing_inputs(self, inducing_inputs, flg_train_inducing_inputs=False):
             """
@@ -81,33 +70,19 @@ def get_SOR_GP(exact_GP_object):
             Set the inducing inputs with an online procedure
             """
             print("\nSelection of the inducing inputs...")
-            # get number of samples
             num_samples = X.shape[0]
-            # init the set of inducing inputs with the first sample
             self.U = torch.nn.Parameter(X[0:1, :], requires_grad=flg_regressors_trainable)
             inducing_inputs_indices = [0]
-            # iterate all the samples
             for sample_index in range(2, num_samples):
-                # get the estimate
-                # _, var, _ = self.get_SOR_estimate(X[:sample_index-1,:], Y[:sample_index-1,:], X[sample_index:sample_index+1,:])
                 _, var, _ = self.get_estimate(
                     X[inducing_inputs_indices, :], Y[inducing_inputs_indices, :], X[sample_index : sample_index + 1, :]
                 )
-                # check
-                # print('torch.sqrt(var)',torch.sqrt(var))
                 if torch.sqrt(var) > threshold:
                     self.U.data = torch.cat([self.U.data, X[sample_index : sample_index + 1, :]], 0)
                     inducing_inputs_indices.append(sample_index)
             print("Shape inducing inputs selected:", self.U.shape)
             return inducing_inputs_indices
 
-        # def print_model(self):
-        #     """Print the model parameters"""
-        #     # print('Exact GP parameters....')
-        #     # super(SOR_GP, self).print_model()
-        #     print('SOR parameters....')
-        #     for par_name, par_value in self.named_parameters():
-        #         print('-', par_name, ':', par_value.data)
 
         def get_SOR_alpha(self, X, Y):
             """
@@ -120,28 +95,20 @@ def get_SOR_GP(exact_GP_object):
             - m_X = prior mean of X
             - Sigma = inverse of (K_UU + sigma_n^-2*K_UX*K_XU)
             """
-            # get the mean and the phi and the covariance of the parameters
             m_X = self.get_mean(X)
             Y = Y - m_X
             K_XU = self.get_covariance(X, self.U)
             K_UU = self.get_covariance(self.U)
             sigma_n_square_inv = 1 / self.get_sigma_n_2()
             sigma_n_square = self.get_sigma_n_2()
-            # return the parameters
             Sigma_inv = K_UU + sigma_n_square_inv * torch.matmul(K_XU.transpose(0, 1), K_XU)
 
-            # Sigma_inv = sigma_n_square*K_UU + torch.matmul(K_XU.transpose(0,1), K_XU)
-            # Sigma = torch.inverse(Sigma_inv)
 
-            # U_Sigma_inv = torch.cholesky(Sigma_inv, upper=True)
-            # U_Sigma = torch.inverse(U_Sigma_inv)
-            # Sigma = torch.matmul(U_Sigma, U_Sigma.transpose(0,1))
 
             U_Sigma_inv = torch.cholesky(Sigma_inv, upper=True)
             Sigma = torch.cholesky_inverse(U_Sigma_inv, upper=True)
 
             SOR_alpha = sigma_n_square_inv * torch.matmul(torch.matmul(Sigma, K_XU.transpose(0, 1)), Y)
-            # SOR_alpha = torch.matmul(torch.matmul(Sigma, K_XU.transpose(0,1)), Y)
             return SOR_alpha, m_X, Sigma
 
         def get_SOR_estimate_from_alpha(self, X_test, SOR_alpha, m_X, Sigma=None):
@@ -157,15 +124,11 @@ def get_SOR_GP(exact_GP_object):
             - var = diagonal elements of the posterior variance
             If Sigma_inv is given the method returns also the confidence intervals (variance of the gaussian)
             """
-            # get covariance and prior mean
             K_X_test_U = self.get_covariance(X_test, self.U)
             m_X_test = self.get_mean(X_test)
-            # get the estimate
             Y_hat = m_X_test + torch.matmul(K_X_test_U, SOR_alpha)
-            # if Sigma_inv is given compute the confidence intervals
             if Sigma is not None:
                 var = torch.sum(torch.matmul(K_X_test_U, Sigma) * (K_X_test_U), dim=1)
-                # var = self.get_sigma_n_2()*torch.sum(torch.matmul(K_X_test_U, Sigma)*(K_X_test_U), dim=1)
             return Y_hat, var
 
         def get_SOR_estimate(self, X, Y, X_test, Y_test=None, flg_return_Sigma=False):
@@ -183,11 +146,8 @@ def get_SOR_GP(exact_GP_object):
             - m_X = prior mean of the training samples
             - Sigma = (K_UU + sigma_n^-2*K_UX*K_XU)
             """
-            # get the coefficent and the mean
             SOR_alpha, m_X, Sigma = self.get_SOR_alpha(X, Y)
-            # get the estimate and the confidence intervals
             Y_hat, var = self.get_SOR_estimate_from_alpha(X_test, SOR_alpha, m_X, Sigma=Sigma)
-            # return the opportune values
             if flg_return_Sigma:
                 return Y_hat, var, SOR_alpha, m_X, Sigma
             else:
@@ -205,29 +165,20 @@ def get_SOR_GP(exact_GP_object):
             - K_X_inv = inverse of (K_XU*K_UU^-1*K_UX+sigma_n^2)
             - log_det = (K_XU*K_UU^-1*K_UX+sigma_n^2)
             """
-            # get the mean
             m_X = self.get_mean(X)
-            # get kernel matrices
             K_X = None
             N = X.shape[0]
             K_UU = self.get_covariance(self.U)
             K_XU = self.get_covariance(X, self.U)
             sigma_n_square_inv = 1 / self.get_sigma_n_2()
-            # compute the K_UU^-1 logdet
             U_K_UU = torch.cholesky(K_UU, upper=True)
             K_UU_inv_log_det = -2 * torch.sum(torch.log(torch.diag(U_K_UU)))
-            # compute Sigma
             Sigma_inv = K_UU + sigma_n_square_inv * torch.matmul(K_XU.transpose(0, 1), K_XU)
-            # compute Sigma inverse and logdet
             U_Sigma_inv = torch.cholesky(Sigma_inv, upper=True)
             Sigma_inv_log_det = 2 * torch.sum(torch.log(torch.diag(U_Sigma_inv)))
-            # U_Sigma = torch.inverse(U_Sigma_inv)
-            # Sigma = torch.matmul(U_Sigma, U_Sigma.transpose(0,1))
             Sigma = torch.cholesky_inverse(U_Sigma, upper=True)
-            # compute K_X_inv
             K_X_inv = sigma_n_square_inv * torch.eye(N, dtype=self.dtype, device=self.device)
             K_X_inv -= sigma_n_square_inv**2 * torch.matmul(K_XU, torch.matmul(Sigma, K_XU.transpose(0, 1)))
-            # compute the log_det
             log_det = N * torch.log(self.get_sigma_n_2()) + K_UU_inv_log_det + Sigma_inv_log_det
             return m_X, K_X, K_X_inv, log_det
 
@@ -252,30 +203,21 @@ def get_SOR_GP(exact_GP_object):
             - f_saving_model = customizable function that save the model
             - f_print_model = customizable function that print the model (eventually with performance)
             """
-            # print initial parametes and initial estimates
             print("\nInitial parameters:")
             self.print_model()
-            # iterate over the training data for N_epochs
             for epoch in range(0, N_epoch):
-                # initialize loss grad and counter
                 running_loss = 0.0
                 N_btc = 0
                 optimizer.zero_grad()
-                # iterate over the training set
                 for i, data in enumerate(trainloader, 0):
-                    # get the training data
                     inputs, labels = data
-                    # zero the parameter gradients
                     optimizer.zero_grad()
-                    # forward + backward + optimize
                     out_SOR_GP_priors = self.SOR_forward(inputs)
                     loss = criterion(out_SOR_GP_priors, labels)
                     loss.backward(retain_graph=False)
                     optimizer.step()
-                    # update the running loss
                     running_loss = running_loss + loss.item()
                     N_btc = N_btc + 1
-                # print statistics and save the model
                 if epoch % N_epoch_print == 0:
                     print("\nEPOCH:", epoch)
                     self.print_model()
@@ -284,11 +226,9 @@ def get_SOR_GP(exact_GP_object):
                         f_saving_model(epoch)
                     if f_print is not None:
                         f_print()
-            # print the final parameters
             print("\nFinal parameters:")
             self.print_model()
 
-    # init the object and return
     return SOR_GP(exact_GP_object)
 
 
@@ -319,7 +259,6 @@ class Linear_GP(GP_prior.GP_prior):
         sigma_n_num=None,
         device=None,
     ):
-        # initilize the GP object
         super(Linear_GP, self).__init__(
             active_dims,
             sigma_n_init=sigma_n_init,
@@ -329,19 +268,14 @@ class Linear_GP(GP_prior.GP_prior):
             sigma_n_num=sigma_n_num,
             device=device,
         )
-        # check active dims
         if active_dims is None:
             raise RuntimeError("Active_dims are needed")
         self.num_features = active_dims.size
-        # save flg_offset (flg_offset=True => ones added to the phi)
         self.flg_offset = flg_offset
-        # pos par transformation
         self.f_transofrm_pos_par = f_transofrm_pos_par
         self.f_init_pos_par = f_init_pos_par
 
-        # check mean init
         self.check_mean(mean_init, flg_mean_trainable, flg_no_mean)
-        # check Sigma init
         self.check_sigma_function(
             Sigma_function,
             Sigma_f_additional_par_list,
@@ -409,9 +343,7 @@ class Linear_GP(GP_prior.GP_prior):
 
     def get_Sigma_list(self):
         """Returns a list with the Sigma matrices"""
-        # initialize the Sigma list
         Sigma_list = []
-        # computes Sigma
         Sigma_list.append(self.get_Sigma())
         return Sigma_list
 
@@ -425,13 +357,10 @@ class Linear_GP(GP_prior.GP_prior):
 
     def get_covariance(self, X1, X2=None, flg_noise=False):
         """Returns phi(X)^T*Sigma*phi(X)"""
-        # get the parameters variance
         Sigma = self.get_Sigma()
-        # get the covariance
         phi_X1 = self.get_phi(X1)
         if X2 is None:
             K_X = torch.matmul(phi_X1, torch.matmul(Sigma, phi_X1.transpose(0, 1)))
-            # check if we need to add the noise
             if flg_noise & self.GP_with_noise:
                 N = X1.size()[0]
                 return K_X + self.get_sigma_n_2() * torch.eye(N, dtype=self.dtype, device=self.device)
@@ -442,9 +371,7 @@ class Linear_GP(GP_prior.GP_prior):
 
     def get_diag_covariance(self, X, flg_noise=False):
         """Returns the diag of the cov matrix"""
-        # Get the parameters the variance
         Sigma = self.get_Sigma()
-        # get the diag of the covariance
         phi_X = self.get_phi(X)
         diag = torch.sum(torch.matmul(phi_X, Sigma) * (phi_X), dim=1)
         if flg_noise & self.GP_with_noise:
@@ -456,13 +383,10 @@ class Linear_GP(GP_prior.GP_prior):
         """Returns the estimate of w, the parameters of the regression.
         NB: the parameters returned are correct only if this is the only GP,
         in case of multiple kernel we need to rewrite the funciton"""
-        # get the mean and the inverse of the kernel matrix using forward
         m_X, _, K_X_inv = self.forward_for_estimate(X)
         Y = Y - m_X
-        # get sigma and phi
         Sigma = self.get_Sigma()
         phi_X_T = torch.transpose(self.get_phi(X), 0, 1)
-        # get the parameters
         w_hat = torch.matmul(Sigma, torch.matmul(phi_X_T, torch.matmul(K_X_inv, Y)))
         if flg_print:
             print(self.name + " linear parameters estimated: ", w_hat.data)
@@ -475,13 +399,11 @@ class Linear_GP(GP_prior.GP_prior):
         NB: the parameters returned are correct only if this is the only GP,
         in case of multiple kernel we need to rewrite the funciton"""
 
-        # get the mean and the phi and the covariance of the parameters
         m_X = self.get_mean(X)
         Y = Y - m_X
         Phi_X = self.get_phi(X)
         Sigma = self.get_Sigma()
         sigma_n_square = self.get_sigma_n_2()
-        # return the parameters
         cov = torch.inverse(Sigma) + sigma_n_square * torch.matmul(Phi_X.transpose(0, 1), Phi_X)
         cov = torch.inverse(cov)
         w_hat = sigma_n_square * torch.matmul(torch.matmul(cov, Phi_X.transpose(0, 1)), Y)
@@ -513,11 +435,9 @@ class Poly_GP(Linear_GP):
         sigma_n_num=None,
         device=None,
     ):
-        # initilize the mean parameters (no mean considered)
         mean_init = None
         flg_mean_trainable = False
         flg_no_mean = True
-        # initialize the linear model
         super(Poly_GP, self).__init__(
             active_dims=active_dims,
             mean_init=mean_init,
@@ -539,7 +459,6 @@ class Poly_GP(Linear_GP):
             sigma_n_num=sigma_n_num,
             device=device,
         )
-        # save the poly deg
         self.poly_deg = poly_deg
 
     def get_covariance(self, X1, X2=None, flg_noise=False):
@@ -573,7 +492,6 @@ class MPK_GP(Linear_GP):
         sigma_n_num=None,
         device=None,
     ):
-        # init the linear GP object
         mean_init = None
         flg_mean_trainable = False
         flg_no_mean = True
@@ -603,7 +521,6 @@ class MPK_GP(Linear_GP):
             device=device,
         )
         self.poly_deg = poly_deg
-        # get kernel parameters
         self.Sigma_pos_par = torch.nn.Parameter(
             torch.tensor(np.log(Sigma_pos_par_init), dtype=self.dtype, device=self.device),
             requires_grad=flg_train_Sigma_pos_par,
@@ -633,13 +550,6 @@ class MPK_GP(Linear_GP):
             self.current_deg = deg
             K_X *= super(MPK_GP, self).get_covariance(X1, X2, flg_noise=False)
 
-        # Sigma_tensor = torch.cat([self.get_Sigma_deg(deg).unsqueeze(0) for deg in range(self.poly_deg)],0)
-        # Phi_X1 = self.get_phi(X1).unsqueeze(0)
-        # if X2 is None:
-        #     Phi_X2 = Phi_X1
-        # else:
-        #     Phi_X2 = self.get_phi(X2).unsqueeze(0)
-        # K_X = torch.prod(torch.matmul(Phi_X1, torch.matmul(Sigma_tensor, Phi_X2.transpose(1,2))),0)
 
         if flg_noise & self.GP_with_noise & N1 == N2:
             K_X += self.get_sigma_n_2() * torch.eye(N1, dtype=self.dtype, device=self.device)
@@ -684,9 +594,7 @@ def get_Volterra_MPK_GP(
     Returns a Volterra MPK GP:
     the kernel is the sum of poly_deg MPK GP (one for each deg)
     """
-    # init the GP list
     gp_list = []
-    # get the first order contribution (with noise)
     gp_list.append(
         MPK_GP(
             active_dims,
@@ -702,15 +610,6 @@ def get_Volterra_MPK_GP(
             device=device,
         )
     )
-    # Sigma_function=Utils.Parameters_covariance_functions.diagonal_covariance_ARD
-    # Sigma_f_additional_par_list=[]
-    # gp_list.append(Poly_GP(active_dims, poly_deg=1,
-    #                       sigma_n_init=sigma_n_init, flg_train_sigma_n=flg_train_sigma_n,
-    #                       Sigma_function=Sigma_function, Sigma_f_additional_par_list=Sigma_f_additional_par_list,
-    #                       Sigma_pos_par_init=Sigma_pos_par_init_list[0], flg_train_Sigma_pos_par=flg_train_Sigma_pos_par_list[0],
-    #                       flg_offset=True,
-    #                       name='POLY_1', dtype=dtype, sigma_n_num=sigma_n_num, device=device))
-    # get the higher order contributions
     for deg in range(1, poly_deg):
         gp_list.append(
             MPK_GP(
@@ -727,11 +626,4 @@ def get_Volterra_MPK_GP(
                 device=device,
             )
         )
-        # gp_list.append(Poly_GP(active_dims, poly_deg=deg,
-        #                       sigma_n_init=sigma_n_init, flg_train_sigma_n=flg_train_sigma_n,
-        #                       Sigma_function=Sigma_function, Sigma_f_additional_par_list=Sigma_f_additional_par_list,
-        #                       Sigma_pos_par_init=Sigma_pos_par_init_list[deg], flg_train_Sigma_pos_par=flg_train_Sigma_pos_par_list[deg],
-        #                       flg_offset=False,
-        #                       name='POLY_'+str(deg), dtype=dtype, sigma_n_num=sigma_n_num, device=device))
-    # return the sum of the GPs
     return GP_prior.Sum_Independent_GP(*gp_list)

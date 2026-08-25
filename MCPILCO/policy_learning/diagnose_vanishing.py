@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""Locate where the gradient dies: policy basis, squashing, or GP kernel.
-
-Rolls the policy through the frozen GP and, at several points along the horizon,
-measures separately:
-    (A) state magnitude / distance to the policy's RBF centers
-    (B) policy basis activation  -> tests "RBF center abandonment"
-    (C) pre-squash vs post-squash output -> tests "squashing saturation"
-    (D) d(action)/d(policy params)  -> is the POLICY still differentiable?
-    (E) d(GP delta)/d(gp input)     -> is the GP still differentiable?
-
-Run from the repo root:  python policy_learning/diagnose_vanishing.py
-"""
 import os, sys
 import numpy as np
 import torch
@@ -34,7 +22,6 @@ P = 64
 T = 750
 PROBES = [0, 50, 150, 300, 500, 749]
 
-# ---------------- load frozen GP ----------------
 c = torch.load(os.path.join(_REPO, "results_pensim", "rbf_model.pt"),
                map_location=device, weights_only=False)
 init = dict(active_dims=np.arange(G), lengthscales_init=np.ones(G),
@@ -50,7 +37,7 @@ for k in ("gp_inputs","gp_output_list","alpha_list","m_X_list","K_X_inv_list","g
 model.num_samples = c["gp_inputs"].shape[0]; model.norm_list = [1.0]*SD
 model.set_eval_mode()
 
-Xtr = model.gp_inputs                       # (300, 14) training inputs
+Xtr = model.gp_inputs
 print(f"GP training inputs: {tuple(Xtr.shape)}")
 print(f"  per-dim range: min={Xtr.min(0).values.numpy()}")
 print(f"                 max={Xtr.max(0).values.numpy()}")
@@ -58,7 +45,6 @@ print(f"  GP lengthscales (GP0): {torch.exp(model.gp_list[0].log_lengthscales_pa
 print(f"  GP prior lambda per GP: "
       f"{[round(torch.exp(g.log_lambda_par).item(),4) for g in model.gp_list]}")
 
-# ---------------- policy (same config as the driver) ----------------
 nb = 200
 policy = Policy.Sum_of_gaussians(
     state_dim=SD, input_dim=ID, num_basis=nb, u_max=3.0,
@@ -68,7 +54,6 @@ policy = Policy.Sum_of_gaussians(
     weight_init=0.1*np.random.randn(ID, nb),
     dtype=dtype, device=device)
 
-# find the centers / lengthscales tensors by name (naming varies)
 named = dict(policy.named_parameters())
 print("\npolicy parameters:", {k: tuple(v.shape) for k, v in named.items()})
 ctr = None; ls = None
@@ -78,7 +63,6 @@ for k, v in named.items():
 print(f"  centers range: [{ctr.min().item():.3f}, {ctr.max().item():.3f}]" if ctr is not None
       else "  (centers tensor not identified)")
 
-# ---------------- rollout with probes ----------------
 s = Xtr[:P, :SD].clone()
 print(f"\n{'t':>5} {'|s|_max':>9} {'min dist':>9} {'basis max':>10} {'basis>1e-6':>11} "
       f"{'|a| max':>9} {'d a/d th':>10} {'d gp/d in':>11} {'GP var max':>11}")
@@ -89,18 +73,15 @@ for t in range(T):
         s_p = s.detach().clone().requires_grad_(True)
         a_p = policy(states=s_p, t=t, p_dropout=0.0)
 
-        # (D) gradient of the action wrt POLICY parameters
         policy.zero_grad()
         a_p.abs().sum().backward(retain_graph=True)
         d_theta = max((p.grad.abs().max().item() for p in policy.parameters()
                        if p.grad is not None), default=0.0)
 
         with torch.no_grad():
-            # (A) state magnitude and distance to nearest policy centre
             if ctr is not None:
-                dist = torch.cdist(s_p.detach(), ctr.detach())           # (P, nb)
+                dist = torch.cdist(s_p.detach(), ctr.detach())
                 min_dist = dist.min().item()
-                # (B) basis activation exp(-0.5 * d^2 / l^2), l ~ 1
                 basis = torch.exp(-0.5 * dist**2)
                 bmax = basis.max().item()
                 bcnt = int((basis > 1e-6).sum().item())
@@ -109,7 +90,6 @@ for t in range(T):
             smax = s_p.detach().abs().max().item()
             amax = a_p.detach().abs().max().item()
 
-        # (E) gradient of the GP output wrt its INPUT
         gp_in = torch.cat([s_p.detach(), a_p.detach()], 1).requires_grad_(True)
         ml, vl = model.get_gp_estimate(gp_inputs=gp_in, gp_index_list=range(SD))
         dm = torch.cat(ml, 1); dv = torch.cat([v.reshape(-1,1) for v in vl], 1)

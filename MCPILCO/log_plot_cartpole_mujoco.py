@@ -1,12 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors: 	Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-         	Fabio Amadio (fabioamadio93@gmail.com)
-MERL:	    Diego Romeres (romeres@merl.com)
-"""
-
 """
 Plot obtained results from log files (cartpole MuJoCo experiment)
 """
@@ -26,12 +17,10 @@ import policy_learning.MC_PILCO as MC_PILCO
 import policy_learning.Policy as Policy
 import simulation_class.ode_systems as f_ode
 
-# file parameters
 p = argparse.ArgumentParser("plot log")
 p.add_argument("-dir_path", type=str, default="results_tmp/", help="none")
 p.add_argument("-seed", type=int, default=1, help="none")
 
-# load parameters
 locals().update(vars(p.parse_known_args()[0]))
 file_name = dir_path + str(seed) + "/log.pkl"
 print("---- Reading log file: " + file_name)
@@ -89,7 +78,6 @@ for trial_index in range(0, num_trials):
     plt.ylabel("$c$")
     plt.plot(cost)
     plt.plot(np.zeros(len(state_samples[:, :, 0])), "r--")
-    # plt.show()
     plt.savefig(dir_path + str(seed) + "/" + "particles_rollout_trial" + str(trial_index) + ".pdf")
     plt.close()
 

@@ -1,11 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors: 	Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-         	Fabio Amadio (fabioamadio93@gmail.com)
-MERL contact:	Diego Romeres (romeres@merl.com)
-"""
 import sys
 
 import torch
@@ -71,4 +63,4 @@ class MC_PILCO_Mujoco(MC_PILCO):
             device=device,
         )
 
-        self.system = model.Mujoco_Model(f_sim, sim_timestep)  # MuJoCo-simulated system
+        self.system = model.Mujoco_Model(f_sim, sim_timestep)

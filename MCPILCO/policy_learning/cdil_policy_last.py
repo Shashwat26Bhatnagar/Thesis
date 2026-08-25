@@ -1,132 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/cdil_policy_last.py
-
-CDIL policy optimization, rebuilt clean. Writes to results_clean/ and does not touch
-any existing file.
-
-ONE W2 ON THE 5th STEP, BACKPROPAGATED THROUGH ALL FIVE
-
-    was:  _acc["var"] += cov  for all 5 steps, then one W2 on the SUM
-    now:  keep only the 5th step's covariance, one W2 on that, gradient still flowing
-          back through all five via the reparameterised chain (graph_mode="full")
-
-    Summing merges five timesteps before the comparison, so the five steps within an
-    hour are averaged away before the loss ever sees them -- one of three nested
-    averages in the original objective (timesteps, then 500 particles, then 150
-    windows), each discarding variation the next could have used.
-
-    SCALE CAVEAT, stated rather than hidden. The GP step is 0.2 h and the expert's
-    interval is 1.0 h. The sum of five per-step variances approximated a 1-hour
-    transition covariance; a single step's is roughly 5x smaller. -last_scale
-    multiplies the 5th-step covariance to compensate; with trace-normalisation ON the
-    overall scale cancels anyway, so it matters less than it would otherwise.
-
-WHY THIS FILE EXISTS: THE LOSS IS NON-SMOOTH AND ADAM CANNOT DESCEND IT
-
-    Two facts, both measured:
-
-    1. Far better per-hour actions EXIST. Random search over 400 actions per hour beat
-       the mean action by 87-90% at t = 50..150, and the winners differ completely
-       between hours -- discharge +0.76 at t=75 against -1.59 at t=130.
-
-    2. Gradient descent does not find them. Fifteen Adam steps on a single window,
-       starting from theta_0, moved the loss by ~1% and INCREASED it on four of seven
-       windows (t=30 +1.7%, t=75 +6.4%, t=100 +5.4%). The resulting per-hour policies
-       phi_h were already near-identical, at 0.28-1.04% of the reference's action
-       spread, BEFORE any meta-averaging -- so the outer average is not the cause.
-
-    Chewi et al. ("Averaging on the Bures-Wasserstein manifold") state the reason
-    directly: W2(Sigma, .) "is neither geodesically convex nor geodesically smooth,
-    nor Euclidean convex nor Euclidean smooth ... it poses challenges for
-    optimization", and they smooth the objective before optimising, with exactly
-    W_{2,eps} := sqrt(W2^2 + eps^2). Tropical Gradient Descent reports the same
-    symptom on Wasserstein projection problems: "stable local minima ... Classical
-    descent, Adam, and Adamax are particularly susceptible", worst in low dimensions.
-
-    This file applies that smoothing (wasserstein_loss.SMOOTH_EPS). The un-smoothed
-    distance ends in sqrt(cost), whose derivative diverges as cost -> 0, so particles
-    near a zero contribute enormous near-random directions that cancel when averaged
-    over 500. Bounding the derivative at 1/(2*eps) is the standard fix.
-
-    NOTE the distance is now biased upward by ~eps at its minimum, so W2 values are
-    NOT comparable to earlier runs.
-
-WHY THE IMITATION TERM WAS SILENT BEFORE THAT
-
-    w2_cross_dim_torch now trace-normalises both spectra before comparing (see the
-    note in that function). Without it the loss was EXACTLY ZERO -- no loss, no
-    gradient -- for all six action channels across a in [-0.5, +0.5], measured at
-    t=75 h with the summed 5-step covariance that training actually uses. The trained
-    policies sat at z ~ 0.01-0.07, inside that dead zone.
-
-    The cause was a normalisation mismatch, not the distance itself. The expert's
-    cov_n comes from state/[20, 80, 2.5] with no centring; the GP's covariance comes
-    from physical -> smpl min-max -> z-score, whose per-channel divisors span 103x.
-    The two spectra overlapped only by coincidence of independent rescalings, and
-    that overlap put the expert's eigenvalues inside the Cai-Lim clamp band, where
-    s_star == gamma and the cost is identically zero.
-
-    WHAT THAT EXPLAINS. With W2 silent, the only live gradients were the action L2 and
-    the chance box, and BOTH pull toward z = 0 -- which, under z-scoring, IS the
-    dataset-mean action. So the policy converged to the mean on every channel, at
-    ~1% of the reference's action variance, and nine successive objectives (L1, L2,
-    minimum-action, reward maximisation, Bernoulli gate, ASRE sparsity KL, a separate
-    valve policy, PPO, Reptile) all produced the same collapse -- eight of them were
-    regularisers layered on a term contributing nothing, and the meta-updates were
-    redistributing a gradient that was zero.
-
-    AFTER THE FIX, measured: no zeros anywhere, every channel varies with a range of
-    0.10-0.29. The distance no longer reaches 0 (a 3-shape and an 8-shape cannot
-    coincide, so there is a floor near 0.05-0.16) and the landscape is jagged rather
-    than smooth. W2 VALUES FROM THIS FILE ARE NOT COMPARABLE to any earlier run.
-
-WHAT IS IN
-    W2      E_s[ E_{a|s}[ W2( P(s'|s,a) || P_expert(s'|s) ) ] ]
-            Cai-Lim cross-dimensional distance, 8-D model vs 3-D expert. Means drop
-            out by construction -- the objective matches covariance spectra only.
-    L2      lambda * mean||a||^2 over ALL SIX channels, ADDITIVE.
-    chance  Tan et al. Eq. 8-9 soft chance constraints: the static action box, and a
-            floor on the predicted vessel weight.
-
-WHAT IS OUT (deliberately, after all of these were tried and did not survive)
-    Bernoulli gate on discharge      the gate contradicted the chance constraint
-                                     (a two-point distribution has maximal variance,
-                                     so the variance back-off flagged it in 150/150
-                                     windows and the penalty reached 1156x the W2
-                                     term). Adding a learned magnitude then gave the
-                                     gate a degenerate optimum -- hold it open and set
-                                     the level near zero -- which is the continuous
-                                     head it was meant to replace.
-    ASRE sparsity KL                 fixes the marginal duty cycle, not the temporal
-                                     structure; the deployed policy still flickered
-                                     (51 opens of 0.22 h against the reference's 6 of
-                                     2.0 h).
-    multiplicative violation penalty confounded with the L2 term.
-    separate valve policy            its state-matching target was minimised by not
-                                     discharging at all (duty went to 0 by iteration 7
-                                     and stayed).
-    discharge override               useful as an ablation, not as a policy.
-
-VERIFYING THAT L2 ACTUALLY BINDS
-    In an earlier sweep lambda=0.001 came back with an action norm 1.656x the
-    lambda=0 reference -- more regularisation, larger actions. That is backwards, and
-    either the term was not reaching the loss or run-to-run variance swamped it. This
-    file therefore logs mean||a||^2 EVERY iteration alongside lambda*||a||^2, and
-    prints the first-to-last change at the end, so the effect of lambda is visible
-    directly rather than inferred from the sweep table.
-
-STRUCTURE (MC-PILCO, Amadio et al. 2022)
-    Each expert hour is one self-contained episode: T = 5 steps, a FRESH
-    in-distribution start state, one graph, one backward, one update. A single long
-    continuing rollout instead drove |s| to ~140 z-units against training data
-    spanning [-5.5, 11.2], which killed the gradient twice over -- the GP's predictive
-    variance saturated at the prior, and the policy's RBF basis abandoned its centres.
-
-    python policy_learning/cdil_policy_last.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 -lam 0.01 -iters 20
-"""
 import argparse
 import os
 import sys
@@ -162,37 +35,26 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) ---
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- episodic structure ---
 T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
 EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
 WINDOWS_PER_ITER = 150
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
-# --- policy ---
 NUM_BASIS, U_MAX = 200, 3.0
 CENTER_RANGE_PAD = 1.10
 
-# --- L2 ---
-LAMBDA_A = 0.0                       # set with -lam; 0.0 is the sweep reference
+LAMBDA_A = 0.0
 
-# --- chance constraints (Tan et al. Eq. 8-9) ---
-CC_EPS = 0.95                        # paper: 95% -> Phi^-1 = 1.6449
-CC_ALPHA_ACT = 1000.0                # paper's alpha for the action box
-CC_ALPHA_STATE = 1.0                 # calibrated: at 1000 the vessel penalty was
-                                     # ~700x the W2 term and the policy optimised the
-                                     # constraint alone
-CC_WT_MIN_PHYS = 50000.0             # reference runs stay above 91000; batches start
-                                     # near 62500
+CC_EPS = 0.95
+CC_ALPHA_ACT = 1000.0
+CC_ALPHA_STATE = 1.0
+CC_WT_MIN_PHYS = 50000.0
 
-EXPERT_COV_KEY = "cov_n"             # the network's OWN normalised covariance. The
-                                     # physical one has eigenvalues ~349x larger than
-                                     # the GP's z-scored ones, which made the loss a
-                                     # fixed unclosable offset.
+EXPERT_COV_KEY = "cov_n"
 
 _ap = argparse.ArgumentParser("CDIL policy optimization (clean)")
 _ap.add_argument("-phase_prefix", required=True,
@@ -218,7 +80,6 @@ OUT = _args.out or os.path.join(SAVE_DIR,
         f"last_lam{str(LAMBDA_A).replace('.','p')}.pt")
 
 
-# ================================================================ world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -247,7 +108,6 @@ for _p in (0, 1, 2):
 stats = {k: np.asarray(CKS[0][k]) for k in
          ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
 
-# every model must share one z-space or switching between them is meaningless
 _ref_sd = np.asarray(CKS[0]["std_obs_sd"])
 for _p in (1, 2):
     _d = float(np.abs(np.asarray(CKS[_p]["std_obs_sd"]) - _ref_sd).max())
@@ -275,7 +135,6 @@ def phase_of(t_h):
     return 2
 
 
-# ====================================================================== expert ===
 _q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
 print(f"pre-caching {len(EXPERT_TIMES)} expert distributions ...", flush=True)
@@ -292,15 +151,11 @@ for _t in EXPERT_TIMES:
 print("windows per model: " + "  ".join(f"phase {k}: {v}" for k, v in sorted(_cnt.items())))
 
 
-# ====================================================================== policy ===
 _warm = None
 centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
     _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
     _m = _warm["policy_meta"]
-    # the standardizer refits on the union each iteration, so the same physical state
-    # maps to a different z; the centres are remapped to preserve behaviour in
-    # PHYSICAL units
     c0 = np.array(np.asarray(_m["centers_init"]).tolist(), dtype=np.float64)
     mo, so = np.asarray(_warm["std_obs_mu"]), np.asarray(_warm["std_obs_sd"])
     mn, sn = stats["std_obs_mu"], stats["std_obs_sd"]
@@ -337,14 +192,12 @@ print(f"W2 trace-normalisation: {'ON' if TRACE_NORMALIZE else 'OFF'}"
          "  -- WARNING: the raw comparison was measured to give W2 == 0 for every "
          "channel across a in [-0.5, +0.5]"))
 
-# E_{a|s} is only real if replicas of one state draw DIFFERENT actions
 with torch.no_grad():
     _sp = policy(states=POOL[:1].expand(K_ACTIONS, -1).contiguous(),
                  t=0, p_dropout=P_DROPOUT).std(0).mean().item()
 print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
       f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -366,7 +219,6 @@ optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# ================================================================== window loss ==
 _acc = {"var": None, "t0": 0}
 _acc_a = []
 _eig = None
@@ -384,19 +236,18 @@ def window_loss(t, s, a, mu, cov, s_next):
     global _acc
     if _acc["var"] is None:
         _acc = {"var": torch.zeros_like(cov), "t0": t, "last": None}
-    _acc["var"] = _acc["var"] + cov     # kept for -sum_steps
-    _acc["last"] = cov                  # the 5th step, when this window closes
+    _acc["var"] = _acc["var"] + cov
+    _acc["last"] = cov
     _acc_a.append(a)
 
     if (t - _acc["t0"] + 1) < STEPS_PER_EXPERT:
         return torch.zeros((), dtype=cov.dtype, device=cov.device)
 
-    # the graph is retained either way, so the gradient reaches all five steps
     var_1h = (_acc["last"] * LAST_SCALE) if LAST_STEP_ONLY else _acc["var"]
     _acc = {"var": None, "t0": 0, "last": None}
 
-    d = w2_cross_dim_torch(var_1h, _eig)                       # (P,)
-    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+    d = w2_cross_dim_torch(var_1h, _eig)
+    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()
     _log["w2"].append(float(w2.detach()))
 
     a_all = torch.cat(_acc_a, 0)
@@ -418,7 +269,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     return w2 + LAMBDA_A * l2 + cc_a + cc_s
 
 
-# ==================================================================== training ===
 hist, l2_first = [], None
 for it in range(N_ITERS):
     order = rng.permutation(len(EXPERT_TIMES))[:WINDOWS_PER_ITER]

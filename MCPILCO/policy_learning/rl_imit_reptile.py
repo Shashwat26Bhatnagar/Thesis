@@ -1,122 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/rl_imit_reptile.py
-
-CDIL policy optimization, rebuilt clean. Writes to results_clean/ and does not touch
-any existing file.
-
-THE OBJECTIVE -- TWO REGIMES, SPLIT AT THE EXPERT'S HORIZON
-
-    t <= 150 h :  -LCB_reward + ALPHA_W2*relu(W2_h - eta) + LAMBDA_A*||a||^2 + chance
-    t >  150 h :  -LCB_reward                             + LAMBDA_A*||a||^2 + chance
-
-    The Wasserstein constraint applies ONLY where an expert exists. capped_traj.npz
-    covers 1..150 h, so beyond that there is nothing to imitate and the term is simply
-    absent -- not zero-padded, not extrapolated. The action L2 and both chance
-    constraints apply over the whole 1..230 h.
-
-WHY THIS MATTERS
-    The previous version drew windows only from 1..150 h, so hours 150-230 were never
-    visited by ANY term. That is a third of the batch, and it is the production phase
-    where most of the penicillin accrues: the reference controller's discharge pulses
-    all fall after t=100, and its yield per step peaks late. A policy optimised only
-    over the first two-thirds has no reason to behave sensibly in the third where the
-    product is actually made.
-
-    Windows are now drawn over 1..230 h. Roughly 65% of them carry the imitation
-    constraint and 35% are reward-only.
-
-WHAT THIS STILL DOES NOT DO
-    Credit does not cross windows. Each 1-hour window is optimised independently, so
-    the policy cannot learn that discharging at hour 100 costs yield at hour 180.
-    Fixing that needs a value function or a multi-hour lookahead; neither is here.
-
-    Everything else is unchanged from the configuration that produced
-    buggy_batch_0.csv (below): same three phase world models, same static action box
-    at alpha=1000, same vessel floor at alpha=1.0, same 5-step windows, same 150
-    windows per iteration, same deployment clip.
-
-    -LCB_reward   the reward GP's LOWER confidence bound, mu_r - KAPPA*sigma_r. Not
-                  the mean: maximising a GP's mean sends the policy into regions where
-                  the model is uncertain and optimistic, and predictive variance in
-                  this pipeline has already been seen saturating at the prior once
-                  particles leave the data. Held-out R^2 of the reward GP is 0.857.
-    relu(W2-eta)  ONE-SIDED, so it is a CONSTRAINT rather than a weighted sum: while
-                  W2_h <= eta the imitation term contributes exactly nothing and the
-                  policy pursues yield freely.
-    LAMBDA_A      action L2, additive, all six channels.
-
-ETA IS MEASURED, NOT CHOSEN
-    Per-hour W2 in TRAINING units for policies trained with W2 as the ONLY objective:
-        cdil_policy_selected.pt   0.2288      clean_lam0.pt   0.2189
-        phase_bnd_rbf0_lam0p01    0.2530 -> 0.2368
-    and this file's own smoke test: 0.25598 -> 0.23864 over two iterations. In
-    EVALUATION units the same policies measure 0.112-0.121; the ~2x gap is dropout
-    plus particle sampling. eta = 0.23 is therefore this architecture's best imitation
-    and the natural feasibility boundary.
-
-ALPHA_W2 IS ALSO MEASURED
-    With mean excess ~0.06-0.08 and |LCB reward| ~0.95, alpha ~= 0.95/0.07 ~= 14 puts
-    the constraint on the same scale as the reward. At alpha=100 the penalty came out
-    8.1x the reward term, i.e. imitation with a reward garnish rather than constrained
-    reward maximisation.
-
-THE CONFIGURATION THAT PRODUCED buggy_batch_0.csv
-    Three phase world models, LAMBDA_A = 0 (no action penalty), the static action box
-    at alpha=1000, the vessel floor at alpha=1.0, 5-step windows, 20 iterations.
-    Deployment uses -cliprecipe with BUGGY_RECIPE_CLIP=1: physical actions are clipped
-    against SMPL-NORMALISED recipe bounds. That clip BINDS EARLY and RELEASES as the
-    profile rises -- measured on buggy_batch_0.csv, sugar takes 70 distinct values from
-    7.0 to 121.5 and soilbean 35 values, so the policy is genuinely contributing rather
-    than being overwritten. Discharge and water are the two channels that stay nearly
-    constant (6 distinct values each).
-
-WHAT IS IN
-    W2      E_s[ E_{a|s}[ W2( P(s'|s,a) || P_expert(s'|s) ) ] ]
-            Cai-Lim cross-dimensional distance, 8-D model vs 3-D expert. Means drop
-            out by construction -- the objective matches covariance spectra only.
-    L2      lambda * mean||a||^2 over ALL SIX channels, ADDITIVE.
-    chance  Tan et al. Eq. 8-9 soft chance constraints: the static action box, and a
-            floor on the predicted vessel weight.
-
-WHAT IS OUT (deliberately, after all of these were tried and did not survive)
-    Bernoulli gate on discharge      the gate contradicted the chance constraint
-                                     (a two-point distribution has maximal variance,
-                                     so the variance back-off flagged it in 150/150
-                                     windows and the penalty reached 1156x the W2
-                                     term). Adding a learned magnitude then gave the
-                                     gate a degenerate optimum -- hold it open and set
-                                     the level near zero -- which is the continuous
-                                     head it was meant to replace.
-    ASRE sparsity KL                 fixes the marginal duty cycle, not the temporal
-                                     structure; the deployed policy still flickered
-                                     (51 opens of 0.22 h against the reference's 6 of
-                                     2.0 h).
-    multiplicative violation penalty confounded with the L2 term.
-    separate valve policy            its state-matching target was minimised by not
-                                     discharging at all (duty went to 0 by iteration 7
-                                     and stayed).
-    discharge override               useful as an ablation, not as a policy.
-
-VERIFYING THAT L2 ACTUALLY BINDS
-    In an earlier sweep lambda=0.001 came back with an action norm 1.656x the
-    lambda=0 reference -- more regularisation, larger actions. That is backwards, and
-    either the term was not reaching the loss or run-to-run variance swamped it. This
-    file therefore logs mean||a||^2 EVERY iteration alongside lambda*||a||^2, and
-    prints the first-to-last change at the end, so the effect of lambda is visible
-    directly rather than inferred from the sweep table.
-
-STRUCTURE (MC-PILCO, Amadio et al. 2022)
-    Each expert hour is one self-contained episode: T = 5 steps, a FRESH
-    in-distribution start state, one graph, one backward, one update. A single long
-    continuing rollout instead drove |s| to ~140 z-units against training data
-    spanning [-5.5, 11.2], which killed the gradient twice over -- the GP's predictive
-    variance saturated at the prior, and the policy's RBF basis abandoned its centres.
-
-    python policy_learning/rl_imit_reptile.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 -lam 0.01 -iters 20
-"""
 import argparse
 import os
 import sys
@@ -152,56 +35,36 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) ---
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- episodic structure ---
 T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
-EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0     # where the expert exists -> W2 applies
-BATCH_T_MAX = 230.0                          # the full episode -> reward applies
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
+EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
+BATCH_T_MAX = 230.0
 WINDOWS_PER_ITER = 150
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
-# --- policy ---
 NUM_BASIS, U_MAX = 200, 3.0
 CENTER_RANGE_PAD = 1.10
 
-# --- REPS constraint + action L2 ---
-# --- Reptile ---
-INNER_K = 15                 # inner steps per task. k = 1 IS joint training: the
-                             # paper's expansion gives an agreement coefficient of
-                             # k(k-1)*alpha/2, exactly 0 at k = 1.
-META_EPS = 0.5               # outer step: theta <- theta + eps*(mean phi - theta)
-TASKS_PER_META = 15          # windows per meta-iteration, split evenly across phases
-SCALE_LR_WITH_K = True       # hold alpha*k fixed -- the paper notes its expansion
-                             # "only holds for small alpha*k". Measured optimum was
-                             # alpha = 0.02 at k = 5 (alpha*k = 0.1), so k = 15 uses
-                             # alpha = 0.00667.
-K_REF = 5                    # the k at which alpha == LR
+INNER_K = 15
+META_EPS = 0.5
+TASKS_PER_META = 15
+SCALE_LR_WITH_K = True
+K_REF = 5
 
-# --- reward + W2 constraint ---
-ETA = 0.35                   # measured: gpei's per-hour W2 spans 0.19-0.34 and the
-                             # mean action's 0.18-0.30, so this admits BOTH and lets
-                             # the reward decide rather than ranking them
-ALPHA_W2 = 15.0              # Lagrange weight on relu(W2 - eta)
-KAPPA = 1.0                  # reward LCB: mu_r - KAPPA*sigma_r
-LAMBDA_A = 0.2               # distance from the PHYSICAL MINIMUM, growth phase only
+ETA = 0.35
+ALPHA_W2 = 15.0
+KAPPA = 1.0
+LAMBDA_A = 0.2
 
-# --- chance constraints (Tan et al. Eq. 8-9) ---
-CC_EPS = 0.95                        # paper: 95% -> Phi^-1 = 1.6449
-CC_ALPHA_ACT = 1000.0                # paper's alpha for the action box
-CC_ALPHA_STATE = 1.0                 # calibrated: at 1000 the vessel penalty was
-                                     # ~700x the W2 term and the policy optimised the
-                                     # constraint alone
-CC_WT_MIN_PHYS = 50000.0             # reference runs stay above 91000; batches start
-                                     # near 62500
+CC_EPS = 0.95
+CC_ALPHA_ACT = 1000.0
+CC_ALPHA_STATE = 1.0
+CC_WT_MIN_PHYS = 50000.0
 
-EXPERT_COV_KEY = "cov_n"             # the network's OWN normalised covariance. The
-                                     # physical one has eigenvalues ~349x larger than
-                                     # the GP's z-scored ones, which made the loss a
-                                     # fixed unclosable offset.
+EXPERT_COV_KEY = "cov_n"
 
 _ap = argparse.ArgumentParser("CDIL policy optimization (clean)")
 _ap.add_argument("-phase_prefix", required=True,
@@ -240,7 +103,6 @@ OUT = _args.out or os.path.join(SAVE_DIR,
         f"rlrep_k{INNER_K}_t{TASKS_PER_META}_eta{str(ETA).replace('.','p')}.pt")
 
 
-# ================================================================ world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -269,7 +131,6 @@ for _p in (0, 1, 2):
 stats = {k: np.asarray(CKS[0][k]) for k in
          ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
 
-# every model must share one z-space or switching between them is meaningless
 _ref_sd = np.asarray(CKS[0]["std_obs_sd"])
 for _p in (1, 2):
     _d = float(np.abs(np.asarray(CKS[_p]["std_obs_sd"]) - _ref_sd).max())
@@ -297,11 +158,8 @@ def phase_of(t_h):
     return 2
 
 
-# ====================================================================== expert ===
 _q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
-# windows are drawn over the WHOLE batch; only those at or below EXPERT_T_MAX carry
-# the imitation term
 WINDOW_TIMES = np.arange(EXPERT_T_MIN, BATCH_T_MAX + 1e-9, EXPERT_DT)
 print(f"pre-caching {len(EXPERT_TIMES)} expert distributions "
       f"(1..{EXPERT_T_MAX:.0f} h) ...", flush=True)
@@ -331,15 +189,11 @@ print(f"windows: {len(WINDOW_TIMES)} total over 1..{BATCH_T_MAX:.0f} h  ->  "
       f"{len(WINDOW_TIMES)-_n_imit} reward-only")
 
 
-# ====================================================================== policy ===
 _warm = None
 centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
     _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
     _m = _warm["policy_meta"]
-    # the standardizer refits on the union each iteration, so the same physical state
-    # maps to a different z; the centres are remapped to preserve behaviour in
-    # PHYSICAL units
     c0 = np.array(np.asarray(_m["centers_init"]).tolist(), dtype=np.float64)
     mo, so = np.asarray(_warm["std_obs_mu"]), np.asarray(_warm["std_obs_sd"])
     mn, sn = stats["std_obs_mu"], stats["std_obs_sd"]
@@ -361,14 +215,12 @@ print(f"\npolicy rbf: in={STATE_DIM} out={INPUT_DIM} u_max={U_MAX} "
       f"params={policy_meta['n_params']}")
 print(f"L2: lambda={LAMBDA_A} on ALL SIX channels (additive)")
 
-# E_{a|s} is only real if replicas of one state draw DIFFERENT actions
 with torch.no_grad():
     _sp = policy(states=POOL[:1].expand(K_ACTIONS, -1).contiguous(),
                  t=0, p_dropout=P_DROPOUT).std(0).mean().item()
 print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
       f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -386,7 +238,6 @@ print(f"  vessel floor alpha={CC_ALPHA_STATE}  Wt >= {CC_WT_MIN_PHYS:.0f} phys "
 _wt_tr = POOL[:, WT_IDX].numpy()
 print(f"  training data below the floor: {100*float((_wt_tr < CC_WT_MIN_Z).mean()):.1f}%")
 
-# ---------------------------------------------------------------- reward GP ----
 _rck = torch.load(_args.reward_model, map_location=device, weights_only=False)
 _rinit = dict(active_dims=np.arange(0, GP_INPUT_DIM),
               lengthscales_init=np.ones(GP_INPUT_DIM), flg_train_lengthscales=True,
@@ -415,12 +266,6 @@ print(f"  LCB       : mu_r - {KAPPA}*sigma_r  (not the mean)")
 print(f"  eta       : {ETA}  -- measured, the converged W2 of imitation-only policies")
 print(f"  alpha_W2  : {ALPHA_W2}  -- measured, puts the penalty on the reward's scale")
 
-# ---- the physical minimum in z-units, and each channel's span ----
-# The penalty is distance from the physical MINIMUM, not from z = 0. z = 0 is the
-# DATASET MEAN action (discharge 254.2, sugar 76.5, water 153.7), which is exactly
-# where the collapsed policies already sat -- so a penalty centred there rewards the
-# collapse. gpei's growth-phase actions (discharge 0, sugar 28.8, water 0) are much
-# closer to the floor: span-normalised 0.476 against the mean's 1.234 at t < 20 h.
 _lo_s = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _hi_s = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 A_LO_Z = torch.tensor((_lo_s - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -434,11 +279,6 @@ for _i, _nm in enumerate(pdata.ACT_NAMES):
     print(f"    {_nm:14s} lo={pdata.MIN_ACT[_i]:8.1f} phys -> {A_LO_Z[_i].item():7.3f} z"
           f"   (z=0 is {_mean_phys:8.1f} phys, the dataset mean)")
 
-# ---- optional: pin discharge (growth phase) ----
-# lambda is applied ONLY to growth-phase windows. The penalty is distance from the
-# physical minimum, and gpei is closer to it than the dataset mean only during growth:
-# span-normalised 0.476 vs 1.234 at t < 20 h, reversing to 1.735 vs 1.234 by t = 20-47.
-# A single global lambda would therefore push AWAY from the reference after t = 20.
 _CUR = {"lam": 0.0, "phase": 0}
 
 FIX_DISCHARGE = _args.fix_discharge
@@ -460,8 +300,6 @@ if FIX_DISCHARGE is not None:
         def forward(self, states, t=None, p_dropout=0.0):
             a = self.base(states=states, t=t, p_dropout=p_dropout)
             cols = [a[:, j] for j in range(a.shape[1])]
-            # applied only in the growth phase: gpei holds discharge at exactly 0
-            # for the first ~100 h, and during growth the vessel should be filling
             if _CUR["phase"] != 0:
                 return a
             cols[0] = torch.full_like(cols[0], self.z)
@@ -474,7 +312,6 @@ optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# ================================================================== window loss ==
 _acc = {"var": None, "t0": 0}
 _acc_a, _acc_s = [], []
 _eig = None
@@ -503,17 +340,13 @@ def window_loss(t, s, a, mu, cov, s_next):
     var_1h = _acc["var"]
     _acc = {"var": None, "t0": 0}
 
-    # The imitation term exists only where the expert does. Beyond 150 h _eig is None
-    # and W2 is omitted entirely -- not set to zero, which would be a claim that the
-    # policy imitates perfectly there.
     if _eig is not None:
-        d = w2_cross_dim_torch(var_1h, _eig)                   # (P,)
-        w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()  # E_a|s then E_s
+        d = w2_cross_dim_torch(var_1h, _eig)
+        w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()
         _log["w2"].append(float(w2.detach()))
     else:
         w2 = None
 
-    # --- reward over the window, lower confidence bound ---
     a_r, s_r = torch.cat(_acc_a, 0), torch.cat(_acc_s, 0)
     _m, _v = RMODEL.get_gp_estimate(gp_inputs=torch.cat([s_r, a_r], dim=1),
                                     gp_index_list=[0])
@@ -523,7 +356,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     (_log["r_imit"] if _eig is not None else _log["r_late"]).append(
         float(reward.detach()))
 
-    # --- the constraint: one-sided, inert while W2 <= eta, absent past 150 h ---
     if w2 is not None:
         viol = torch.relu(w2 - ETA)
         pen = ALPHA_W2 * viol
@@ -552,7 +384,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     return -reward + pen + _CUR["lam"] * l2 + cc_a + cc_s
 
 
-# ========================================== stratified Reptile meta-training ======
 PHASE_WINDOWS = {p: np.array([t for t in WINDOW_TIMES if phase_of(float(t)) == p])
                  for p in (0, 1, 2)}
 print("\nstratified task pool:")
@@ -613,12 +444,8 @@ for it in range(N_ITERS):
         tasks += [float(_pool[i]) for i in _pick]
 
     for t_h in tasks:
-        # every task restarts from theta0 -- chaining them is joint training
         policy.load_state_dict(theta0)
         inner = torch.optim.Adam(policy.parameters(), lr=INNER_LR)
-        # fixed seed per task: the k inner steps refine ONE window rather than seeing
-        # k fresh resamplings, or the inner loop is minibatch noise and the
-        # gradient-agreement term never forms
         gen = np.random.default_rng(int(t_h * 100) + 10000 * it)
         for _ in range(INNER_K):
             loss, out = _run_task(t_h, gen)

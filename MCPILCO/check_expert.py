@@ -1,34 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-check_expert.py   (repo root)
-
-Verify what the expert oracle actually supplies to the loss, and whether that signal
-can distinguish one policy from another.
-
-    python check_expert.py
-
-FIVE CHECKS, each answering one question:
-
-1. Does the target vary with time at all? If all 150 hourly eigenvalue triples are
-   near-identical, the loss is a constant target and every window pulls the same way.
-
-2. How much does it vary, RELATIVE to how much the GP's own predictions vary? A target
-   that moves 5% while the model's spread moves 200% is effectively constant.
-
-3. Is the target CONDITIONED ON STATE? next_state_distribution takes t and derives the
-   conditioning state by interpolating the dcFBA trajectory. If two different learner
-   states at the same hour get the identical target, the objective cannot tell them
-   apart -- and a constant policy is then a correct solution to it.
-
-4. Does the GP's predictive covariance respond to the ACTION? This is the actuator
-   test. If sweeping an action across its legal range barely moves the covariance,
-   W2 is nearly action-independent and no regulariser, meta-update or aggregation
-   scheme reaches it.
-
-5. What does W2 itself do as the action varies? The end-to-end version of 4, through
-   the exact loss function the policy optimises.
-"""
 import os
 import sys
 

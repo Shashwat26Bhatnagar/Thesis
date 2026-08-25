@@ -1,60 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/exp_policy_l1_noreward_kstep.py
-
-CDIL policy optimization -- NO REWARD, K-STEP INNER LOOP PER WINDOW.
-
-Two changes from exp_policy_l1.py:
-
-1. REWARD REMOVED ENTIRELY.
-   The objective is now, for every window over the whole 1..230 h batch:
-
-       t <= 150 h :  ALPHA_W2*relu(W2_h - eta) + LAMBDA_A*||a_1..5||^2
-                     + LAMBDA_L1*|a_disch - a_off| + chance
-       t >  150 h :                               LAMBDA_A*||a_1..5||^2
-                     + LAMBDA_L1*|a_disch - a_off| + chance
-
-   No reward GP is loaded, no -reward_model argument exists, no KAPPA. Past 150 h
-   there is no expert to imitate, so those windows are pure regularization + safety
-   -- there is nothing pulling the policy toward "doing something" there beyond
-   staying closed on discharge, small on the other channels, and inside the chance
-   constraints. That is intentional: this run isolates whether the collapse is a
-   training-dynamics artifact (per-window k=1 sequential SGD, per the Reptile
-   argument that k=1 sequential single-task steps are equivalent to minimizing the
-   AVERAGE loss across tasks) rather than something reward-related.
-
-2. K-STEP INNER LOOP PER WINDOW, ADAPTIVE, NOT k=1.
-   For each sampled window: draw ONE fixed initial particle state s0, then take
-   repeated gradient steps on THAT SAME window (same s0, same _eig, same phase)
-   until its own loss stops improving (relative change < INNER_TOL) or K_MAX steps
-   are hit, THEN move to the next window. This is deliberately k>1, breaking the
-   k=1-sequential-equals-joint-average-loss equivalence that a single step per
-   window falls into.
-
-   K_MAX bounds the opposite risk: a single unusual window (e.g. a rare
-   discharge-spike hour) dominating so many consecutive steps that it overwrites
-   what earlier windows in the same iteration taught the policy. Combined with the
-   existing per-iteration random window reshuffling, this keeps that risk bounded
-   without hand-picking a fixed K -- easy windows exit early, hard ones get more
-   steps, nothing gets unboundedly many.
-
-3. NO DEPLOYMENT CLIP.
-   This script never applied -cliprecipe / BUGGY_RECIPE_CLIP itself -- that clip
-   lives in the downstream run_expfull_loop.sh exploration step, not in policy
-   training. Nothing here needs changing to satisfy "no clip during training", but
-   if you re-run exploration after this, do NOT pass -cliprecipe or set
-   BUGGY_RECIPE_CLIP=1 -- otherwise the policy this script produces will be
-   evaluated through a transform it was never trained against.
-
-Everything else -- the L1-on-discharge-from-CLOSED / L2-on-the-rest-5 split, the
-Cai-Lim covariance-only W2 term, the two Tan et al. chance constraints, the
-MC-PILCO one-hour / T=5-step / fresh-particle window structure -- is unchanged
-from exp_policy_l1.py.
-
-    python policy_learning/exp_policy_l1_noreward_kstep.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 -lam 0.01 -iters 20
-"""
 import argparse
 import os
 import sys
@@ -90,35 +35,29 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) ---
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- episodic structure ---
 T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
-EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0     # where the expert exists -> W2 applies
-BATCH_T_MAX = 230.0                          # the full episode
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
+EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
+BATCH_T_MAX = 230.0
 WINDOWS_PER_ITER = 150
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
-# --- k-step inner loop, per window ---
-K_MAX = 10          # hard cap on gradient steps applied to one window before moving on
-INNER_TOL = 1e-3    # stop early once |loss_t - loss_{t-1}| / |loss_{t-1}| < this
+K_MAX = 10
+INNER_TOL = 1e-3
 
-# --- policy ---
 NUM_BASIS, U_MAX = 200, 3.0
 CENTER_RANGE_PAD = 1.10
 
-# --- REPS constraint + action penalties ---
-ETA = 0.23                   # measured; see exp_policy_l1.py's docstring
-ALPHA_W2 = 15.0               # measured: puts the penalty on a sensible scale
-LAMBDA_A = 0.01               # L2 on channels 1..5 (sugar..water)
-LAMBDA_L1 = 0.05              # L1 on discharge, measured from the CLOSED level
+ETA = 0.23
+ALPHA_W2 = 15.0
+LAMBDA_A = 0.01
+LAMBDA_L1 = 0.05
 DISCHARGE_IDX = 0
-DISCHARGE_OFF_PHYS = 0.0      # "closed"
+DISCHARGE_OFF_PHYS = 0.0
 
-# --- chance constraints (Tan et al. Eq. 8-9) ---
 CC_EPS = 0.95
 CC_ALPHA_ACT = 1000.0
 CC_ALPHA_STATE = 1.0
@@ -154,7 +93,6 @@ if _args.iters:
 OUT = _args.out or os.path.join(SAVE_DIR, "exp_l1_noreward_kstep_policy.pt")
 
 
-# ================================================================ world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -210,7 +148,6 @@ def phase_of(t_h):
     return 2
 
 
-# ====================================================================== expert ===
 _q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
 WINDOW_TIMES = np.arange(EXPERT_T_MIN, BATCH_T_MAX + 1e-9, EXPERT_DT)
@@ -229,7 +166,6 @@ print(f"windows: {len(WINDOW_TIMES)} total over 1..{BATCH_T_MAX:.0f} h  ->  "
       f"{len(WINDOW_TIMES)-_n_imit} regularization+safety only (no expert, no reward)")
 
 
-# ====================================================================== policy ===
 _warm = None
 centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
@@ -261,7 +197,6 @@ with torch.no_grad():
 print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
       f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -277,7 +212,6 @@ print(f"  action box  alpha={CC_ALPHA_ACT}")
 print(f"  vessel floor alpha={CC_ALPHA_STATE}  Wt >= {CC_WT_MIN_PHYS:.0f} phys "
       f"({CC_WT_MIN_Z:.3f} z)")
 
-# discharge's CLOSED level in the policy's z-space, and a mask for the L2 channels
 _off_smpl = (2.0 * (DISCHARGE_OFF_PHYS - pdata.MIN_ACT[DISCHARGE_IDX])
              / (pdata.MAX_ACT[DISCHARGE_IDX] - pdata.MIN_ACT[DISCHARGE_IDX]) - 1.0)
 A_OFF_Z = float((_off_smpl - stats["std_act_mu"][DISCHARGE_IDX])
@@ -299,7 +233,6 @@ optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# ================================================================== window loss ==
 _acc = {"var": None, "t0": 0}
 _acc_a, _acc_s = [], []
 _eig = None
@@ -325,8 +258,8 @@ def window_loss(t, s, a, mu, cov, s_next):
     _acc = {"var": None, "t0": 0}
 
     if _eig is not None:
-        d = w2_cross_dim_torch(var_1h, _eig)                   # (P,)
-        w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()  # E_a|s then E_s
+        d = w2_cross_dim_torch(var_1h, _eig)
+        w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()
         _log["w2"].append(float(w2.detach()))
         viol = torch.relu(w2 - ETA)
         pen = ALPHA_W2 * viol
@@ -360,7 +293,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     return pen + LAMBDA_A * l2 + LAMBDA_L1 * l1 + cc_a + cc_s
 
 
-# ==================================================================== training ===
 hist, l2_first = [], None
 for it in range(N_ITERS):
     order = rng.permutation(len(WINDOW_TIMES))[:WINDOWS_PER_ITER]
@@ -373,12 +305,8 @@ for it in range(N_ITERS):
 
     for idx in order:
         t_h = float(WINDOW_TIMES[idx])
-        _eig = EXPERT_EIGS.get(round(t_h, 6))      # None past EXPERT_T_MAX
+        _eig = EXPERT_EIGS.get(round(t_h, 6))
         ph = phase_of(t_h)
-        # ONE fixed initial particle draw for this window -- the k-step inner loop
-        # below repeatedly optimizes against this SAME s0, not a fresh draw each
-        # step, so it is genuinely minimizing this window's loss rather than
-        # averaging over resampled noise.
         st = sample_initial_particles(POOLS[ph], NUM_STATES, generator=rng,
                                       dtype=dtype, device=device)
         s0 = st.repeat_interleave(K_ACTIONS, dim=0)

@@ -1,31 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-check_inner_policy.py   (repo root)
-
-What does the INNER policy produce, before Reptile averages it away?
-
-    theta_0 --k steps on window h--> phi_h        <- this is what we inspect
-    theta   <- theta_0 + eps * mean_h(phi_h - theta_0)
-
-If each phi_h emits a DIFFERENT action, then per-hour solutions exist and are
-reachable by gradient descent, and the collapse happens in the OUTER average -- i.e.
-the deployed policy is a Wasserstein barycenter of the hourly solutions, which is what
-minimising sum_h W2(P_theta, Q_h) asks for. Averaging phase-varying distributions is
-known to give unrepresentative barycenters.
-
-If instead every phi_h is already the same, the averaging explanation is wrong and the
-collapse happens INSIDE a single window -- which would point at the loss landscape
-rather than at the meta-update.
-
-A random search over 400 actions per hour already found actions beating the
-mean-action by 87-90% at t = 50..150, with the winners differing completely between
-hours (discharge +0.76 at t=75 vs -1.59 at t=130). So good per-hour actions EXIST.
-The question this answers is whether k gradient steps find them.
-
-    python check_inner_policy.py
-    K=15 LR=0.00667 python check_inner_policy.py
-"""
 import os
 import sys
 
@@ -129,11 +103,11 @@ print(f"\n{'t [h]':>6}{'W2 before':>11}{'W2 after':>10}{'drop':>8}   "
       f"phi action (z), mean over states")
 A_PHI, W_B, W_A = [], [], []
 for t in TIMES:
-    policy0.load_state_dict(THETA0)                # every window starts from theta0
+    policy0.load_state_dict(THETA0)
     opt = torch.optim.Adam(policy0.parameters(), lr=LR)
     ph = phase_of(t)
     _eig = EIG[t]
-    gen = np.random.default_rng(int(t))            # SAME states for all k steps
+    gen = np.random.default_rng(int(t))
     w_before = w_after = None
     for step in range(K):
         st = sample_initial_particles(POOLS[ph], NUM_STATES, generator=gen,

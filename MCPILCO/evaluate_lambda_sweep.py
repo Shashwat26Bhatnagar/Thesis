@@ -1,42 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-evaluate_lambda_sweep.py   (repo root)
-
-Select the L2 action-regularisation weight lambda WITHOUT touching the simulator.
-
-THE CRITERION (per-hour counting, not averaging)
-    Train one REFERENCE policy with lambda = 0 (chance constraints only), and one
-    policy per candidate lambda. Then, hour by hour over the expert's horizon:
-
-        good hour  <=>  W2_lam(h) <= W2_ref(h) * (1 + tol)      imitation not hurt
-                   AND  ||a||_lam(h) <  ||a||_ref(h)             actions smaller
-
-    Choose the lambda with the MOST good hours.
-
-WHY COUNT HOURS RATHER THAN AVERAGE
-    Averaging action values across policies hides multimodality. The classic
-    illustration is ALVINN at a fork in the road: the network's steering density is
-    bimodal (go left OR go right), and the MEAN of those modes is "straight" -- which
-    belongs to neither mode and drives into the tree. The same failure appeared here
-    concretely: two policies with near-identical mean flows produced completely
-    different physics, because large opposing flows can average like small ones.
-    A COUNT of hours cannot average two modes into a third that neither achieves.
-
-EVALUATION IS DETERMINISTIC AND SHARED
-    Every policy is evaluated on IDENTICAL start states (one fixed seed) with
-    p_dropout = 0 and mean propagation (particle_pred=False). Without this the
-    comparison would be dominated by sampling noise rather than by lambda.
-
-NOTE ON THE HORIZON
-    The expert (capped_traj.npz) covers 0..150 h, so the per-hour comparison exists
-    for 150 hours, not the PenSim episode's 230. Hours beyond 150 have no expert to
-    compare against.
-
-    python evaluate_lambda_sweep.py -model results_pensim/rbf_model_bnd_rbf_iter0.pt \\
-        -ref results_pensim/cdil_policy_lam0.pt \\
-        -cand results_pensim/cdil_policy_lam*.pt
-"""
 import argparse
 import glob
 import json
@@ -91,7 +54,6 @@ STEPS_PER_HOUR = 5
 EXPERT_TIMES = np.arange(1.0, 150.0 + 1e-9, 1.0)
 
 
-# ------------------------------------------------------------------ model ----
 def _load(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_IN), lengthscales_init=np.ones(GP_IN),
@@ -116,8 +78,6 @@ def _load(path):
 if not args.model and not args.phase_prefix:
     raise SystemExit("give -model or -phase_prefix")
 
-# The evaluation must use the SAME model arrangement the policies were trained
-# against, or the W2 values are not comparable to what the optimiser saw.
 if args.phase_prefix:
     MODELS = {p: _load(f"{args.phase_prefix}_phase{p}.pt") for p in (0, 1, 2)}
     print("phase models:")
@@ -139,7 +99,6 @@ else:
     POOL = _M.gp_inputs[:, :STATE_DIM]
     print(f"world model: {os.path.basename(args.model)}  train pts={POOL.shape[0]}")
 
-# ----------------------------------------------------------------- expert ----
 q = PFQuery(verbose=False)
 EIG = {round(float(t), 6): torch.linalg.eigvalsh(
            torch.tensor(np.asarray(q.next_state_distribution(t=float(t), source="traj")
@@ -147,9 +106,6 @@ EIG = {round(float(t), 6): torch.linalg.eigvalsh(
        for t in EXPERT_TIMES}
 print(f"expert: {len(EIG)} hourly distributions (1..150 h)")
 
-# ------------------------------------------------- shared evaluation states ----
-# ONE fixed draw, reused for every policy: otherwise the comparison measures sampling
-# noise rather than lambda.
 rng = np.random.default_rng(args.seed)
 S0 = {}
 for t in EXPERT_TIMES:
@@ -179,8 +135,8 @@ def evaluate(policy_path):
         with torch.no_grad():
             gp_rollout(model=model_at(float(t)), policy=pol, s0=S0[key],
                        T=STEPS_PER_HOUR,
-                       p_dropout=0.0,            # deterministic
-                       particle_pred=False,      # mean propagation
+                       p_dropout=0.0,
+                       particle_pred=False,
                        loss_fn=_loss, graph_mode="full")
             d = w2_cross_dim_torch(acc_var, EIG[key])
             w2_h.append(float(d.view(args.num_states, args.k_actions)

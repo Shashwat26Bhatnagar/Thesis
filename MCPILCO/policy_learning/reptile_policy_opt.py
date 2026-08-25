@@ -1,106 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/reptile_policy_opt.py
-
-CDIL policy optimization, rebuilt clean. Writes to results_clean/ and does not touch
-any existing file.
-
-REPTILE META-UPDATES, AND WHY
-
-    for each meta-iteration:
-        theta_0 = theta
-        for each of M sampled windows (tasks), INDEPENDENTLY from theta_0:
-            phi = theta_0
-            for k steps:  phi <- phi - alpha * grad L_window(phi)
-            record phi
-        theta <- theta_0 + eps * mean_over_windows(phi - theta_0)
-
-    THE PROBLEM THIS TARGETS. Reptile's gradient expansion has two terms: the average
-    gradient, and -- only when k > 1 -- an inner product between the gradients of
-    DIFFERENT minibatches. The first drives theta to the minimiser of the AVERAGE loss;
-    the second drives it to where the tasks' gradients AGREE. At k = 1 the second term
-    vanishes and Reptile reduces exactly to joint training on the mixture, which is
-    what the previous loop was: one gradient step per window, chained.
-
-    And the minimiser of an average is an average. Measured on ppo_iter0_batch_0.csv
-    against gpei_batch_4.csv, every action column had collapsed to a constant:
-        channel     gpei std    ours std    ratio
-        discharge     858.26        9.16    0.011
-        sugar          24.98        0.25    0.010
-        soilbean        5.10        0.02    0.004
-        aeration        8.90        0.08    0.009
-        water         151.21        1.41    0.009
-    with ranges of 0.9-1.8% of each channel's span against the reference's 77-99%, and
-    per-phase means flat to three significant figures across all 230 h.
-
-    WHAT REPTILE ALONE WILL NOT FIX. Reptile produces a good INITIALISATION for fast
-    adaptation; you deploy by taking a few gradient steps on the new task first. Here
-    deployment is a single forward pass with no adaptation, so what is deployed is the
-    meta-initialisation -- still one parameter vector, still one action per state.
-    For two windows to yield DIFFERENT actions they must be distinguishable from the
-    policy's input, and they differ only in t_h, which an 8-D observation does not
-    carry. -time_input appends normalised batch time as a 9th input so the two can be
-    tested together; without it the constancy has a second cause that no meta-update
-    reaches.
-
-    ALPHA (INNER LEARNING RATE) AND K ARE NOT INDEPENDENT. Reptile's own Taylor
-    expansion (Nichol et al. 2018, Sec 5.1) gives the gradient-agreement term's
-    coefficient as 0.5*k*(k-1)*alpha, exactly zero at k=1 -- but the same section
-    states the expansion "only holds for small alpha*k". Raising k without lowering
-    alpha pushes the run outside the regime the analysis covers. -lr sets the base
-    learning rate; with SCALE_LR_WITH_K on (the default), alpha = lr * K_REF / k, so
-    alpha*k = lr * K_REF stays FIXED as k changes and only lr itself moves it. This
-    lets k and alpha be swept independently and safely: sweep k at a fixed -lr to
-    change how much within-task-agreement weight is used at a constant alpha*k, or
-    hold -inner_k fixed and sweep -lr to move alpha*k deliberately, watching the
-    printed alpha*k value each run rather than losing track of it.
-
-WHAT IS IN
-    W2      E_s[ E_{a|s}[ W2( P(s'|s,a) || P_expert(s'|s) ) ] ]
-            Cai-Lim cross-dimensional distance, 8-D model vs 3-D expert. Means drop
-            out by construction -- the objective matches covariance spectra only.
-    L2      lambda * mean||a||^2 over ALL SIX channels, ADDITIVE.
-    chance  Tan et al. Eq. 8-9 soft chance constraints: the static action box, and a
-            floor on the predicted vessel weight.
-
-WHAT IS OUT (deliberately, after all of these were tried and did not survive)
-    Bernoulli gate on discharge      the gate contradicted the chance constraint
-                                     (a two-point distribution has maximal variance,
-                                     so the variance back-off flagged it in 150/150
-                                     windows and the penalty reached 1156x the W2
-                                     term). Adding a learned magnitude then gave the
-                                     gate a degenerate optimum -- hold it open and set
-                                     the level near zero -- which is the continuous
-                                     head it was meant to replace.
-    ASRE sparsity KL                 fixes the marginal duty cycle, not the temporal
-                                     structure; the deployed policy still flickered
-                                     (51 opens of 0.22 h against the reference's 6 of
-                                     2.0 h).
-    multiplicative violation penalty confounded with the L2 term.
-    separate valve policy            its state-matching target was minimised by not
-                                     discharging at all (duty went to 0 by iteration 7
-                                     and stayed).
-    discharge override               useful as an ablation, not as a policy.
-
-VERIFYING THAT L2 ACTUALLY BINDS
-    In an earlier sweep lambda=0.001 came back with an action norm 1.656x the
-    lambda=0 reference -- more regularisation, larger actions. That is backwards, and
-    either the term was not reaching the loss or run-to-run variance swamped it. This
-    file therefore logs mean||a||^2 EVERY iteration alongside lambda*||a||^2, and
-    prints the first-to-last change at the end, so the effect of lambda is visible
-    directly rather than inferred from the sweep table.
-
-STRUCTURE (MC-PILCO, Amadio et al. 2022)
-    Each expert hour is one self-contained episode: T = 5 steps, a FRESH
-    in-distribution start state, one graph, one backward, one update. A single long
-    continuing rollout instead drove |s| to ~140 z-units against training data
-    spanning [-5.5, 11.2], which killed the gradient twice over -- the GP's predictive
-    variance saturated at the prior, and the policy's RBF basis abandoned its centres.
-
-    python policy_learning/reptile_policy_opt.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 -lam 0.01 -iters 20
-"""
 import argparse
 import os
 import sys
@@ -136,50 +35,33 @@ os.makedirs(SAVE_DIR, exist_ok=True)
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) ---
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- episodic structure ---
 T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
 EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
 WINDOWS_PER_ITER = 150
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
-# --- Reptile ---
-INNER_K = 5              # inner steps per task; k=1 reduces Reptile to joint training
-SCALE_LR_WITH_K = True   # hold alpha*k fixed: the paper's Taylor expansion, from
-                         # which the whole justification comes, "only holds for small
-                         # alpha*k". Raising k without lowering alpha leaves the
-                         # analysis behind. With this on, alpha = LR * (K_REF / k).
-K_REF = 5                # the k at which alpha == LR
-META_EPS = 0.5           # outer step size: theta <- theta + eps*(mean phi - theta)
-TASKS_PER_META = 10      # windows per meta-iteration, each run INDEPENDENTLY from
-                         # theta. Running them independently is the point: chaining
-                         # them is what makes the update sequential.
-USE_TIME_INPUT = False   # append normalised batch time as a 9th policy input
+INNER_K = 5
+SCALE_LR_WITH_K = True
+K_REF = 5
+META_EPS = 0.5
+TASKS_PER_META = 10
+USE_TIME_INPUT = False
 
-# --- policy ---
 NUM_BASIS, U_MAX = 200, 3.0
 CENTER_RANGE_PAD = 1.10
 
-# --- L2 ---
-LAMBDA_A = 0.0                       # set with -lam; 0.0 is the sweep reference
+LAMBDA_A = 0.0
 
-# --- chance constraints (Tan et al. Eq. 8-9) ---
-CC_EPS = 0.95                        # paper: 95% -> Phi^-1 = 1.6449
-CC_ALPHA_ACT = 1000.0                # paper's alpha for the action box
-CC_ALPHA_STATE = 1.0                 # calibrated: at 1000 the vessel penalty was
-                                     # ~700x the W2 term and the policy optimised the
-                                     # constraint alone
-CC_WT_MIN_PHYS = 50000.0             # reference runs stay above 91000; batches start
-                                     # near 62500
+CC_EPS = 0.95
+CC_ALPHA_ACT = 1000.0
+CC_ALPHA_STATE = 1.0
+CC_WT_MIN_PHYS = 50000.0
 
-EXPERT_COV_KEY = "cov_n"             # the network's OWN normalised covariance. The
-                                     # physical one has eigenvalues ~349x larger than
-                                     # the GP's z-scored ones, which made the loss a
-                                     # fixed unclosable offset.
+EXPERT_COV_KEY = "cov_n"
 
 _ap = argparse.ArgumentParser("CDIL policy optimization (clean)")
 _ap.add_argument("-phase_prefix", required=True,
@@ -216,7 +98,6 @@ USE_TIME_INPUT = _args.time_input
 OUT = _args.out or os.path.join(SAVE_DIR, "reptile_policy.pt")
 
 
-# ================================================================ world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -245,7 +126,6 @@ for _p in (0, 1, 2):
 stats = {k: np.asarray(CKS[0][k]) for k in
          ("std_obs_mu", "std_obs_sd", "std_act_mu", "std_act_sd")}
 
-# every model must share one z-space or switching between them is meaningless
 _ref_sd = np.asarray(CKS[0]["std_obs_sd"])
 for _p in (1, 2):
     _d = float(np.abs(np.asarray(CKS[_p]["std_obs_sd"]) - _ref_sd).max())
@@ -273,7 +153,6 @@ def phase_of(t_h):
     return 2
 
 
-# ====================================================================== expert ===
 _q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
 print(f"pre-caching {len(EXPERT_TIMES)} expert distributions ...", flush=True)
@@ -290,15 +169,11 @@ for _t in EXPERT_TIMES:
 print("windows per model: " + "  ".join(f"phase {k}: {v}" for k, v in sorted(_cnt.items())))
 
 
-# ====================================================================== policy ===
 _warm = None
 centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
     _warm = torch.load(_args.init_policy, map_location=device, weights_only=False)
     _m = _warm["policy_meta"]
-    # the standardizer refits on the union each iteration, so the same physical state
-    # maps to a different z; the centres are remapped to preserve behaviour in
-    # PHYSICAL units
     c0 = np.array(np.asarray(_m["centers_init"]).tolist(), dtype=np.float64)
     mo, so = np.asarray(_warm["std_obs_mu"]), np.asarray(_warm["std_obs_sd"])
     mn, sn = stats["std_obs_mu"], stats["std_obs_sd"]
@@ -339,14 +214,12 @@ if INNER_K == 1:
           "gradient-agreement term only appears for k > 1")
 print(f"L2: lambda={LAMBDA_A} on ALL SIX channels (additive)")
 
-# E_{a|s} is only real if replicas of one state draw DIFFERENT actions
 with torch.no_grad():
     _sp = policy(states=POOL[:1].expand(K_ACTIONS, -1).contiguous(),
                  t=0, p_dropout=P_DROPOUT).std(0).mean().item()
 print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
       f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -390,7 +263,6 @@ optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# ================================================================== window loss ==
 _acc = {"var": None, "t0": 0}
 _acc_a = []
 _eig = None
@@ -417,8 +289,8 @@ def window_loss(t, s, a, mu, cov, s_next):
     var_1h = _acc["var"]
     _acc = {"var": None, "t0": 0}
 
-    d = w2_cross_dim_torch(var_1h, _eig)                       # (P,)
-    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()      # E_a|s then E_s
+    d = w2_cross_dim_torch(var_1h, _eig)
+    w2 = d.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()
     _log["w2"].append(float(w2.detach()))
 
     a_all = torch.cat(_acc_a, 0)
@@ -440,7 +312,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     return w2 + LAMBDA_A * l2 + cc_a + cc_s
 
 
-# ============================================================== Reptile training ===
 def _run_window(t_h, gen):
     """One forward+backward on a single window. Returns the scalar loss."""
     global _eig
@@ -469,15 +340,9 @@ for it in range(N_ITERS):
     for tid in task_ids:
         t_h = float(EXPERT_TIMES[tid])
 
-        # every task starts from theta0, NOT from the previous task's result. That
-        # independence is the whole point: chaining them is ordinary joint training,
-        # which is what produced the collapsed action columns.
         policy.load_state_dict(theta0)
         inner_opt = torch.optim.Adam(policy.parameters(), lr=INNER_LR)
 
-        # a FIXED seed per task, so the k inner steps see the same window rather than
-        # k different resamplings -- otherwise the inner loop is minibatch noise and
-        # the gradient-agreement term Reptile relies on never forms
         gen = np.random.default_rng(int(tid) + 10000 * it)
         for _ in range(INNER_K):
             loss, out = _run_window(t_h, gen)
@@ -492,7 +357,6 @@ for it in range(N_ITERS):
 
         phis.append({k: v.detach().clone() for k, v in policy.state_dict().items()})
 
-    # --- the Reptile outer step: theta <- theta + eps * mean(phi - theta) ---
     new_state, drift = {}, 0.0
     for k in theta0:
         if theta0[k].dtype.is_floating_point:
@@ -518,7 +382,6 @@ for it in range(N_ITERS):
 print(f"\n||a||^2 {l2_first:.5f} -> {l2m:.5f} "
       f"({100*(l2m-l2_first)/max(l2_first,1e-12):+.1f}%)")
 
-# --- does the policy actually vary with the window? the collapse diagnostic ---
 print("\naction spread ACROSS WINDOWS (the thing that collapsed before):")
 with torch.no_grad():
     _acts = []

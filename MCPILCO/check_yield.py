@@ -1,15 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Independent verification of the total-yield numbers.
-
-Deliberately re-derives everything from the raw CSVs rather than trusting the
-analysis script: it checks the yield column by NAME (not by position), reports every
-file individually, and flags anything that would silently distort a mean --
-short/aborted runs, negative error_reward rows, unequal trajectory lengths.
-
-    python check_yield.py
-    python check_yield.py -v          # also print a per-phase breakdown
-"""
 import argparse
 import csv
 import glob

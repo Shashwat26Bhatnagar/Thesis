@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 from scipy.io import loadmat
 import scipy.sparse as sp
 import pandas as pd
@@ -45,11 +44,9 @@ def compute_vectorfield_features_time(timepoints, positions, vectors):
 
 def compute_vectorfield_features(positions, vectors, k=5):
     
-    # Normalize the vectors (interested in geometry of vector field - not magnitude)
     magnitudes = np.linalg.norm(vectors, axis=1)
     normalized_vectors = vectors / magnitudes[:, np.newaxis]
 
-    # Build a KD-tree for efficient nearest neighbour search
     tree = KDTree(positions)       
     
     div = np.zeros([positions.shape[0]])
@@ -57,25 +54,22 @@ def compute_vectorfield_features(positions, vectors, k=5):
     
     for j in range(positions.shape[0]):
         point = positions[j,:]
-        distances, indices = tree.query(point, k+1)  # +1 because the point itself is included
+        distances, indices = tree.query(point, k+1)
         
-        # Compute the divergence estimate
         divergence_estimate = 0
         curl_estimate = np.zeros(3)
-        for i in range(1, len(indices)):  # start from 1 to skip the point itself
+        for i in range(1, len(indices)):
             delta_position = positions[indices[i]] - point
             delta_vector = normalized_vectors[indices[i]] - normalized_vectors[0]
             divergence_estimate += np.dot(delta_vector, delta_position) / np.linalg.norm(delta_position)**2
             curl_estimate += np.cross(delta_vector, delta_position) / np.linalg.norm(delta_position)**2
             
-        divergence_estimate /= k  # normalize by k to get the average
-        curl_estimate /= k  # normalize by k to get the average
+        divergence_estimate /= k
+        curl_estimate /= k
                 
         div[j] = divergence_estimate
         curl[j,:] = curl_estimate
         
-    # take magnitude of curl
-    #curl_magnitude = np.linalg.norm(curl, axis=1)   
     
     return div, curl
 
@@ -140,7 +134,6 @@ def plot_interpolation_topomap(X, data, channel_locations):
     info = mne.create_info(list(channel_locations.index), sfreq=250, ch_types='eeg')
     info.set_montage(montage)
 
-    # plot div
     evoked = mne.EvokedArray(data, info)
     evoked.plot_topomap(ch_type='eeg',times=[0], size=4, res=256)
 
@@ -148,7 +141,6 @@ def load_eeg_data(folder, start_time=0, end_time=-1):
     
     eeg_data = loadmat(folder + 'obj_flows.mat')['obj_flows'][0][0]
     
-    # extract downsampled data
     channel_locations_ds = pd.DataFrame(eeg_data[0][0][0][0][0][0][1][0])
     channel_locations_ds = channel_locations_ds[['labels','X','Y','Z']]
     channel_locations_ds = channel_locations_ds.explode(list(channel_locations_ds.columns))
@@ -160,7 +152,6 @@ def load_eeg_data(folder, start_time=0, end_time=-1):
     vz = eeg_data[0][0][0][0][0][0][0][0][0][3][start_time:end_time,:]
     vectors_ds = np.dstack([vn,vx,vy,vz])
     
-    # extract spline interpolated data
     channel_locations_si = pd.DataFrame(eeg_data[0][0][0][1][0][0][1][0])
     channel_locations_si = channel_locations_si[['labels','X','Y','Z']]
     channel_locations_si = channel_locations_si.explode(list(channel_locations_si.columns))
@@ -172,7 +163,6 @@ def load_eeg_data(folder, start_time=0, end_time=-1):
     vz = eeg_data[0][0][0][1][0][0][0][0][0][3][start_time:end_time,:]
     vectors_si = np.dstack([vn,vx,vy,vz])
     
-    # extract ground truth data
     channel_locations_gt = pd.DataFrame(eeg_data[0][0][0][2][0][0][1][0])
     channel_locations_gt = channel_locations_gt[['labels','X','Y','Z']]
     channel_locations_gt = channel_locations_gt.explode(list(channel_locations_gt.columns))

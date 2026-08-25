@@ -1,48 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/chance_constraints.py
-
-Soft chance constraints, following Tan et al., "Iterative Model-Learning Scheme via
-GP-NMPC with Chance Constraints", Eqs. (8)-(9).
-
-FORMULATION (paper Eq. 8)
-    A probabilistic linear inequality  Pr(h^T x <= b) >= eps  is reformulated in terms
-    of the first two moments as a DETERMINISTIC tightening:
-
-        h^T mu  <=  b - Phi^-1(eps) * sqrt(h^T Sigma h)
-
-    where Phi^-1 is the inverse standard-Gaussian CDF. The second term is the
-    "back-off": the larger the predictive uncertainty, the further inside the bound
-    the mean must sit. That is the whole point -- it makes the controller cautious
-    exactly where the GP is unsure, which is where over-extrapolation happens.
-
-SOFT IMPLEMENTATION (paper Eq. 9)
-    Hard constraints make the problem infeasible on sparse data, so the paper adds a
-    slack s >= 0 penalised by alpha in the objective:
-
-        min  E[l(x,u)] + alpha * s
-        s.t. s >= h^T mu - b + Phi^-1(1-eps) * sqrt(h^T Sigma h),   s >= 0
-
-    With s at its lower bound this is exactly  alpha * relu(violation), which is what
-    is implemented here -- differentiable, and zero when the constraint holds.
-    Paper settings: eps = 0.95, alpha = 1000.
-
-APPLIED TO ACTIONS (this project)
-    The paper constrains STATES. Here the same machinery is applied per ACTION channel,
-    because the CDIL objective is covariance-only and therefore says nothing about what
-    the actions do -- the policy discharged ~200 L/h for the whole batch while the
-    reference recipe discharges 0 for ~97% of it. Nothing in the loss penalised that.
-
-    For a two-sided box lo_i <= a_i <= hi_i the two rows of h are +e_i and -e_i:
-
-        upper:  mu_i + z * sigma_i  <=  hi_i
-        lower:  lo_i  <=  mu_i - z * sigma_i          z = Phi^-1(eps)
-
-    sigma_i is the spread of the action across the K policy samples drawn for the same
-    state (dropout), i.e. the policy's own stochasticity -- the natural analogue of the
-    GP predictive variance the paper uses.
-"""
 import math
 
 import torch
@@ -73,29 +30,23 @@ def action_chance_penalty(a, lo, hi, num_states=None, k_actions=None,
 
     if num_states is not None and k_actions is not None and k_actions > 1:
         g = a.view(num_states, k_actions, a.shape[-1])
-        mu = g.mean(dim=1)                              # (S, da)
+        mu = g.mean(dim=1)
         sigma = g.std(dim=1, unbiased=False).clamp_min(sigma_floor)
     else:
         mu = a
         sigma = a.std(dim=0, keepdim=True).clamp_min(sigma_floor).expand_as(a)
 
-    # Eq. 8 tightening, both sides of the box. Positive => violated.
-    # A channel may be EXEMPTED by passing lo=-inf / hi=+inf (e.g. one driven by a
-    # Bernoulli gate, whose two-point distribution has maximal variance by design and
-    # would violate any variance back-off). inf-arithmetic would give nan here, so
-    # exempt sides are zeroed explicitly.
     v_hi = torch.where(torch.isfinite(hi), (mu + z * sigma) - hi,
                        torch.zeros_like(mu))
     v_lo = torch.where(torch.isfinite(lo), lo - (mu - z * sigma),
                        torch.zeros_like(mu))
 
-    # Eq. 9 with the slack at its lower bound: s = max(0, violation)
-    s = torch.relu(v_hi) + torch.relu(v_lo)             # (S, da) or (P, da)
+    s = torch.relu(v_hi) + torch.relu(v_lo)
     penalty = alpha * s.mean()
 
     if return_parts:
         with torch.no_grad():
-            frac = ((v_hi > 0) | (v_lo > 0)).to(a.dtype).mean(dim=0)   # per channel
+            frac = ((v_hi > 0) | (v_lo > 0)).to(a.dtype).mean(dim=0)
         return penalty, {"violation_frac_per_channel": frac,
                          "mean_slack": s.mean().detach(),
                          "max_slack": s.max().detach(),
@@ -136,13 +87,13 @@ def action_violation_multiplier(a, lo, hi, span=None, beta=1000.0, cap=100.0,
     elif not torch.is_tensor(span):
         span = torch.as_tensor(span, dtype=a.dtype, device=a.device)
 
-    excess = torch.relu(lo - a) + torch.relu(a - hi)          # (P, da)
-    v = (excess / span).sum(dim=1).mean()                     # scalar, unitless
+    excess = torch.relu(lo - a) + torch.relu(a - hi)
+    v = (excess / span).sum(dim=1).mean()
     mult = torch.clamp(1.0 + beta * v, max=cap)
 
     if return_parts:
         with torch.no_grad():
-            frac = (excess > 1e-9).to(a.dtype).mean(dim=0)    # per channel
+            frac = (excess > 1e-9).to(a.dtype).mean(dim=0)
         return mult, {"v": v.detach(), "violation_frac_per_channel": frac,
                       "max_excess": excess.max().detach()}
     return mult
@@ -185,9 +136,9 @@ def state_chance_penalty(mu, cov_diag, idx, lo=None, hi=None,
 
     s = torch.zeros_like(m)
     if lo is not None:
-        s = s + torch.relu(lo - (m - z * sd))          # want mu - z*sd >= lo
+        s = s + torch.relu(lo - (m - z * sd))
     if hi is not None:
-        s = s + torch.relu((m + z * sd) - hi)          # want mu + z*sd <= hi
+        s = s + torch.relu((m + z * sd) - hi)
     penalty = alpha * s.mean()
 
     if return_parts:
@@ -231,20 +182,15 @@ def mass_balance_penalty(mu, s_prev, a, wt_idx, water_idx, disch_idx,
     """
     import numpy as np
 
-    # z -> smpl-normalised -> physical, for the three channels involved
     def _obs_phys_delta(dz, idx):
         return dz * float(std_obs_sd[idx]) * float(obs_span[idx]) / 2.0
 
     def _act_phys(az, idx):
-        # only the DIFFERENCE water-discharge is needed, so the offset cancels only if
-        # both share a span; they do not, hence each is converted separately
         return az * float(std_act_sd[idx]) * float(act_span[idx]) / 2.0
 
     d_wt_z = mu[:, wt_idx] - s_prev[:, wt_idx]
     d_wt = _obs_phys_delta(d_wt_z, wt_idx)
 
-    # actions are z-scored; the additive part of the affine map matters here, so the
-    # caller passes spans and the mean offset is handled by the caller's centring
     water = _act_phys(a[:, water_idx], water_idx)
     disch = _act_phys(a[:, disch_idx], disch_idx)
 
@@ -327,7 +273,7 @@ class RecipeBounds:
                  smooth_h=2.0, n_smooth=5):
         import numpy as np
         self.rc = recipe_combo
-        self.keys = act_names_to_keys          # ordered list, one key per action channel
+        self.keys = act_names_to_keys
         self.min_act = np.asarray(min_act, dtype=np.float64)
         self.max_act = np.asarray(max_act, dtype=np.float64)
         self.mu = np.asarray(std_act_mu, dtype=np.float64)
@@ -358,7 +304,6 @@ class RecipeBounds:
         half = np.maximum(self.frac * np.abs(r), self.floor)
         lo_p = np.clip(r - half, self.min_act, self.max_act)
         hi_p = np.clip(r + half, self.min_act, self.max_act)
-        # physical -> smpl min-max -> z-score  (same chain as the rest of the pipeline)
         span = self.max_act - self.min_act
         lo_z = ((2.0 * (lo_p - self.min_act) / span - 1.0) - self.mu) / self.sd
         hi_z = ((2.0 * (hi_p - self.min_act) / span - 1.0) - self.mu) / self.sd

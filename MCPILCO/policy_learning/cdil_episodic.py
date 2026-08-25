@@ -1,28 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/cdil_episodic.py
-
-CDIL policy optimization, restructured as EPISODIC short-horizon windows --
-mirroring MC-PILCO's actual scheme rather than one long continuing rollout.
-
-WHY (from the MC-PILCO paper, Amadio et al. 2022):
-    J(theta) = sum_{t=0..T} (1/M) sum_m c(x_t^(m)),  ONE backward, ONE update.
-    Their horizons are SHORT: cart-pole 3 s / 0.05 s = 60 steps; UR5 200; Furuta 90.
-    And p(x_0) is RESAMPLED at every optimization step -- the trajectory never
-    continues past T.
-
-    Our previous scheme rolled 750 steps CONTINUING (no reset), so |s| reached ~140
-    z-units against training data spanning [-5.5, 11.2]. That killed the gradient in
-    two places at once:
-        - GP predictive variance saturated at the prior lambda  -> dvar/dinput = 0
-        - policy RBF basis abandoned its centres ([-3, 3])      -> da/dtheta   = 0
-
-HERE: each expert comparison window (k = STEPS_PER_EXPERT = 5 steps = 1 h) is a
-self-contained episode with T = 5 and a FRESH in-distribution start state, exactly
-analogous to one MC-PILCO optimization step. Same total compute, but every window
-begins inside the region the world model actually covers.
-"""
 import os
 import sys
 import numpy as np
@@ -59,21 +36,19 @@ np.random.seed(0); torch.manual_seed(0)
 SAVE_DIR = os.path.join(_REPO, "results_pensim")
 MODEL_PATH = os.path.join(SAVE_DIR, "rbf_model.pt")
 
-STATE_DIM = pdata.OBS_DIM          # 8
-INPUT_DIM = pdata.ACT_DIM          # 6
+STATE_DIM = pdata.OBS_DIM
+INPUT_DIM = pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) sampling ---
-NUM_STATES = 100                   # outer expectation E_s
-K_ACTIONS = 5                      # inner expectation E_{a|s}
+NUM_STATES = 100
+K_ACTIONS = 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- EPISODIC structure: each window is its own short-horizon MC-PILCO episode ---
-HOURS_PER_STEP = 0.2               # PenSim sampling interval [h]
-EXPERT_DT = 1.0                    # pf_query.DT [h]
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))     # = 5 -> the episode length T
-EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0                       # valid range of source="traj"
-WINDOWS_PER_ITER = 150             # expert times visited per iteration
+HOURS_PER_STEP = 0.2
+EXPERT_DT = 1.0
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
+EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
+WINDOWS_PER_ITER = 150
 N_ITERS = 20
 LR = 0.01
 P_DROPOUT = 0.25
@@ -82,9 +57,6 @@ CLIP = 10.0
 EXPERT_COV_KEY = "cov_n"
 
 
-# =====================================================================================
-# 1. FROZEN GP WORLD MODEL
-# =====================================================================================
 def load_rbf_model(path=MODEL_PATH):
     ckpt = torch.load(path, map_location=device, weights_only=False)
     init_dict = dict(
@@ -118,9 +90,6 @@ print(f"frozen GP model: num_gp={model.num_gp}  train pts={model.gp_inputs.shape
 print(f"training state range: [{s_lo.min().item():.2f}, {s_hi.max().item():.2f}] (z-units)")
 
 
-# =====================================================================================
-# 2. EXPERT ORACLE
-# =====================================================================================
 class ExpertOracle:
     def __init__(self, source="traj", verbose=True):
         self.q = PFQuery(verbose=verbose)
@@ -141,7 +110,6 @@ class ExpertOracle:
 
 expert = ExpertOracle(source="traj")
 
-# pre-cache every expert time we will use (deterministic in t; avoids repeated queries)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
 print(f"pre-caching {len(EXPERT_TIMES)} expert distributions "
       f"({EXPERT_T_MIN}..{EXPERT_T_MAX} h) ...", flush=True)
@@ -153,9 +121,6 @@ print(f"  done. example eigenvalues @75h: "
       f"{EXPERT_EIGS[75.0].numpy()}", flush=True)
 
 
-# =====================================================================================
-# 3. POLICY
-# =====================================================================================
 num_basis = 200
 policy = Policy.Sum_of_gaussians(
     state_dim=STATE_DIM, input_dim=INPUT_DIM, num_basis=num_basis,
@@ -176,9 +141,6 @@ optimizer = torch.optim.Adam(policy.parameters(), lr=LR)
 rng = np.random.default_rng(0)
 
 
-# =====================================================================================
-# 4. WINDOW LOSS  -- one 1-hour episode
-# =====================================================================================
 _acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
 _current_eig = None
 
@@ -195,16 +157,13 @@ def window_loss(t, s, a, mu, cov, s_next):
     if (t - _acc["t_start"] + 1) < STEPS_PER_EXPERT:
         return torch.zeros((), dtype=mu.dtype, device=mu.device)
 
-    var_1h = _acc["var"]                                   # (P, 8) diagonal
+    var_1h = _acc["var"]
     _acc = {"mean": None, "var": None, "s_start": None, "t_start": 0}
 
-    d_all = w2_cross_dim_torch(var_1h, _current_eig)       # (P,)
-    return d_all.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()   # E_a|s then E_s
+    d_all = w2_cross_dim_torch(var_1h, _current_eig)
+    return d_all.view(NUM_STATES, K_ACTIONS).mean(dim=1).mean()
 
 
-# =====================================================================================
-# 5. TRAINING LOOP  -- episodic, MC-PILCO style
-# =====================================================================================
 hist = []
 for it in range(N_ITERS):
     order = rng.permutation(len(EXPERT_TIMES))[:WINDOWS_PER_ITER]
@@ -214,12 +173,10 @@ for it in range(N_ITERS):
         t_h = float(EXPERT_TIMES[idx])
         _current_eig = EXPERT_EIGS[round(t_h, 6)]
 
-        # FRESH in-distribution start state for THIS window (MC-PILCO resamples p(x0))
         s_states = sample_initial_particles(state_pool, NUM_STATES, generator=rng,
                                             dtype=dtype, device=device)
         s0 = s_states.repeat_interleave(K_ACTIONS, dim=0)
 
-        # short-horizon episode: T = 5, ONE graph, ONE backward
         out = gp_rollout(model=model, policy=policy, s0=s0, T=STEPS_PER_EXPERT,
                          p_dropout=P_DROPOUT, particle_pred=True,
                          loss_fn=window_loss, graph_mode="full")
@@ -228,7 +185,7 @@ for it in range(N_ITERS):
         optimizer.zero_grad()
         loss.backward()
         gn = torch.sqrt(sum((p.grad ** 2).sum() for p in policy.parameters()
-                            if p.grad is not None)).item()          # BEFORE clipping
+                            if p.grad is not None)).item()
         torch.nn.utils.clip_grad_norm_(policy.parameters(), CLIP)
         optimizer.step()
 

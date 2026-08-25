@@ -1,30 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-analyse_ablation.py   (repo root)
-
-Paired analysis of the one-model vs three-phase-model ablation.
-
-    python analyse_ablation.py
-    python analyse_ablation.py -res results_ablation
-
-THE ENDPOINT is total yield collected in the REAL simulator, not the training loss.
-Every objective tried in this project has moved its own loss without moving yield, so
-the loss is not a proxy for the thing being claimed.
-
-THE TEST IS PAIRED. Seed s gives the same policy initialisation, window draw and
-particle sampling in both arms, so arm A and arm B at seed s are matched observations
-rather than independent samples. A paired test removes the seed-to-seed variance, which
-in this project has been large enough to swamp the differences between methods --
-across configurations, yield has ranged 2728-3486 with no method reliably separated
-from another. Both the parametric (paired t) and the distribution-free (Wilcoxon
-signed-rank) results are reported; if they disagree, trust the latter, since n is small
-and the differences need not be normal.
-
-EPISODES THAT TERMINATE EARLY ARE NOT DROPPED. A policy that drains the vessel at
-121 h has a low yield BECAUSE it failed, and excluding it would flatter the arm that
-fails more often. Completion rate is reported alongside.
-"""
 import argparse
 import csv
 import glob

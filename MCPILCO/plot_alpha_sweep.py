@@ -1,30 +1,16 @@
 #!/usr/bin/env python3
-"""
-plot_alpha_sweep.py
-
-Parses reptile_policy_opt.py sweep .out logs directly (the "Finished alpha/LR = X"
-line and the "action spread ACROSS WINDOWS" table each run prints at the end) and
-plots cross-window action-spread std vs alpha for every channel.
-
-No manual data entry: point it at a glob of .out files and it does the rest.
-
-    python3 plot_alpha_sweep.py --glob "alpha_*.out" "lr_*.out" --out alpha_sweep.png
-
-If run with no arguments, it looks for *.out in the current directory.
-"""
 import argparse
 import glob
 import re
 import sys
 
 VALUE_PAT = re.compile(r"Finished\s+(?:alpha|LR)\s*=\s*([\d.]+)")
-# channel rows: name, then 5 numeric columns (t=10h .. t=130h, std) -- keep ALL of them
 CHANNEL_PAT = re.compile(
     r"^\s*(\w+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s+(-?\d+\.\d+)\s*$",
     re.MULTILINE)
 KNOWN_CHANNELS = {"discharge", "sugar", "soilbean", "aeration", "backpressure",
                   "waterinj"}
-TIME_POINTS = [10, 50, 90, 130]  # hours; must match the order printed in the table
+TIME_POINTS = [10, 50, 90, 130]
 
 
 def parse_one(path):
@@ -42,7 +28,7 @@ def parse_one(path):
         name = m.group(1)
         if name not in KNOWN_CHANNELS:
             continue
-        vals = [float(m.group(i)) for i in (2, 3, 4, 5)]  # t=10,50,90,130h
+        vals = [float(m.group(i)) for i in (2, 3, 4, 5)]
         series[name] = vals
         stds[name] = float(m.group(6))
 
@@ -88,14 +74,12 @@ def main():
 
     rows.sort(key=lambda r: r[0])
 
-    # dedupe: if the same alpha appears twice (re-run), keep the LAST one parsed
     by_alpha = {}
     for alpha, stds, series, src in rows:
         by_alpha[alpha] = (stds, series, src)
     alphas = sorted(by_alpha.keys())
     channels = sorted(KNOWN_CHANNELS)
 
-    # ---- CSV: std summary ----
     import csv as csvmod
     with open(args.csv, "w", newline="") as f:
         w = csvmod.writer(f)
@@ -105,7 +89,6 @@ def main():
             w.writerow([a] + [stds.get(c, "") for c in channels] + [src])
     print(f"\nwrote {args.csv}")
 
-    # ---- CSV: full time-resolved values, long format ----
     time_csv = args.csv.replace(".csv", "_by_time.csv")
     with open(time_csv, "w", newline="") as f:
         w = csvmod.writer(f)
@@ -117,14 +100,12 @@ def main():
                     w.writerow([a, c, hr, v])
     print(f"wrote {time_csv}")
 
-    # ---- plot ----
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, 2, figsize=(13, 5))
 
-    # left: every channel, log-x (alpha spans two orders of magnitude)
     ax = axes[0]
     for c in channels:
         ys = [by_alpha[a][0].get(c, float("nan")) for a in alphas]
@@ -140,7 +121,6 @@ def main():
     ax.legend(fontsize=8)
     ax.grid(alpha=0.3)
 
-    # right: discharge only, zoomed, linear x for the tested-sane range
     ax = axes[1]
     sane = [a for a in alphas if a <= 0.1]
     ys = [by_alpha[a][0].get("discharge", float("nan")) for a in sane]
@@ -159,12 +139,7 @@ def main():
     fig.savefig(args.out, dpi=150)
     print(f"wrote {args.out}")
 
-    # ---- second figure: every action's value AGAINST TIME, one panel per channel,
-    # one line per alpha tested. This is the "overall picture ... with time" view --
-    # std collapses the 4 time-points into one number; this shows the shape instead. ----
-    sane_alphas = [a for a in alphas if a <= 0.1] or alphas  # drop the collapsed
-                                                              # 0.3/0.4 runs unless
-                                                              # they're all there is
+    sane_alphas = [a for a in alphas if a <= 0.1] or alphas
     fig2, axes2 = plt.subplots(2, 3, figsize=(15, 8), sharex=True)
     cmap = plt.get_cmap("viridis")
     for idx, c in enumerate(channels):
@@ -192,7 +167,6 @@ def main():
     fig2.savefig(time_png, dpi=150)
     print(f"wrote {time_png}")
 
-    # ---- summary ----
     best_a = max(alphas, key=lambda a: by_alpha[a][0].get("discharge", -1))
     print(f"\nbest discharge std: alpha={best_a}  "
           f"std={by_alpha[best_a][0]['discharge']:.4f}")

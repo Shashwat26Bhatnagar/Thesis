@@ -1,13 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors:    Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-            Fabio Amadio (fabioamadio93@gmail.com)
-MERL:	    Diego Romeres (romeres@merl.com)
-"""
-
-
 """
 File to load from the logs the final policy obtained with MC-PILCO4PMS and test it in the simualted cart-pole system with partially measurable state
 """
@@ -31,28 +21,22 @@ import simulation_class.ode_systems as f_ode
 
 torch.set_num_threads(1)
 
-# paths
 seed = 1
 folder_path = "results_tmp/" + str(seed) + "/"
 config_file_path = folder_path + "/config_log.pkl"
 saving_path = folder_path + "/reproduce_policy_log.pkl"
 
-# repeat the policy 'num_test' times
 num_test = 50
 
-# select the policy obtained at trial 'trial_index'
 num_trial = 5
 
-# initialize the object
 config_dict = pkl.load(open(config_file_path, "rb"))
 PL_obj = MC_PILCO.MC_PILCO4PMS(**config_dict["MC_PILCO_init_dict"])
 T_control = config_dict["reinforce_param_dict"]["T_control"]
 initial_state = config_dict["reinforce_param_dict"]["initial_state"]
 
-# set the policy parameters
 PL_obj.load_policy_from_log(num_trial, folder=folder_path)
 
-# test the policy
 states_list = []
 input_list = []
 for i in range(num_test):
@@ -73,7 +57,6 @@ results_dict["states_list"] = states_list
 results_dict["input_list"] = input_list
 pkl.dump(results_dict, open(saving_path, "wb"))
 
-# plot trajectories
 plt.figure()
 plt.subplot(3, 1, 1)
 plt.grid()

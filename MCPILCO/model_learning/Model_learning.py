@@ -1,12 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors: 	Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-             Fabio Amadio (fabioamadio93@gmail.com)
-MERL contact:	Diego Romeres (romeres@merl.com)
-"""
-
 """
 Superclass for model learning objects and basic implementations
 ### Main variables ###
@@ -56,18 +47,15 @@ class Model_learning(torch.nn.Module):
         flg_norm=False,
     ):
         super(Model_learning, self).__init__()
-        # Set model info
         self.num_samples = 0
         self.dtype = dtype
         self.device = device
         self.init_dict_list = init_dict_list
-        # Get the gp list
         self.num_gp = num_gp
         self.alpha_list = [None] * num_gp
         self.m_X_list = [None] * num_gp
         self.K_X_inv_list = [None] * num_gp
         self.gp_inputs_tr_list = [None] * num_gp
-        # check approximation
         self.approximation_mode = approximation_mode
         if approximation_mode is None:
             print("EXACT GP INFERENCE SELECTED")
@@ -87,9 +75,7 @@ class Model_learning(torch.nn.Module):
                 self.SOD_threshold_mode = approximation_dict["SOD_threshold_mode"]
                 self.SOD_threshold = approximation_dict["SOD_threshold"]
                 self.flg_SOD_permutation = approximation_dict["flg_SOD_permutation"]
-        # init the GP models
         self.init_gp_models()
-        # set normalization parameters
         self.flg_norm = flg_norm
         self.norm_list = [1.0] * self.num_gp
 
@@ -138,7 +124,6 @@ class Model_learning(torch.nn.Module):
                 torch.tensor(new_state_samples, dtype=self.dtype, device=self.device),
                 torch.tensor(new_input_samples, dtype=self.dtype, device=self.device),
             )
-            # update samples set
             self.gp_inputs = torch.cat([self.gp_inputs, (new_gp_inputs)])
             self.gp_output_list = [
                 torch.cat([self.gp_output_list[gp_index], new_gp_output_list[gp_index]], 0)
@@ -151,12 +136,9 @@ class Model_learning(torch.nn.Module):
         Optimize GP model
         optimization_opt_list is a list collecting dictionaries with the optimization options
         """
-        # initialize the GP models
         self.init_gp_models()
-        # train each gp
         for gp_index in range(0, self.num_gp):
             self.train_gp(gp_index=gp_index, optimization_opt_dict=optimization_opt_list[gp_index])
-            # pretrain each gp (compute alpha, m_X and K_X_inv)
             with torch.no_grad():
                 self.pretrain_gp(gp_index=gp_index)
 
@@ -164,7 +146,6 @@ class Model_learning(torch.nn.Module):
         """
         Compute traininng estimates and returns alpha and K_X_inv
         """
-        # make computations
         if self.approximation_mode is None:
             Y_hat, var, alpha, m_X, K_X_inv = self.gp_list[gp_index].get_estimate(
                 X=self.gp_inputs, Y=self.gp_output_list[gp_index], X_test=self.gp_inputs, flg_return_K_X_inv=True
@@ -174,19 +155,16 @@ class Model_learning(torch.nn.Module):
             self.m_X_list[gp_index] = m_X
             self.gp_inputs_tr_list[gp_index] = self.gp_inputs
         elif self.approximation_mode == "SOD":
-            # get the threshold
             if self.SOD_threshold_mode == "relative":
                 threshold = self.SOD_threshold * torch.sqrt(self.gp_list[gp_index].get_sigma_n_2())
             elif self.SOD_threshold_mode == "absolute":
                 threshold = self.SOD_threshold[gp_index]
-            # get the SOD
             self.SOD_indices[gp_index] = self.gp_list[gp_index].get_SOD(
                 X=self.gp_inputs,
                 Y=self.gp_output_list[gp_index],
                 threshold=threshold,
                 flg_permutation=self.flg_SOD_permutation,
             )
-            # compute the posterior
             Y_hat, var, alpha, m_X, K_X_inv = self.gp_list[gp_index].get_estimate(
                 X=self.gp_inputs[self.SOD_indices[gp_index], :],
                 Y=self.gp_output_list[gp_index][self.SOD_indices[gp_index], :],
@@ -212,14 +190,12 @@ class Model_learning(torch.nn.Module):
         Predict the next state given the the current state-input (batches supported).
         Method returns next state samples, together with mean and variance of the gp prediction
         """
-        # Get the gp estimate
         _, _, gp_output_mean_list, gp_output_var_list = self.get_one_step_gp_out(
             states=current_state, inputs=current_input
         )
 
         for i in range(self.num_gp):
             gp_output_var_list[i] = gp_output_var_list[i] * self.norm_list[i] ** 2
-        # Get the next state form gp IO and return
         return self.get_next_state_from_gp_output(
             current_state=current_state,
             current_input=current_input,
@@ -235,7 +211,6 @@ class Model_learning(torch.nn.Module):
         """
         gp_inputs = self.data_to_gp_input(states=states, inputs=inputs)
         gp_outputs_list = None
-        # get gp estimates
         gp_output_mean_list, gp_output_var_list = self.get_gp_estimate(
             gp_inputs=gp_inputs, gp_index_list=range(0, self.num_gp)
         )
@@ -246,19 +221,16 @@ class Model_learning(torch.nn.Module):
         Compute input-output of the gp and performs estimation:
         The function returns (gp_inputs, gp_outputs, gp_mean_hat, gp_var_hat)
         """
-        # check index list
         if gp_index_list is None:
             gp_index_list = range(0, self.num_gp)
-        if flg_onestep:  # get one-step gp estimates
+        if flg_onestep:
             gp_inputs = self.data_to_gp_input(states=states, inputs=inputs)
             gp_outputs_list = None
-        else:  # get the input-output of the gp
+        else:
             gp_inputs, gp_outputs_list = self.data_to_gp_IO(states=states, inputs=inputs)
-        # pretrain gp
         if flg_pretrain:
             for gp_index in gp_index_list:
                 self.pretrain_gp(gp_index=gp_index)
-        # get gp estimates
         gp_output_mean_list, gp_output_var_list = self.get_gp_estimate(gp_inputs=gp_inputs, gp_index_list=gp_index_list)
         return gp_inputs, gp_outputs_list, gp_output_mean_list, gp_output_var_list
 
@@ -266,14 +238,11 @@ class Model_learning(torch.nn.Module):
         """
         Return the gp ouput (mean and variance)
         """
-        # check gp_index_list
         if gp_index_list is None:
             gp_index_list = range(0, self.num_gp)
-        # initilize the output lists
         gp_output_mean_list = [None] * self.num_gp
         gp_output_var_list = [None] * self.num_gp
 
-        # return gp_output_mean_list, gp_output_var_list
         est_list = [
             self.gp_list[i].get_estimate_from_alpha(
                 X=self.gp_inputs_tr_list[i],
@@ -292,13 +261,10 @@ class Model_learning(torch.nn.Module):
         """
         Return the gp ouput (mean and variance)
         """
-        # check gp_index_list
         if gp_index_list is None:
             gp_index_list = range(0, self.num_gp)
-        # initilize the output lists
         gp_output_mean_list = [None] * self.num_gp
         gp_output_var_list = [None] * self.num_gp
-        # get mean and variance estimation
         for gp_index in gp_index_list:
             gp_output_mean_list[gp_index], gp_output_var_list[gp_index] = self.gp_list[
                 gp_index
@@ -308,7 +274,6 @@ class Model_learning(torch.nn.Module):
                 m_X=self.m_X_list[gp_index],
                 Sigma=self.Sigma_SOR_list[gp_index],
             )
-            # same shape for mean and var
             gp_output_var_list[gp_index] = gp_output_var_list[gp_index].reshape([-1, 1])
         return gp_output_mean_list, gp_output_var_list
 
@@ -316,11 +281,9 @@ class Model_learning(torch.nn.Module):
         """
         Return the gp ouput (mean and variance)
         """
-        # initilize the output lists
         gp_output_mean_list = [None] * len(gp_index_list)
         gp_output_var_list = [None] * len(gp_index_list)
 
-        # get mean and variance estimation
         est_list = [
             self.gp_list[i].get_estimate_from_alpha(
                 X=self.gp_inputs_tr_list[i],
@@ -340,13 +303,10 @@ class Model_learning(torch.nn.Module):
         Return the gp ouput (mean and variance) computed with
         the alpha with minimal L1 norm
         """
-        # check gp_index_list
         if gp_index_list is None:
             gp_index_list = range(0, self.num_gp)
-        # initilize the output lists
         gp_output_mean_list = [None] * self.num_gp
         gp_output_var_list = [None] * self.num_gp
-        # get mean and variance estimation
         for gp_index in gp_index_list:
             gp_output_mean_list[gp_index], gp_output_var_list[gp_index] = self.gp_list[
                 gp_index
@@ -357,7 +317,6 @@ class Model_learning(torch.nn.Module):
                 m_X=self.m_X_list[gp_index],
                 K_X_inv=self.K_X_inv_list[gp_index],
             )
-            # same shape for mean and var
             gp_output_var_list[gp_index] = gp_output_var_list[gp_index].reshape([-1, 1])
         return gp_output_mean_list, gp_output_var_list
 
@@ -386,7 +345,6 @@ class Model_learning(torch.nn.Module):
         if self.approximation_mode == "SOR":
             print("\nSelect the SOR regressors...")
             with torch.no_grad():
-                # permutation_indices = np.random.permutation(self.gp_inputs.shape[0])
                 permutation_indices = np.arange(0, self.gp_inputs.shape[0])
                 self.reg_indices_SOR_list[gp_index] = self.gp_list[gp_index].set_inducing_inputs_from_data(
                     X=self.gp_inputs[permutation_indices, :],
@@ -399,18 +357,14 @@ class Model_learning(torch.nn.Module):
         """
         Train the gp with index gp_index optimizing the likelihood
         """
-        # check the batch size
         batch_size = self.gp_inputs.shape[0]
 
-        # get the dataloader
         if self.flg_norm:
             self.norm_list[gp_index] = torch.max(torch.abs(self.gp_output_list[gp_index]))
         dataset = torch.utils.data.TensorDataset(
             self.gp_inputs, self.gp_output_list[gp_index] / self.norm_list[gp_index]
         )
-        # dataset = torch.utils.data.TensorDataset(self.gp_inputs, self.gp_output_list[gp_index])
         trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
-        # fit the model
         f_optim = eval(optimization_opt_dict["f_optimizer"])
         self.gp_list[gp_index].fit_model(
             trainloader=trainloader,
@@ -424,13 +378,10 @@ class Model_learning(torch.nn.Module):
         """
         Train the gp with index gp_index optimizing the likelihood
         """
-        # check the batch size
         batch_size = self.gp_inputs.shape[0]
 
-        # get the dataloader
         dataset = torch.utils.data.TensorDataset(self.gp_inputs, self.gp_output_list[gp_index])
         trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=False)
-        # fit the model
         f_optim = eval(optimization_opt_dict["f_optimizer"])
         self.gp_list[gp_index].fit_SOR_model(
             trainloader=trainloader,
@@ -477,20 +428,15 @@ class Model_learning(torch.nn.Module):
         -the current inputs
         -a list with mean and variance of the gp output
         """
-        #  mean and variance of delta distribution
         delta_mean = torch.cat(gp_output_mean_list, 1)
         delta_var = torch.cat(gp_output_var_list, 1)
         if particle_pred == True:
-            # sample delta from distribution
             delta_var_safe = torch.clamp(delta_var, min=1e-12, max=1e6)
             delta_distribution = Normal(delta_mean, torch.sqrt(delta_var_safe))
             delta_sample = delta_distribution.rsample()
-            # delta_sample = delta_mean + torch.sqrt(delta_var)*torch.randn(delta_mean.shape, dtype=self.dtype, device=self.device)
         else:
             delta_sample = delta_mean
-        # get the next state
         next_states = current_state + delta_sample
-        # return the next state and the delta distribution
         return next_states, delta_mean, delta_var
 
 
@@ -693,22 +639,17 @@ class Speed_Model_learning_RBF_angle_state(Model_learning):
         -a list with mean and variance of the gp output
         by integrating the speed changes (GP outputs)
         """
-        #  mean and variance of delta speed distribution
         delta_vel_mean = torch.cat(gp_output_mean_list, 1)
         delta_vel_var = torch.cat(gp_output_var_list, 1)
 
-        # preallocate variables
         next_states = torch.zeros(current_state.shape, dtype=self.dtype, device=self.device)
 
         if particle_pred == True:
-            # sample delta speed from distribution
             delta_speed_distribution = Normal(delta_vel_mean, torch.sqrt(delta_vel_var))
             delta_speed_sample = delta_speed_distribution.rsample()
-            # delta_speed_sample = delta_vel_mean + torch.sqrt(delta_vel_var)*torch.randn(delta_vel_mean.shape, dtype=self.dtype, device=self.device)
         else:
             delta_speed_sample = delta_vel_mean
 
-        # compute next states
         next_states[:, self.vel_indeces] = current_state[:, self.vel_indeces] + delta_speed_sample
         next_states[:, self.not_vel_indeces] = (
             current_state[:, self.not_vel_indeces]
@@ -800,11 +741,8 @@ class SP_Speed_Model_learning_Furuta(Model_learning):
         Returns the num_index gp
         """
         gp_list = []
-        # get the RBF GP
         gp_list.append(SGP.RBF(**init_dict[0]))
-        # get the model-based GP
         gp_list.append(Sparse_GP.Linear_GP(**init_dict[1]))
-        # return the SP GP
         return GP.Sum_Independent_GP(*gp_list)
 
     def data_to_gp_output(self, states):
@@ -847,22 +785,17 @@ class SP_Speed_Model_learning_Furuta(Model_learning):
         -a list with mean and variance of the gp output
         by integrating the speed changes (GP outputs)
         """
-        #  mean and variance of delta speed distribution
         delta_vel_mean = torch.cat(gp_output_mean_list, 1)
         delta_vel_var = torch.cat(gp_output_var_list, 1)
 
-        # preallocate variables
         next_states = torch.zeros(current_state.shape, dtype=self.dtype, device=self.device)
 
         if particle_pred == True:
-            # sample delta speed from distribution
             delta_speed_distribution = Normal(delta_vel_mean, torch.sqrt(delta_vel_var))
             delta_speed_sample = delta_speed_distribution.rsample()
-            # delta_speed_sample = delta_vel_mean + torch.sqrt(delta_vel_var)*torch.randn(delta_vel_mean.shape, dtype=self.dtype, device=self.device)
         else:
             delta_speed_sample = delta_vel_mean
 
-        # compute next states
         next_states[:, self.vel_indeces] = current_state[:, self.vel_indeces] + delta_speed_sample
         next_states[:, self.not_vel_indeces] = (
             current_state[:, self.not_vel_indeces]
@@ -875,10 +808,6 @@ class SP_Speed_Model_learning_Furuta(Model_learning):
 
 
 
-# =====================================================================================
-# APPEND THIS CLASS TO:  model_learning/Model_learning.py
-# (torch, numpy as np, Normal, and SGP=Stationary_GP are already imported at the top)
-# =====================================================================================
 
 
 class Model_learning_RVGP(Model_learning):
@@ -898,17 +827,17 @@ class Model_learning_RVGP(Model_learning):
 
     def __init__(
         self,
-        init_dict,          # Matern init dict WITHOUT active_dims/eigenvalues/num_vertices
-        rvgp_dict,          # kwargs for RVGPManifold (n_neighbors, explained_variance, ...)
+        init_dict,
+        rvgp_dict,
         dtype=torch.float64,
         device=torch.device("cpu"),
         flg_norm=False,
     ):
         self._matern_init_dict = dict(init_dict)
         self.rvgp_dict = dict(rvgp_dict)
-        self.rvgp = None            # RVGPManifold, built after data is added
-        self._raw = None            # accumulated manifold points (x_t, u_t)  (N, p)
-        self._delta = None          # accumulated state deltas               (N, D)
+        self.rvgp = None
+        self._raw = None
+        self._delta = None
         super(Model_learning_RVGP, self).__init__(
             num_gp=1,
             init_dict_list=[self._matern_init_dict],
@@ -919,10 +848,8 @@ class Model_learning_RVGP(Model_learning):
             flg_norm=flg_norm,
         )
 
-    # ---- kernel factory: reads frozen spectrum from the (already built) manifold ----
     def get_gp(self, gp_index, init_dict):
         if self.rvgp is None:
-            # placeholder before the manifold exists (replaced in reinforce_model)
             eigenvalues, num_vertices, k = np.zeros(1), 1.0, 1
         else:
             eigenvalues = self.rvgp.eigenvalues
@@ -936,14 +863,13 @@ class Model_learning_RVGP(Model_learning):
         )
         return SGP.Matern(**d)
 
-    # ---- store RAW manifold points + deltas; encoding is deferred to build_manifold ----
     def add_data(self, new_state_samples, new_input_samples):
         s = torch.as_tensor(new_state_samples, dtype=self.dtype, device=self.device)
         u = torch.as_tensor(new_input_samples, dtype=self.dtype, device=self.device)
         self.dim_state = s.shape[1]
         self.dim_input = u.shape[1]
-        raw = torch.cat([s, u], dim=1)[:-1, :]          # (x_t, u_t)
-        delta = s[1:, :] - s[:-1, :]                    # x_{t+1} - x_t
+        raw = torch.cat([s, u], dim=1)[:-1, :]
+        delta = s[1:, :] - s[:-1, :]
         if self._raw is None:
             self._raw, self._delta = raw, delta
         else:
@@ -951,7 +877,6 @@ class Model_learning_RVGP(Model_learning):
             self._delta = torch.cat([self._delta, delta], 0)
         self.num_samples = self._raw.shape[0]
 
-    # ---- build manifold ONCE, encode training points, stack targets ----
     def build_manifold(self):
         from model_learning.rvgp_manifold import RVGPManifold
 
@@ -962,24 +887,20 @@ class Model_learning_RVGP(Model_learning):
             device=self.device,
             **self.rvgp_dict,
         )
-        # GP input = exact training encodings (N*D, k); target = stacked delta (N*D, 1)
         self.gp_inputs = self.rvgp.train_features()
         self.gp_output_list = [self._delta.reshape(-1, 1)]
 
-    # ---- override training: build manifold BEFORE (re)building the kernel ----
     def reinforce_model(self, optimization_opt_list=None):
-        self.build_manifold()          # sets self.rvgp, self.gp_inputs, self.gp_output_list
-        self.init_gp_models()          # get_gp now reads the real eigenvalues
+        self.build_manifold()
+        self.init_gp_models()
         self.train_gp(gp_index=0, optimization_opt_dict=optimization_opt_list[0])
         with torch.no_grad():
             self.pretrain_gp(gp_index=0)
 
-    # ---- prediction: encode query points via Nystrom, stacked (M*D, k) ----
     def data_to_gp_input(self, states, inputs):
         raw = torch.cat([states, inputs], dim=1)
         return self.rvgp.encode(raw)
 
-    # ---- reshape stacked (M*D, 1) mean/var back to (M, D) before sampling delta ----
     def get_next_state_from_gp_output(
         self, current_state, current_input, gp_output_mean_list, gp_output_var_list, particle_pred=True
     ):
@@ -995,10 +916,6 @@ class Model_learning_RVGP(Model_learning):
         return next_states, delta_mean, delta_var
 
 
-# =====================================================================================
-# APPEND (or REPLACE the previous Model_learning_RVGP) IN:  model_learning/Model_learning.py
-# (torch, numpy as np, Normal, SGP=Stationary_GP already imported at the top)
-# =====================================================================================
 
 
 class Model_learning_RVGP(Model_learning):
@@ -1024,10 +941,10 @@ class Model_learning_RVGP(Model_learning):
 
     def __init__(
         self,
-        init_dict,               # Matern init dict (no active_dims/eigenvalues/num_vertices)
-        rvgp_dict,               # kwargs for RVGPManifold (n_neighbors, explained_variance, ...)
-        angle_indices,           # e.g. [2] for cartpole pole angle
-        not_angle_indices,       # e.g. [0, 1, 3]
+        init_dict,
+        rvgp_dict,
+        angle_indices,
+        not_angle_indices,
         dtype=torch.float64,
         device=torch.device("cpu"),
         flg_norm=False,
@@ -1038,8 +955,8 @@ class Model_learning_RVGP(Model_learning):
         self.not_angle_indices = list(not_angle_indices)
         self.dim_e = len(self.not_angle_indices) + 2 * len(self.angle_indices)
         self.rvgp = None
-        self._z = None            # accumulated manifold points [e(x_t), u_t]  (N, p_exp)
-        self._delta_e = None      # accumulated expanded-state deltas          (N, D_e)
+        self._z = None
+        self._delta_e = None
         super(Model_learning_RVGP, self).__init__(
             num_gp=1,
             init_dict_list=[self._matern_init_dict],
@@ -1050,7 +967,6 @@ class Model_learning_RVGP(Model_learning):
             flg_norm=flg_norm,
         )
 
-    # ---- angle-aware embedding e(x) = [x_notangle, cos(x_angle), sin(x_angle)] ----
     def _expand_state(self, states):
         return torch.cat(
             [
@@ -1061,25 +977,23 @@ class Model_learning_RVGP(Model_learning):
             dim=1,
         )
 
-    # ---- kernel factory: reads frozen spectrum from the (already built) manifold ----
     def get_gp(self, gp_index, init_dict):
         if self.rvgp is None:
-            eigenvalues, num_vertices, k = np.zeros(1), 1.0, 1     # placeholder pre-build
+            eigenvalues, num_vertices, k = np.zeros(1), 1.0, 1
         else:
             eigenvalues, num_vertices, k = self.rvgp.eigenvalues, self.rvgp.num_vertices, self.rvgp.k
         d = dict(init_dict)
         d.update(active_dims=np.arange(k), eigenvalues=eigenvalues, num_vertices=num_vertices)
         return SGP.Matern(**d)
 
-    # ---- store manifold points [e(x),u] and expanded-state deltas; no encoding yet ----
     def add_data(self, new_state_samples, new_input_samples):
         s = torch.as_tensor(new_state_samples, dtype=self.dtype, device=self.device)
         u = torch.as_tensor(new_input_samples, dtype=self.dtype, device=self.device)
         self.dim_state = s.shape[1]
         self.dim_input = u.shape[1]
-        e = self._expand_state(s)                      # (T+1, D_e)
-        z = torch.cat([e, u], dim=1)[:-1, :]           # manifold points [e(x_t), u_t]
-        delta_e = e[1:, :] - e[:-1, :]                 # (T, D_e), incl. (Dcos, Dsin)
+        e = self._expand_state(s)
+        z = torch.cat([e, u], dim=1)[:-1, :]
+        delta_e = e[1:, :] - e[:-1, :]
         if self._z is None:
             self._z, self._delta_e = z, delta_e
         else:
@@ -1087,28 +1001,26 @@ class Model_learning_RVGP(Model_learning):
             self._delta_e = torch.cat([self._delta_e, delta_e], 0)
         self.num_samples = self._z.shape[0]
 
-    # ---- build manifold ONCE, encode training points, stack targets ----
     def build_manifold(self):
         from model_learning.rvgp_manifold import RVGPManifold
 
         self.rvgp = RVGPManifold(
             X=self._z.detach().cpu().numpy(),
-            n_out_dims=self.dim_e,                     # keep the D_e ambient e-rows
+            n_out_dims=self.dim_e,
             dtype=self.dtype,
             device=self.device,
             **self.rvgp_dict,
         )
-        self.gp_inputs = self.rvgp.train_features()    # (N*D_e, k)
-        self.gp_output_list = [self._delta_e.reshape(-1, 1)]   # (N*D_e, 1), point-major
+        self.gp_inputs = self.rvgp.train_features()
+        self.gp_output_list = [self._delta_e.reshape(-1, 1)]
 
     def reinforce_model(self, optimization_opt_list=None):
         self.build_manifold()
-        self.init_gp_models()                          # Matern now built with real eigenvalues
+        self.init_gp_models()
         self.train_gp(gp_index=0, optimization_opt_dict=optimization_opt_list[0])
         with torch.no_grad():
             self.pretrain_gp(gp_index=0)
 
-    # ---- prediction: embed + encode query points via Nystrom, stacked (M*D_e, k) ----
     def data_to_gp_input(self, states, inputs):
         e = self._expand_state(states)
         z = torch.cat([e, inputs], dim=1)
@@ -1127,7 +1039,6 @@ class Model_learning_RVGP(Model_learning):
         return gp_in, self.data_to_gp_output(states)
     
     
-    # ---- reconstruct raw next state from expanded-state delta (atan2 for the angle) ----
     def get_next_state_from_gp_output(
         self, current_state, current_input, gp_output_mean_list, gp_output_var_list, particle_pred=True
     ):
@@ -1141,9 +1052,9 @@ class Model_learning_RVGP(Model_learning):
         else:
             de = delta_mean
 
-        de_na = de[:, :n_na]                           # not-angle deltas
-        de_cos = de[:, n_na : n_na + n_a]              # Delta_cos
-        de_sin = de[:, n_na + n_a : n_na + 2 * n_a]    # Delta_sin
+        de_na = de[:, :n_na]
+        de_cos = de[:, n_na : n_na + n_a]
+        de_sin = de[:, n_na + n_a : n_na + 2 * n_a]
 
         next_states = current_state.clone()
         next_states[:, self.not_angle_indices] = current_state[:, self.not_angle_indices] + de_na

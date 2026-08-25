@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import numpy as np
 import scipy
 import networkx as nx
@@ -31,17 +30,12 @@ def compute_connection_laplacian(G, R, normalization=None):
     n = len(G)
     dim = R.shape[0] // n
     
-    # unnormalised (combinatorial) laplacian, to be normalised later
     laplacian = compute_laplacian(G)    
     
-    # rearrange into block form (kron(L, ones(d,d)))
     laplacian = sparse.kron(laplacian, np.ones([dim, dim]))
     
-    # unnormalised connection laplacian
-    # Lc(i,j) = L(i,j)*R(i,j) if (i,j)=\in E else 0
     Lc = laplacian.multiply(R)
 
-    # normalize
     if normalization == "rw":
         deg = np.array(list(dict(G.degree()).values()))
         deg_inv = 1.0 / deg
@@ -113,7 +107,7 @@ def manifold_graph(X, typ = 'knn', n_neighbors=5):
         
     elif typ == 'affinity':
         pairwise_distances_sphere = pairwise_distances(X)
-        sigma = 0.1  # Control the width of the Gaussian kernel
+        sigma = 0.1
         A = np.exp(-pairwise_distances_sphere ** 2 / (2 * sigma ** 2))
         G = nx.from_numpy_array(A)
         

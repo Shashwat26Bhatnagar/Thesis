@@ -1,76 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/reptile_tracenorm_softmax.py
-
-CDIL policy optimization: trace-normalised W2 + Reptile meta-updates + softmax-
-weighted state aggregation + L1-on-discharge / L2-on-the-rest. Writes to
-results_rtns/.
-
-*** BUILT BY COMBINING TWO EXISTING FILES -- READ BEFORE RUNNING ***
-This merges:
-  - reptile_tracenorm.py:        the TRACE_NORMALIZE assertion + import. Without
-                                  this, w2_cross_dim_torch's clamp puts the expert's
-                                  eigenvalues inside a zero-cost band for every
-                                  action channel in the region the policy occupies,
-                                  and W2 measures EXACTLY 0.00000 -- every earlier
-                                  Reptile/softmax/PPO run was redistributing a
-                                  gradient of zero, and only L2 + the chance terms
-                                  (both pulling toward z=0, the dataset mean) were
-                                  ever live. That is what every collapsed action
-                                  column in this whole line of work actually was.
-  - reptile_softmax_last.py:     the softmax-weighted state aggregation (BETA) and
-                                  the L1-on-discharge / L2-on-the-rest split.
-
-Also carries the SAME full-coverage fix as reptile_tracenorm_full.py:
-TASKS_PER_META defaults to 150 (all windows every meta-iteration), not the earlier
-10-of-150 sample that confounded every previous k/beta comparison with an exposure
-gap against the sequential-loop baseline.
-
-SOFTMAX-WEIGHTED STATE AGGREGATION (BETA)
-    Under a plain mean over the 100 sampled states, every state's gradient weight is
-    exactly 1/100 regardless of how far its induced covariance is from the expert's.
-    The softmax upweights states whose distance dv is currently larger -- detached,
-    so it reweights the gradient without giving the policy a path to lower the loss
-    by reshaping the weights instead of the underlying distances. BETA=0 recovers
-    the plain mean exactly.
-
-    NOTE (flagged, not fixed here, same as in reptile_softmax_last.py): this
-    reweights across the 100 STATES only. The K_ACTIONS=5 action-replicas per state
-    are still combined with a plain, uniform mean before the softmax ever sees them,
-    so this does nothing for within-state action diversity -- the standing
-    "E_a|s degenerate" warning is checked every run for exactly that reason. Also:
-    Bures/covariance distance is translation-invariant in the mean at ANY weighting,
-    so this reweighting -- by construction -- still cannot put gradient on the
-    discharge action's MEAN. That is what the L1 term is for; softmax is about
-    covariance SHAPE, not location.
-
-L1-ON-DISCHARGE / L2-ON-THE-REST
-    Plain L2 on a valve-like channel is analytically "hands-full" (Nagahara et al.
-    2016) -- nonzero almost everywhere. L1 (measured from the CLOSED level, not from
-    z=0, which is the dataset mean) is the "hands-off"/bang-off-bang-compatible
-    penalty. LAMBDA_L1, DISCHARGE_IDX, A_OFF_Z, L2_MASK -- same construction as
-    exp_policy_l1.py and reptile_softmax_last.py.
-
-REPTILE META-UPDATES
-    for each meta-iteration:
-        theta_0 = theta
-        for each of TASKS_PER_META sampled windows, INDEPENDENTLY from theta_0:
-            phi = theta_0
-            for k steps:  phi <- phi - alpha * grad L_window(phi)
-            record phi
-        theta <- theta_0 + eps * mean_over_windows(phi - theta_0)
-
-    At k=1 the within-task-agreement term vanishes and this is exactly joint
-    training on the mixture. alpha and k are NOT independent: "only holds for small
-    alpha*k" (Nichol et al. 2018, Sec 5.1). With SCALE_LR_WITH_K on (default),
-    alpha = LR * K_REF / k, holding alpha*k = LR*K_REF fixed as k varies.
-
-    python policy_learning/reptile_tracenorm_softmax.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 \\
-        -lam 0.01 -inner_k 5 -lr 0.02 -beta 5 -iters 20 \\
-        -out results_rtns/rtns_k5.pt
-"""
 import argparse
 import os
 import sys
@@ -113,39 +42,32 @@ if not TRACE_NORMALIZE:
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 
-# --- E_s( E_{a|s}( . ) ) ---
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 
-# --- episodic structure ---
 T_START_HOURS, HOURS_PER_STEP, EXPERT_DT = 0.0, 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))       # 5 = one hour
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
 EXPERT_T_MIN, EXPERT_T_MAX = 1.0, 150.0
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
-SAVE_EVERY = 5            # checkpoint every N meta-iterations, not just at the end
+SAVE_EVERY = 5
 
-# --- Reptile ---
-INNER_K = 5              # inner steps per task; k=1 reduces Reptile to joint training
-SCALE_LR_WITH_K = True   # hold alpha*k fixed -- see module docstring
-K_REF = 5                # the k at which alpha == LR
-META_EPS = 0.5           # outer step size: theta <- theta + eps*(mean phi - theta)
-TASKS_PER_META = 150     # full coverage, all windows every meta-iteration
-USE_TIME_INPUT = False   # append normalised batch time as a 9th policy input
+INNER_K = 5
+SCALE_LR_WITH_K = True
+K_REF = 5
+META_EPS = 0.5
+TASKS_PER_META = 150
+USE_TIME_INPUT = False
 
-# --- softmax aggregation over the 100 states ---
-BETA = 5.0                # sharpness; 0.0 recovers the plain mean exactly
+BETA = 5.0
 
-# --- policy ---
 NUM_BASIS, U_MAX = 200, 3.0
 CENTER_RANGE_PAD = 1.10
 
-# --- L2 (channels 1..5) / L1 (discharge) ---
-LAMBDA_A = 0.01                      # L2 weight, channels 1..5; set with -lam
-LAMBDA_L1 = 0.05                     # L1 weight on discharge; set with -lam_l1
+LAMBDA_A = 0.01
+LAMBDA_L1 = 0.05
 DISCHARGE_IDX = 0
-DISCHARGE_OFF_PHYS = 0.0             # "closed"
+DISCHARGE_OFF_PHYS = 0.0
 
-# --- chance constraints (Tan et al. Eq. 8-9) ---
 CC_EPS = 0.95
 CC_ALPHA_ACT = 1000.0
 CC_ALPHA_STATE = 1.0
@@ -195,7 +117,6 @@ USE_TIME_INPUT = _args.time_input
 OUT = _args.out or os.path.join(SAVE_DIR, "reptile_tracenorm_softmax_policy.pt")
 
 
-# ================================================================ world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -251,7 +172,6 @@ def phase_of(t_h):
     return 2
 
 
-# ====================================================================== expert ===
 _q = PFQuery(verbose=True)
 EXPERT_TIMES = np.arange(EXPERT_T_MIN, EXPERT_T_MAX + 1e-9, EXPERT_DT)
 print(f"pre-caching {len(EXPERT_TIMES)} expert distributions ...", flush=True)
@@ -273,7 +193,6 @@ else:
     print(f"TASKS_PER_META={TASKS_PER_META} of {len(EXPERT_TIMES)} -- partial coverage")
 
 
-# ====================================================================== policy ===
 _warm = None
 centers_init = lengthscales_init = None
 if _args.init_policy and os.path.exists(_args.init_policy):
@@ -329,7 +248,6 @@ with torch.no_grad():
 print(f"action spread across {K_ACTIONS} replicas of one state: {_sp:.3e}"
       f"{'   <-- WARNING: E_a|s degenerate' if _sp < 1e-4 else '   (ok)'}")
 
-# ------------------------------------------- constraint bounds, in z units ------
 _amin = 2.0 * (pdata.MIN_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 _amax = 2.0 * (pdata.MAX_ACT - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 CC_LO = torch.tensor((_amin - stats["std_act_mu"]) / stats["std_act_sd"],
@@ -345,7 +263,6 @@ print(f"  action box  alpha={CC_ALPHA_ACT}")
 print(f"  vessel floor alpha={CC_ALPHA_STATE}  Wt >= {CC_WT_MIN_PHYS:.0f} phys "
       f"({CC_WT_MIN_Z:.3f} z)")
 
-# discharge's CLOSED level in the policy's z-space, and a mask for the L2 channels
 _off_smpl = (2.0 * (DISCHARGE_OFF_PHYS - pdata.MIN_ACT[DISCHARGE_IDX])
              / (pdata.MAX_ACT[DISCHARGE_IDX] - pdata.MIN_ACT[DISCHARGE_IDX]) - 1.0)
 A_OFF_Z = float((_off_smpl - stats["std_act_mu"][DISCHARGE_IDX])
@@ -376,7 +293,6 @@ if USE_TIME_INPUT:
 rng = np.random.default_rng(0)
 
 
-# ================================================================== window loss ==
 _acc = {"var": None, "t0": 0}
 _acc_a = []
 _eig = None
@@ -398,8 +314,8 @@ def window_loss(t, s, a, mu, cov, s_next):
     var_1h = _acc["var"]
     _acc = {"var": None, "t0": 0}
 
-    d = w2_cross_dim_torch(var_1h, _eig)                       # (P,)
-    dv = d.view(NUM_STATES, K_ACTIONS).mean(dim=1)             # E_a|s -> (NUM_STATES,)
+    d = w2_cross_dim_torch(var_1h, _eig)
+    dv = d.view(NUM_STATES, K_ACTIONS).mean(dim=1)
     if BETA > 0:
         wt = torch.softmax(dv.detach() * BETA, dim=0)
         w2 = (wt * dv).sum()
@@ -414,10 +330,8 @@ def window_loss(t, s, a, mu, cov, s_next):
     a_all = torch.cat(_acc_a, 0)
     n_rep = a_all.shape[0] // (NUM_STATES * K_ACTIONS)
 
-    # L2 on channels 1..5 only
     l2 = ((a_all ** 2) * L2_MASK).sum(dim=1).mean()
     _log["l2"].append(float(l2.detach()))
-    # L1 on discharge, measured from the CLOSED level
     l1 = torch.abs(a_all[:, DISCHARGE_IDX] - A_OFF_Z).mean()
     _log["l1"].append(float(l1.detach()))
     with torch.no_grad():
@@ -437,7 +351,6 @@ def window_loss(t, s, a, mu, cov, s_next):
     return w2 + LAMBDA_A * l2 + LAMBDA_L1 * l1 + cc_a + cc_s
 
 
-# ============================================================== Reptile training ===
 def _run_window(t_h, gen):
     global _eig
     _eig = EXPERT_EIGS[round(t_h, 6)]

@@ -1,74 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/valve_policy_optimization.py
-
-Train a SEPARATE discharge policy against a FROZEN policy for the other five
-channels, so the discharge valve can be fixed without disturbing action
-distributions that already work.
-
-    python policy_learning/valve_policy_optimization.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 \\
-        -frozen_policy results_pensim/cdil_policy_bnd_rbf_iter0.pt \\
-        -iters 20
-
-THREE POLICIES, two frozen
-    P_B  frozen, L2-regularised on all six channels. Supplies channels 1..5. Its
-         action distributions are the closest to the gpei reference of anything
-         measured (sugar std 30.4 vs 24.3, water 203 vs 148, aeration 10.3 vs 10.6),
-         so they are preserved exactly rather than retrained and hoped for. Its
-         DISCHARGE is discarded -- that channel is what drained the vessel
-         (61100 -> 25467, episode ending at 121 h).
-    P_A  frozen, NOT regularised. Supplies only the STATE TARGET. Its next-state
-         distribution is the good one -- vessel weight GREW, 62904 -> 75702, and its
-         episodes complete the full 230 h. Its actions are not used at all.
-    P_C  trainable, NEW. Emits discharge only.
-
-    composite = concat(P_C(s_aug), P_B(s)[1:]) -- downstream code sees a normal
-    6-channel policy, so the rollout, constraints and explore script need no changes.
-
-    Freezing rather than co-training follows CHDP's finding that simultaneous updates
-    of two hybrid-action policies conflict, and the standard HRL practice of freezing
-    reused modules. The decomposition itself is H-PPO's two-actor structure
-    (separate actors per action subset, objectives evaluated separately).
-
-WHAT P_C OPTIMISES -- the part no hybrid-action paper answers
-    Those papers assume both actors share a reward. Here the Wasserstein objective
-    barely sees discharge, which is how the valve problem arose. So P_C is given a
-    BRIDGING target instead:
-
-        reference roll : P_A alone, all six channels        -> S_ref
-        candidate roll : P_C on discharge, P_B on 1..5      -> S_cand
-        loss = ||S_cand(end) - S_ref(end)||^2  +  valve-shape terms
-
-    i.e. "choose a valve-like discharge such that P_B's good actions land the state
-    where P_A landed it". The target is 8-D, fully observed and generated on the fly
-    -- no expert, no reward model, no cross-domain projection.
-
-    Note the target comes from a DIFFERENT policy than the one supplying channels
-    1..5. That is deliberate: if both came from the same policy the target would be
-    nearly free and P_C would have almost nothing to learn.
-
-MATCHING AT THE WINDOW END, NOT EVERY STEP
-    A holds discharge nearly constant (std 1.92); a valve pulses. A pulse cannot look
-    like a constant at every instant, so per-step matching would be unsatisfiable by
-    construction. Matching the state at the END of each 1-hour window permits pulsing
-    within the window while keeping the trajectory on track.
-
-B'S EXTRA INPUT: ELAPSED OPEN TIME
-    The 8-D state cannot express a timed pulse -- nothing in it distinguishes "just
-    opened" from "open for two hours", and discharging drives vessel weight
-    monotonically further into the region that triggered the open, so there is no
-    return path. Every previous configuration therefore opened at the right time
-    (t=102.2 h against the recipe's 102.0) and never closed. B is a fresh network, so
-    a 9th input costs nothing in compatibility: it sees [state(8), hours_open].
-
-DISCHARGE IS VALVE-LIKE, NOT BINARY
-    The reference is at zero 94.8% of the time and reaches ~4000 when open, but the
-    peak varies (3705..4058 across batches). B therefore emits GATE x MAGNITUDE: a
-    Bernoulli gate for open/shut, and a continuous level for how far open. A pure
-    binary gate would throw away that second degree of freedom.
-"""
 import argparse
 import os
 import sys
@@ -93,34 +24,30 @@ torch.set_num_threads(1)
 dtype, device = torch.float64, torch.device("cpu")
 np.random.seed(0); torch.manual_seed(0)
 
-# ------------------------------------------------------------------- config ---
-SAVE_DIR = os.path.join(_REPO, "results_valve")        # SEPARATE from results_pensim
+SAVE_DIR = os.path.join(_REPO, "results_valve")
 os.makedirs(SAVE_DIR, exist_ok=True)
 
-STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM     # 8, 6
+STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_INPUT_DIM = STATE_DIM + INPUT_DIM
 DISCHARGE_IDX = 0
 
 NUM_STATES, K_ACTIONS = 100, 5
 NUM_PARTICLES = NUM_STATES * K_ACTIONS
 HOURS_PER_STEP, EXPERT_DT = 0.2, 1.0
-STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))      # 5 = window length
+STEPS_PER_EXPERT = int(round(EXPERT_DT / HOURS_PER_STEP))
 T_START_HOURS = 0.0
 WINDOWS_PER_ITER = 150
 N_ITERS, LR, P_DROPOUT, CLIP = 20, 0.01, 0.25, 10.0
 
-# --- B's valve levels, physical units ---
 VALVE_OFF_PHYS = 0.0
-VALVE_MAX_PHYS = 4100.0          # env ceiling; the level when open is LEARNED below it
-VALVE_OPEN_THRESH_FRAC = 0.5     # "open" = above this fraction of the max, for the
-                                 # elapsed-time counter and the duty-cycle log
+VALVE_MAX_PHYS = 4100.0
+VALVE_OPEN_THRESH_FRAC = 0.5
 GATE_GAIN = 2.0
 
-# --- loss weights ---
-W_STATE = 1.0                    # ||S_cand(end) - S_ref(end)||^2
-W_SPARSE = 0.1                   # KL(gate || target duty)
-TARGET_DUTY = 0.052              # measured on gpei_batch_161.csv (6 opens in 230 h)
-W_VESSEL = 1.0                   # vessel-weight floor
+W_STATE = 1.0
+W_SPARSE = 0.1
+TARGET_DUTY = 0.052
+W_VESSEL = 1.0
 WT_MIN_PHYS = 50000.0
 
 _ap = argparse.ArgumentParser("train a separate discharge (valve) policy")
@@ -143,7 +70,6 @@ if _args.w_state is not None:  W_STATE = _args.w_state
 if _args.w_sparse is not None: W_SPARSE = _args.w_sparse
 
 
-# =============================================================== world models ===
 def load_model(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_INPUT_DIM),
@@ -187,7 +113,6 @@ def model_at(t_h):
     return MODELS[2]
 
 
-# --------------------------- physical <-> z for the discharge channel ---------
 _lo_a, _hi_a = pdata.MIN_ACT[DISCHARGE_IDX], pdata.MAX_ACT[DISCHARGE_IDX]
 _mu_a = float(stats["std_act_mu"][DISCHARGE_IDX])
 _sd_a = float(stats["std_act_sd"][DISCHARGE_IDX])
@@ -203,7 +128,6 @@ Z_OPEN_THRESH = Z_OFF + VALVE_OPEN_THRESH_FRAC * (Z_MAX - Z_OFF)
 print(f"\nvalve levels: off={VALVE_OFF_PHYS:.0f} phys ({Z_OFF:.3f} z)   "
       f"max={VALVE_MAX_PHYS:.0f} phys ({Z_MAX:.3f} z)")
 
-# vessel-weight floor, z-scored
 _WT_IDX = pdata.OBS_NAMES.index("Wt")
 _o_lo, _o_hi = pdata.MIN_OBS[_WT_IDX], pdata.MAX_OBS[_WT_IDX]
 WT_MIN_Z = float(((2.0 * (WT_MIN_PHYS - _o_lo) / (_o_hi - _o_lo) - 1.0)
@@ -211,14 +135,13 @@ WT_MIN_Z = float(((2.0 * (WT_MIN_PHYS - _o_lo) / (_o_hi - _o_lo) - 1.0)
 print(f"vessel floor: Wt >= {WT_MIN_PHYS:.0f} phys ({WT_MIN_Z:.3f} z), channel {_WT_IDX}")
 
 
-# ==================================================================== policies ===
 def _load_frozen(path, role):
     ck = torch.load(path, map_location=device, weights_only=False)
     pol = rebuild_policy(ck["policy_meta"], dtype=dtype, device=device)
     pol.load_state_dict(ck["policy_state_dict"])
     pol.eval()
     for q in pol.parameters():
-        q.requires_grad_(False)                   # gradients must reach P_C only
+        q.requires_grad_(False)
     print(f"  {role:26s} {os.path.basename(path):40s} kind={ck['policy_meta']['kind']}")
     return pol
 
@@ -227,12 +150,11 @@ print("\nfrozen policies:")
 policy_B = _load_frozen(_args.policy_actions, "P_B  -> channels 1..5")
 policy_A = _load_frozen(_args.policy_states, "P_A  -> state target only")
 
-# P_C sees [state(8), hours_open] and emits [gate_logit, level_logit]
 policy_C, meta_C = build_policy(
     "rbf", STATE_DIM + 1, 2, u_max=3.0, dtype=dtype, device=device,
     rng=np.random.default_rng(0), num_basis=200,
     s_lo=(POOL.min(0).values.tolist() + [0.0]),
-    s_hi=(POOL.max(0).values.tolist() + [8.0]))    # up to 8 h open
+    s_hi=(POOL.max(0).values.tolist() + [8.0]))
 print(f"\ntrainable P_C: in={STATE_DIM+1} (state + hours_open) out=2 (gate, level)  "
       f"params={meta_C['n_params']}")
 
@@ -263,20 +185,20 @@ class SplitPolicy(nn.Module):
         if self._open_h is None or self._open_h.shape[0] != P:
             self.reset(P)
         with torch.no_grad():
-            a_B = self.B(states=states, t=t, p_dropout=p_dropout)   # channels 1..5
+            a_B = self.B(states=states, t=t, p_dropout=p_dropout)
 
         u = self.C(states=torch.cat([states, self._open_h.unsqueeze(1)], 1),
                    t=t, p_dropout=p_dropout)
         p_open = torch.sigmoid(GATE_GAIN * u[:, 0])
         hard = torch.bernoulli(p_open)
-        gate = hard + p_open - p_open.detach()          # straight-through
-        level = Z_OFF + torch.sigmoid(u[:, 1]) * (Z_MAX - Z_OFF)   # how far open
+        gate = hard + p_open - p_open.detach()
+        level = Z_OFF + torch.sigmoid(u[:, 1]) * (Z_MAX - Z_OFF)
         d = Z_OFF + gate * (level - Z_OFF)
         self._last_p = p_open
 
-        with torch.no_grad():                          # counter carries no gradient
+        with torch.no_grad():
             is_open = (d.detach() > Z_OPEN_THRESH).to(dtype)
-            self._open_h = (self._open_h + HOURS_PER_STEP) * is_open   # 0 when shut
+            self._open_h = (self._open_h + HOURS_PER_STEP) * is_open
 
         return torch.cat([d.unsqueeze(1), a_B[:, 1:]], dim=1)
 
@@ -297,7 +219,6 @@ def _noloss(**kw):
     return torch.zeros((), dtype=dtype, device=device)
 
 
-# ===================================================================== training ==
 EXPERT_TIMES = np.arange(1.0, 150.0 + 1e-9, 1.0)
 hist = []
 for it in range(N_ITERS):
@@ -311,8 +232,6 @@ for it in range(N_ITERS):
                                             dtype=dtype, device=device)
         s0 = s_states.repeat_interleave(K_ACTIONS, dim=0)
 
-        # ---- reference: P_A alone (its ACTIONS are discarded, only the states
-        #      it reaches are used as the target) ----
         with torch.no_grad():
             out_ref = gp_rollout(model=mdl, policy=policy_A, s0=s0,
                                  T=STEPS_PER_EXPERT, p_dropout=0.0,
@@ -320,21 +239,16 @@ for it in range(N_ITERS):
                                  graph_mode="full")
         S_ref_end = out_ref["S"][:, -1, :].detach()
 
-        # ---- candidate: P_C on discharge, P_B on channels 1..5 ----
         policy.reset(s0.shape[0])
         out = gp_rollout(model=mdl, policy=policy, s0=s0, T=STEPS_PER_EXPERT,
                          p_dropout=P_DROPOUT, particle_pred=False,
                          loss_fn=_noloss, graph_mode="full")
         S_end = out["S"][:, -1, :]
 
-        # end-of-window state match: a pulse cannot look like a constant at every
-        # step, so the trajectory is pinned at the window boundary instead
         state_err = ((S_end - S_ref_end) ** 2).sum(1).mean()
 
-        # valve shape: pull the duty cycle toward the reference's
         kl = gate_sparsity_kl(policy._last_p.unsqueeze(1), _TGT)
 
-        # vessel floor on the candidate's own predicted states
         vessel = state_chance_penalty(
             out["Mu"].reshape(-1, STATE_DIM), out["Cov"].reshape(-1, STATE_DIM),
             _WT_IDX, lo=WT_MIN_Z, hi=None, eps=0.95, alpha=W_VESSEL)

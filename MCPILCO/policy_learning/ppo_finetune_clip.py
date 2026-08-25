@@ -1,58 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-policy_learning/ppo_finetune_clip.py
-
-Fine-tune an imitation-trained policy for reward maximisation with PPO, rolling out
-inside the LEARNED WORLD MODELS rather than the simulator.
-
-    python policy_learning/ppo_finetune_clip.py \\
-        -phase_prefix results_pensim/rbf_model_bnd_rbf_iter0 \\
-        -reward_model results_pensim/reward_model_base.pt \\
-        -init_policy  results_expl1/l1_policy_iter0.pt \\
-        -out results_ppo/ppo_policy_iter0.pt
-
-THE CLIP IS INSIDE THE ENV, NOT ONLY AT DEPLOYMENT
-    -cliprecipe (with BUGGY_RECIPE_CLIP) clips PHYSICAL actions against SMPL-NORMALISED
-    recipe bounds. Applied only at exploration, as before, the policy never sees it:
-    it emits whatever it likes, the clip overwrites, and no gradient ever reflects the
-    difference. Applying the SAME clip inside the PPO env makes the policy optimise the
-    action it will actually deploy.
-
-    That matters here specifically. Under the clip the trajectory tracks the recipe up
-    to ~100 h and then discharge saturates and the batch dies at 121 h with yield 1490
-    (against gpei's 3835). The saturation is a consequence the policy currently gets no
-    feedback about; inside the env it becomes a reward signal, because the episode ends
-    early and the remaining ~100 h of production is forgone.
-
-WHY THE WORLD MODELS AND NOT THE SIMULATOR
-    One PenSim episode is 1150 ODE solves, ~2 minutes. PPO needs hundreds of episodes
-    per update round, so on the simulator a single fine-tuning stage would run for
-    hours; inside the GPs a full 1150-step episode takes seconds. The cost is that PPO
-    optimises the MODEL's belief -- including its errors -- which is why the reward is
-    taken as a LOWER confidence bound below.
-
-THE ARCHITECTURE CHANGE PPO FORCES
-    Sum_of_gaussians is deterministic (dropout aside) and has no log-probability, so
-    it cannot be a PPO actor as it stands. A Gaussian head is wrapped around it: the
-    imitation policy supplies the MEAN, and a learnable state-independent log-std
-    supplies the spread. At log_std -> -inf the actor reduces exactly to the imitation
-    policy, so initialisation is not a perturbation of it.
-
-    The value function is a separate small MLP, trained from scratch -- the imitation
-    run never learned one.
-
-WHAT LIMITS THIS
-    The SMPL paper's own PPO on PenSim scores 2.5231 mean reward against the recipe
-    baseline's 3.3071, i.e. PPO from scratch does WORSE than the recipe there. The
-    imitation policies here already reach 2.82-3.03 per step. So the value of this
-    stage rests entirely on the warm start; there is no evidence PPO finds a good
-    PenSim policy unaided.
-
-    Hyperparameters follow the stable-baselines3 defaults (n_steps 2048, batch 64,
-    n_epochs 10, gamma 0.99, gae_lambda 0.95, clip 0.2, ent_coef 0.0, vf_coef 0.5,
-    max_grad_norm 0.5, lr 3e-4) rather than being tuned here.
-"""
 import argparse
 import os
 import sys
@@ -78,9 +25,9 @@ dtype, device = torch.float64, torch.device("cpu")
 STATE_DIM, INPUT_DIM = pdata.OBS_DIM, pdata.ACT_DIM
 GP_IN = STATE_DIM + INPUT_DIM
 HOURS_PER_STEP = 0.2
-EPISODE_STEPS = 1150                 # the full 230 h batch
+EPISODE_STEPS = 1150
 U_MAX = 3.0
-KAPPA = 1.0                          # reward LCB: mu_r - KAPPA*sigma_r
+KAPPA = 1.0
 
 _ap = argparse.ArgumentParser("PPO fine-tuning inside the world models")
 _ap.add_argument("-phase_prefix", required=True)
@@ -102,7 +49,6 @@ USE_CLIP = not _args.no_clip
 os.makedirs(os.path.dirname(_args.out) or ".", exist_ok=True)
 
 
-# ================================================================== the models ===
 def _load(path, n_gp):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_IN), lengthscales_init=np.ones(GP_IN),
@@ -150,7 +96,6 @@ def phase_of(t_h):
     return 2
 
 
-# ===================================================================== the env ===
 class WorldModelEnv(gym.Env):
     """A Gym env whose dynamics are the three phase GPs and whose reward is the
     reward GP's lower confidence bound.
@@ -166,11 +111,9 @@ class WorldModelEnv(gym.Env):
     """
 
     OUT_OF_RANGE_MULT = 1.5
-    RECIPE_FRAC = 0.10          # +/-10% of the profile
-    RECIPE_FLOOR = 0.05         # min half-width as a fraction of the channel span:
-                                # +/-10% of a ZERO setpoint is a zero-width band
-    RECIPE_SMOOTH_H = 2.0       # the profile steps 0->4000 within 2 h; an unsmoothed
-                                # edge makes the bound discontinuous between steps
+    RECIPE_FRAC = 0.10
+    RECIPE_FLOOR = 0.05
+    RECIPE_SMOOTH_H = 2.0
 
     def __init__(self):
         super().__init__()
@@ -182,7 +125,6 @@ class WorldModelEnv(gym.Env):
         self.s = None
         self.t = 0
 
-        # the same time-varying recipe band the explore script applies
         self._clip = None
         if USE_CLIP:
             from pensimpy.examples.recipe import Recipe, RecipeCombo
@@ -219,12 +161,6 @@ class WorldModelEnv(gym.Env):
         t_h_now = self.t * HOURS_PER_STEP
 
         if self._clip is not None:
-            # EXACTLY the deployed clip, bug included: RecipeBounds returns
-            # smpl-normalised bounds and the PHYSICAL action is clipped against them,
-            # which pins channels to their floor early and releases as the profile
-            # rises. Reproducing it faithfully is the point -- the policy has to be
-            # optimised against the action it will actually deploy, not a corrected
-            # version of it.
             lo_n, hi_n = self._clip.at(t_h_now)
             a_phys = ((a_raw * STATS["std_act_sd"] + STATS["std_act_mu"]) + 1.0) / 2.0 \
                 * (pdata.MAX_ACT - pdata.MIN_ACT) + pdata.MIN_ACT
@@ -245,8 +181,6 @@ class WorldModelEnv(gym.Env):
                                            gp_index_list=list(range(STATE_DIM)))
             delta = torch.cat([m_l[i].reshape(1) for i in range(STATE_DIM)])
             rm, rv = RMODEL.get_gp_estimate(gp_inputs=gp_in, gp_index_list=[0])
-            # LOWER confidence bound: maximising the mean would send the policy where
-            # the model is uncertain and optimistic
             r = float(rm[0].reshape(-1)[0]
                       - KAPPA * torch.sqrt(rv[0].reshape(-1)[0].clamp_min(1e-12)))
         self.s = self.s + delta
@@ -257,7 +191,6 @@ class WorldModelEnv(gym.Env):
                 {"out_of_range": out, "t_hours": t_h})
 
 
-# ==================================================== the actor, warm-started ====
 def build_actor():
     """Gaussian actor whose MEAN is the imitation policy."""
     ck = torch.load(_args.init_policy, map_location=device, weights_only=False)
@@ -293,14 +226,6 @@ _TORCH_TO_NP_DTYPE = {
 
 
 def _laundered_tensor_numpy(self, *args, **kwargs):
-    # Go straight from the TENSOR's own .tolist() -- a pure torch method that never
-    # touches numpy's C-API -- to numpy's constructor. This never creates the
-    # ABI-mismatched intermediate array at all, rather than creating it and trying
-    # to clean it up afterward: the first version of this patch called torch's real
-    # .numpy() first and then read `.tolist()`/`.dtype` off ITS result, which
-    # crashed on the `.dtype` attribute read with a bare TypeError. `self` here is
-    # the original torch.Tensor, never the poisoned array, so nothing about it is
-    # suspect.
     np_dtype = _TORCH_TO_NP_DTYPE.get(self.dtype, np.float64)
     return np.array(self.detach().cpu().tolist(), dtype=np_dtype)
 
@@ -343,7 +268,6 @@ class WarmStartPolicy(ActorCriticPolicy):
 env = Monitor(WorldModelEnv())
 model = PPO(
     WarmStartPolicy, env,
-    # stable-baselines3 defaults, unmodified
     learning_rate=_args.lr, n_steps=2048, batch_size=64, n_epochs=10,
     gamma=0.99, gae_lambda=0.95, clip_range=0.2, ent_coef=0.0,
     vf_coef=0.5, max_grad_norm=0.5,
@@ -365,7 +289,6 @@ print(f"  NOTE: the SMPL paper's own PPO on PenSim scores 2.5231 vs the recipe's
 
 model.learn(total_timesteps=_args.timesteps, progress_bar=False)
 
-# ------------------------------------------------ save in OUR checkpoint format ---
 torch.save({"policy_state_dict": BASE.state_dict(),
             "policy_meta": BASE_CK["policy_meta"],
             "policy_kind": BASE_CK.get("policy_kind", "rbf"),

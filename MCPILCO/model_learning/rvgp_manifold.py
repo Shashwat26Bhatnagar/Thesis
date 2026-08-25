@@ -1,27 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# =====================================================================================
-# NEW FILE:  model_learning/rvgp_manifold.py
-#
-# Thin abstraction that hides ALL RVGP geometry behind two calls:
-#   train_features()  -> exact positional encodings for the training points
-#   encode(X_new)     -> Nystrom positional encodings for new points
-#
-# Requires the RVGP repo importable (git clone) together with our nystrom.py:
-#   from RVGP.dataclass import data          # builds graph -> local PCA -> Lc -> spectrum
-#   from RVGP.nystrom   import nystrom_extend # out-of-sample extension (added earlier)
-#
-# ARCHER2 (module-based) setup:
-#   module load PrgEnv-cray cpe-clang python
-#   python -c "import RVGP.dataclass; print('ok')"  # verify ptu_dijkstra is built
-# =====================================================================================
-
 import sys
 import numpy as np
 import torch
 
-# ---- Archer2 workaround: add outer RVGP repo to path if not installed ----
-_rvgp_path = '/work/m25oc/m25oc/s2892016/project/Thesis/MC-PILCO/RVGP'  # adjust to your clone location
+_rvgp_path = '/work/m25oc/m25oc/s2892016/project/Thesis/MC-PILCO/RVGP'
 if _rvgp_path not in sys.path:
     sys.path.insert(0, _rvgp_path)
 
@@ -38,13 +21,13 @@ class RVGPManifold:
 
     def __init__(
         self,
-        X,                       # (N, p) training GP inputs (state,input), numpy
-        n_out_dims,              # D: number of state (output) components to keep
+        X,
+        n_out_dims,
         n_neighbors=10,
         frac_geodesic_neighbours=1.5,
         explained_variance=0.8,
         n_eigenpairs=50,
-        nystrom_neighbors=None,  # neighbours for out-of-sample encode (default n_neighbors)
+        nystrom_neighbors=None,
         nystrom_kernel="knn",
         nystrom_normalization=None,
         dtype=torch.float64,
@@ -62,11 +45,10 @@ class RVGPManifold:
         self.nystrom_normalization = nystrom_normalization
 
         X = np.asarray(X, dtype=np.float64)
-        self.p = X.shape[1]  # ambient dim = state + input
+        self.p = X.shape[1]
         if self.D > self.p:
             raise ValueError("n_out_dims (D) cannot exceed input dimension p")
 
-        # ---- the ONE heavy call: graph -> tangent frames -> Lc -> eigendecomposition ----
         self.data = RVGPData(
             vertices=X,
             n_neighbors=n_neighbors,
@@ -78,16 +60,12 @@ class RVGPManifold:
         self.k = int(np.asarray(self.data.evals_Lc).reshape(-1).shape[0])
         self.N = self.data.n
 
-        # frozen kernel ingredients handed to the Matern GP
-        self.eigenvalues = np.asarray(self.data.evals_Lc).reshape(-1)          # (k,)
-        # normalisation constant (absorbed by trainable sigma_f; use #feature rows)
+        self.eigenvalues = np.asarray(self.data.evals_Lc).reshape(-1)
         self.num_vertices = float(self.N * self.D)
 
-        # exact training encodings, sliced to the D state components, point-major
-        P = np.asarray(self.data.evecs_Lc).reshape(self.N, self.p, self.k)      # (N, p, k)
-        self._P_train = P[:, : self.D, :].reshape(self.N * self.D, self.k)      # (N*D, k)
+        P = np.asarray(self.data.evecs_Lc).reshape(self.N, self.p, self.k)
+        self._P_train = P[:, : self.D, :].reshape(self.N * self.D, self.k)
 
-    # ------------------------------------------------------------------ features
     def train_features(self):
         """Exact positional encodings of the training points: (N*D, k) torch tensor."""
         return torch.tensor(self._P_train, dtype=self.dtype, device=self.device)
@@ -104,7 +82,7 @@ class RVGPManifold:
             n_neighbors=self.nystrom_neighbors,
             kernel=self.nystrom_kernel,
             normalization=self.nystrom_normalization,
-        )                                                   # (M, p, k)
+        )
         M = P.shape[0]
-        P = P[:, : self.D, :].reshape(M * self.D, self.k)   # (M*D, k), point-major
+        P = P[:, : self.D, :].reshape(M * self.D, self.k)
         return torch.tensor(P, dtype=self.dtype, device=self.device)

@@ -1,33 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-train_reward_gp.py   (repo root)
-
-Train a SEPARATE GP reward model  (state, action) -> yield-per-step, mirroring
-train_rbf_pensim.py exactly: same 14-D input, same standardizer, same pivoted-Cholesky
-selection, same marginal-likelihood fitting. The state world models are left untouched.
-
-    python train_reward_gp.py                          # all data, 12 CSVs
-    python train_reward_gp.py -data_dir <dir> -tag bnd_rbf_iter0
-
-WHY A SEPARATE MODEL
-The state models regress next_obs - obs (8 channels); reward is the CSV's 16th column
-and was never a target. Rather than widening those models, this fits ONE scalar GP on
-the same inputs, so the state models keep their held-out numbers and provenance.
-
-THE error_reward ROWS ARE EXCLUDED
-PenSim returns error_reward = -100 INSTEAD of a yield at termination. Older CSVs
-recorded that row. Left in, the GP would learn that certain (state, action) pairs are
-worth -100, and a reward-maximising policy would steer hard away from them for an
-entirely spurious reason. Rows at or below ERROR_REWARD are therefore dropped, and the
-count is reported.
-
-USED WITH A LOWER CONFIDENCE BOUND
-cdil_policy_optimization.py maximises mu - kappa*sigma, not mu. Maximising the mean of
-a GP invites the policy into regions where the model is uncertain and optimistically
-wrong -- the standard model-based RL failure, and one we have already seen here when
-predictive variance saturated at the prior once particles left the data.
-"""
 import argparse
 import json
 import os
@@ -69,10 +41,6 @@ print(f"=== training REWARD model: tag={TAG}  n_keep={N_KEEP}  n_epoch={N_EPOCH}
       f"  select={_args.select} ===")
 
 
-# ------------------------------------------------------------------- data ----
-# PeniControlData does not expose the reward column, so the CSVs are read directly.
-# The standardizer is still fitted through load_offline so the GP input space is
-# IDENTICAL to the state models' -- otherwise the two could not be used together.
 import csv
 import glob
 
@@ -89,17 +57,16 @@ for f in files:
     if d.size == 0:
         continue
     yi = hdr.index("Yield Per Step")
-    keep = d[:, yi] > ERROR_REWARD + 1e-9          # drop terminal error_reward rows
+    keep = d[:, yi] > ERROR_REWARD + 1e-9
     n_err += int((~keep).sum())
     d = d[keep]
-    obs_p.append(d[:, 7:15])                       # 8 observations (time already out)
-    act_p.append(d[:, 1:7])                        # 6 actions
+    obs_p.append(d[:, 7:15])
+    act_p.append(d[:, 1:7])
     rew_p.append(d[:, yi])
 obs_p = np.vstack(obs_p); act_p = np.vstack(act_p); rew_p = np.concatenate(rew_p)
 print(f"[reward] {len(files)} CSVs -> {obs_p.shape[0]} transitions "
       f"({n_err} error_reward rows dropped)")
 
-# same two-stage normalisation as the state models: smpl min-max, then z-score
 _o_n = 2.0 * (obs_p - pdata.MIN_OBS) / (pdata.MAX_OBS - pdata.MIN_OBS) - 1.0
 _a_n = 2.0 * (act_p - pdata.MIN_ACT) / (pdata.MAX_ACT - pdata.MIN_ACT) - 1.0
 std_obs = pdata.Standardizer(_o_n, names=pdata.OBS_NAMES, name="obs")
@@ -107,8 +74,6 @@ std_act = pdata.Standardizer(_a_n, names=pdata.ACT_NAMES, name="act")
 obs = std_obs.transform(_o_n)
 act = std_act.transform(_a_n)
 
-# reward is z-scored too: raw yields span ~0..6.6, and an unscaled target makes the
-# GP's signal variance and noise hard to initialise consistently with the state models
 R_MU, R_SD = float(rew_p.mean()), float(rew_p.std())
 rew = (rew_p - R_MU) / max(R_SD, 1e-12)
 print(f"[reward] yield/step  mean={R_MU:.4f}  std={R_SD:.4f}  "
@@ -130,7 +95,6 @@ X = torch.tensor(Z_tr[sel], dtype=dtype, device=device)
 Y = torch.tensor(rew[tr][sel].reshape(-1, 1), dtype=dtype, device=device)
 print(f"train N={X.shape[0]}   test N={X_te.shape[0]}   gp input dim={GP_INPUT_DIM}")
 
-# ------------------------------------------------------------------ model ----
 init_dict = dict(
     active_dims=np.arange(0, GP_INPUT_DIM),
     lengthscales_init=np.ones(GP_INPUT_DIM), flg_train_lengthscales=True,
@@ -139,7 +103,7 @@ init_dict = dict(
     dtype=dtype, device=device,
 )
 model = ML.Model_learning_RBF(
-    num_gp=1,                                  # ONE scalar GP: reward
+    num_gp=1,
     init_dict_list=[dict(init_dict)],
     approximation_mode=None, dtype=dtype, device=device, flg_norm=False)
 model.gp_inputs = X
@@ -153,14 +117,13 @@ opt = dict(f_optimizer="lambda p : torch.optim.Adam(p, lr=0.01)",
 model.reinforce_model([dict(opt)])
 print("\nTrained hyperparameters:"); model.print_model()
 
-# ------------------------------------------------------------ held-out fit ----
 model.set_eval_mode()
 with torch.no_grad():
     m_list, v_list = model.get_gp_estimate(gp_inputs=X_te, gp_index_list=[0])
 pred, var = m_list[0], v_list[0].reshape(-1, 1)
 
 mse = torch.mean((pred - y_te) ** 2).item()
-base = torch.mean((y_te - y_te.mean()) ** 2).item()          # predict the mean
+base = torch.mean((y_te - y_te.mean()) ** 2).item()
 r2 = 1.0 - mse / base
 mse_phys = mse * R_SD ** 2
 print(f"\nheld-out reward prediction:")
@@ -173,7 +136,6 @@ if r2 < 0.5:
     print("  WARNING: R^2 below 0.5 -- a policy maximising this model would be "
           "optimising noise. Consider more data or a different input representation.")
 
-# ------------------------------------------------------------------- save ----
 path = os.path.join(SAVE_DIR, f"reward_model_{TAG}.pt")
 torch.save({
     "state_dict": model.state_dict(),
@@ -181,7 +143,7 @@ torch.save({
     "alpha_list": model.alpha_list, "m_X_list": model.m_X_list,
     "K_X_inv_list": model.K_X_inv_list, "gp_inputs_tr_list": model.gp_inputs_tr_list,
     "gp_input_dim": GP_INPUT_DIM, "n_keep": N_KEEP, "n_epoch": N_EPOCH,
-    "reward_mu": R_MU, "reward_sd": R_SD,          # to map predictions back to yield
+    "reward_mu": R_MU, "reward_sd": R_SD,
     "std_obs_mu": std_obs.mu.tolist(), "std_obs_sd": std_obs.sd.tolist(),
     "std_act_mu": std_act.mu.tolist(), "std_act_sd": std_act.sd.tolist(),
     "held_out_mse_z": mse, "held_out_r2": r2, "n_error_rows_dropped": n_err,

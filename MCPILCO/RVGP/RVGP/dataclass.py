@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import numpy as np
 
 from dataclasses import dataclass
@@ -49,8 +48,7 @@ class data:
         evals_L, evecs_L = compute_spectrum(L, n_eigenpairs)
         evals_L, evecs_L = evals_L.numpy(), evecs_L.numpy()
         
-        evals_Lc, evecs_Lc = compute_spectrum(Lc, n_eigenpairs) # U\Lambda U^T
-        #rather than U, take TU, where T is the local gauge
+        evals_Lc, evecs_Lc = compute_spectrum(Lc, n_eigenpairs)
         if n_eigenpairs is None:
             n_eigenpairs = evecs_Lc.shape[1]
         evals_Lc = evals_Lc.numpy()

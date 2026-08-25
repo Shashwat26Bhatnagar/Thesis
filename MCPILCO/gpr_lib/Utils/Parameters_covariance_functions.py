@@ -1,9 +1,3 @@
-# Copyright (C) 2023 Alberto Dalla Libera
-#
-# SPDX-License-Identifier: MIT
-"""
-Author: Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-"""
 """
 This file contains a collections of functions that returns valid covariance functions
 The inputs of these functions is standardize in order to be:
@@ -18,7 +12,6 @@ import torch
 def diagonal_covariance(pos_par=None, free_par=None, num_par=None, flg_ARD=False):
     """Returns a diagonal covariance matrix. if flg_ARD is false all the element alonf the diagonal are equals"""
     if flg_ARD:
-        # check dimensions and return the matrix
         if num_par == pos_par.size()[0]:
             return torch.diag(pos_par**2)
         else:
@@ -40,17 +33,13 @@ def diagonal_covariance_semi_def(pos_par=None, free_par=None):
     if pos_par is None:
         pos_par = torch.tensor([], dtype=free_par.dtype, device=free_par.device)
     return torch.diag(torch.cat([free_par, pos_par]) ** 2)
-    # return torch.diag(torch.cat([free_par, pos_par]))
 
 
 def full_covariance(pos_par, free_par, num_row):
     """Returns a full covariance parametrixed through the elements of the cholesky decomposition"""
-    # map the par in a vect
     parameters_vector = par2vect_chol(pos_par, free_par, num_row)
-    # map the vect in the uppper triangular matrix
     U = torch.zeros(num_row, num_row, dtype=pos_par.dtype, device=pos_par.device)
     U[torch.triu(torch.ones(num_row, num_row, dtype=pos_par.dtype, device=pos_par.device)) == 1] = parameters_vector
-    # get the sigma
     return torch.matmul(U.transpose(1, 0), U)
 
 

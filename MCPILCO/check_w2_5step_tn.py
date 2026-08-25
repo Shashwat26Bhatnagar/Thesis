@@ -1,29 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-check_w2_5step.py   (repo root)
-
-Does W2 see the action under the covariance TRAINING actually uses?
-
-The earlier sweep used a SINGLE GP step's covariance and found W2 identically zero on
-four of six channels. Training sums five steps (_acc["var"] += cov), which shifts the
-spectrum upward and may push the expert's eigenvalues outside the band where the
-Cai-Lim clamp zeroes out. This reproduces the training path exactly: roll 5 steps
-through the GP with a constant action, sum the per-step covariances, then take one W2.
-
-WHAT ZERO MEANS HERE. w2_cross_dim_torch clamps the expert eigenvalue gamma into
-[lo, hi], the band between the model's 3rd-smallest and 3rd-largest diagonal entries:
-
-    s_star = min(max(gamma, lo), hi)
-    cost   = (sqrt(gamma) - sqrt(s_star))^2
-
-If gamma lands inside that band, s_star == gamma, cost == 0, AND clamp has zero
-derivative there -- so the channel contributes neither loss nor gradient. With 8
-diagonal entries against 3 expert eigenvalues the band is wide, which is why a single
-step gave zeros everywhere.
-
-    python check_w2_5step.py
-"""
 import os
 import sys
 

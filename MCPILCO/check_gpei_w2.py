@@ -1,33 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-check_gpei_w2.py   (repo root)
-
-Does the REFERENCE CONTROLLER score well under our objective?
-
-At each hour, replay gpei's own recorded action through the world model and compute W2
-against the expert, alongside three baselines:
-
-    gpei action      what the reference controller actually did
-    mean action      z = 0, the dataset-mean action, which collapsed policies emit
-    best of N random the reachable-optimum proxy
-    trained policy   optional, via -policy
-
-THIS IS THE VALIDATION TEST FOR THE OBJECTIVE ITSELF. gpei reaches 3835 yield against
-our 2728-3486; it is the behaviour being imitated. If gpei's actions do NOT beat the
-mean action under this W2, then the objective does not measure imitation, and every
-result derived from it -- the collapse, the lambda sweeps, the phase split -- is
-measuring something else.
-
-    gpei WINS  -> the objective is sound; the policy simply is not reaching gpei's
-                  actions, and the problem is optimisation or representation.
-    gpei TIES  -> the objective cannot distinguish good control from no control.
-    gpei LOSES -> the objective actively prefers the mean action over the reference,
-                  and minimising it will never produce reference-like behaviour.
-
-    python check_gpei_w2.py
-    python check_gpei_w2.py -policy results_phase/phase_ph0.pt -every 10
-"""
 import argparse
 import csv
 import os
@@ -73,7 +45,6 @@ args = ap.parse_args()
 print(f"trace_norm={TRACE_NORMALIZE}  smooth_eps={SMOOTH_EPS}  "
       f"cov={'5th step' if args.last_step else 'sum of 5'}")
 
-# ------------------------------------------------------ gpei's recorded actions ----
 _h = [c.strip() for c in next(csv.reader(open(args.gpei_csv)))]
 _d = np.genfromtxt(args.gpei_csv, delimiter=",", skip_header=1)
 _d = _d[~np.isnan(_d).any(axis=1)]
@@ -81,7 +52,7 @@ GT, GA = _d[:, 0], _d[:, 1:7]
 print(f"gpei: {os.path.basename(args.gpei_csv)}  {len(GT)} steps  "
       f"t={GT[0]:.1f}..{GT[-1]:.1f} h  yield={_d[:, -1].sum():.1f}")
 
-MU_A = None  # filled after the models load
+MU_A = None
 
 
 def gpei_action_z(t_h):
@@ -92,7 +63,6 @@ def gpei_action_z(t_h):
     return torch.tensor((smpl - MU_A) / SD_A, dtype=dtype), a_phys
 
 
-# ------------------------------------------------------------------- the models ---
 def load(path):
     ck = torch.load(path, map_location=device, weights_only=False)
     init = dict(active_dims=np.arange(0, GP_IN), lengthscales_init=np.ones(GP_IN),

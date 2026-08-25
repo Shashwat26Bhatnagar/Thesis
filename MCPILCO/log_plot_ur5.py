@@ -1,12 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors: 	Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-         	Fabio Amadio (fabioamadio93@gmail.com)
-MERL:	    Diego Romeres (romeres@merl.com)
-"""
-
 """
 Plot obtained results from log files (ur5 MuJoCo experiment)
 """
@@ -27,11 +18,9 @@ import policy_learning.MC_PILCO as MC_PILCO
 import policy_learning.Policy as Policy
 import simulation_class.ode_systems as f_ode
 
-# file parameters
 p = argparse.ArgumentParser("plot log")
 p.add_argument("-dir_path", type=str, default="results_tmp/", help="none")
 p.add_argument("-seed", type=int, default=1, help="none")
-# load parameters
 locals().update(vars(p.parse_known_args()[0]))
 file_name = dir_path + str(seed) + "/log.pkl"
 print("---- Reading log file: " + file_name)
@@ -44,7 +33,6 @@ noiseless_states_history = log_dict["noiseless_states_history"]
 cost_trial_list = log_dict["cost_trial_list"]
 
 config_log_dict = pkl.load(open(dir_path + str(seed) + "/config_log.pkl", "rb"))
-# print(config_log_dict)
 MC_PILCO_init_dict = config_log_dict["MC_PILCO_init_dict"]
 reinforce_param_dict = config_log_dict["reinforce_param_dict"]
 f_cost_function = MC_PILCO_init_dict["f_cost_function"]
@@ -176,7 +164,6 @@ for trial_index in range(0, num_trials + 1):
         state_samples[:, 11:12],
     )
 
-    # cost function
     cost = (
         cost_function.cost_function(
             torch.tensor(state_samples, dtype=dtype, device=device).unsqueeze(1),

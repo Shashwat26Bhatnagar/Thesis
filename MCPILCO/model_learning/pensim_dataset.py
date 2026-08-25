@@ -1,89 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""model_learning/pensim_dataset.py
-
-Adapter between the SMPL PenSim environment and the MC-PILCO RBF world model.
-
-PenSimEnvGym is a Gym env (reset/step), not an ODE f_sim, so MC_PILCO.reinforce()
-is bypassed: the world model is fitted here (train_rbf_pensim.py) and then used as a
-frozen one-step predictor for policy optimization (cdil_policy_optimization.py).
-
-Raw observation (9) from get_observation_data_reformed:
-    [time, pH, T, Fa, Fb, Fc, Fh, Wt, DO2]
-Action (6): discharge, sugar feed, soil bean feed, aeration, back pressure, water inj.
-NOTE: yield/reward is a SEPARATE return value from env.step(), NOT an observation
-channel. Rewards are ignored here (state model only).
-
-TWO PREPROCESSING DECISIONS:
-
-1. DROP THE TIME CHANNEL (obs index 0) from the MODEL INPUT. PenSimEnvGym's own
-   docstring says "Time is not in our observation_space. We make the env time unaware
-   and MDP", yet get_observation_data_reformed returns t as element 0. A time-indexed
-   input breaks the Markov assumption the dynamics model relies on: the GP would learn
-   "state at t" rather than "response to (state, action)".
-   The time VALUES are still returned separately via load_offline(return_time=True),
-   so callers can segment the dataset by fermentation phase without putting t back
-   into the GP input.
-
-2. STANDARDIZE (z-score) per variable on the DATASET's own mean/std, on top of
-   smpl's min-max scaling. smpl scales each channel against its full PHYSICAL
-   ENVELOPE, not against the data: Temperature is controlled inside a ~2 K band
-   within a ~125 K envelope, so it occupies ~1.6% of its axis while time occupies
-   ~83% -- a ~50x disparity. RBF uses a single squared distance across all input
-   dimensions, so without z-scoring the ARD lengthscales must absorb that disparity
-   and the near-constant channels are effectively invisible to the kernel.
-
-=== UNITS WARNING ===
-load_offline applies TWO transforms in sequence: smpl min-max, then z-score. The
-Standardizer statistics are therefore fitted in SMPL-NORMALIZED space, not physical
-space. std_obs.inverse_transform() returns you to smpl-normalized units, NOT to
-pH / Kelvin / kg. Use to_physical() / from_physical() below for the full round trip.
-
-=== TIME BOUNDS: PeniControlData != PenSimEnvGym ===
-PeniControlData normalises with ITS OWN bounds, which are exactly HALF PenSimEnvGym's
-defaults (time 276.0 vs 552.0). Inverting the time column with the env's constant
-produced a range of 0..460 h instead of 0..230, which in turn made every phase mask
-select the wrong rows (phase 0 captured only t < 17.5 h of real time). The bounds are
-therefore read off the PeniControlData INSTANCE at load time, never hardcoded.
-"""
 import os
 import json
 import numpy as np
 
-# ----------------------------------------------------------------- constants ---
-OBS_DIM_RAW = 9          # what the env / CSVs return
-TIME_INDEX = 0           # position of the time channel in the raw observation
-OBS_DIM = 8              # after dropping time
+OBS_DIM_RAW = 9
+TIME_INDEX = 0
+OBS_DIM = 8
 ACT_DIM = 6
 
 OBS_NAMES = ["pH", "T", "Fa", "Fb", "Fc", "Fh", "Wt", "DO2"]
 ACT_NAMES = ["discharge", "sugar", "soilbean", "aeration", "backpressure", "waterinj"]
 
-# PenSimEnvGym defaults -- the physical envelope the ENV min-max scales against.
-# NOTE PeniControlData uses different (halved) bounds; see the docstring.
 _MAX_OBS_RAW = [552.0, 16.10523, 725.6828, 13.717274, 540.0, 3600.0002, 1892.07874,
                 253840.11, 47.898834]
 _MIN_OBS_RAW = [0.0, 0.0, 118.98977, 0.0, 0.0, 0.0, 0.0, 25003.258, 0.0]
-MAX_TIME = float(_MAX_OBS_RAW[TIME_INDEX])       # env default; NOT used for CSV data
+MAX_TIME = float(_MAX_OBS_RAW[TIME_INDEX])
 MIN_TIME = float(_MIN_OBS_RAW[TIME_INDEX])
-MAX_OBS = np.array(_MAX_OBS_RAW[1:], dtype=np.float64)      # (8,) time dropped
+MAX_OBS = np.array(_MAX_OBS_RAW[1:], dtype=np.float64)
 MIN_OBS = np.array(_MIN_OBS_RAW[1:], dtype=np.float64)
 MAX_ACT = np.array([4100.0, 151.0, 36.0, 76.0, 1.2, 510.0], dtype=np.float64)
 MIN_ACT = np.array([0.0, 7.0, 21.0, 29.0, 0.5, 0.0], dtype=np.float64)
 
-# Fermentation phase boundaries, in hours. Override with e.g.
-#     export PENSIM_PHASE_BOUNDS="47.5,72.5"
-# The default 35/51 was an early guess; the causal-transition analysis of the
-# penicillin process reports 47.5 h and 72.5 h, so those are worth using if the split
-# is meant to follow that paper. Whichever is set is what the trained phase models --
-# and therefore the reported results -- will describe.
 _PB = os.environ.get("PENSIM_PHASE_BOUNDS", "35.0,51.0")
 _B0, _B1 = [float(x) for x in _PB.split(",")[:2]]
 PHASES = {
-    0: (0.0, _B0),         # lag / early growth
-    1: (_B0, _B1),         # transition
-    2: (_B1, 1e9),         # production
-    -1: (0.0, 1e9),        # everything
+    0: (0.0, _B0),
+    1: (_B0, _B1),
+    2: (_B1, 1e9),
+    -1: (0.0, 1e9),
 }
 
 
@@ -172,7 +117,6 @@ def filter_by_phase(obs, act, nobs, t_hours, phase, verbose=True):
     return obs[m], act[m], nobs[m], t_hours[m]
 
 
-# ------------------------------------------------------------- standardizer ---
 class Standardizer:
     """Per-variable z-scoring fitted on the dataset.
 
@@ -221,7 +165,6 @@ class Standardizer:
                    for i, nm in enumerate(o.names)}
         return o
 
-    # -- states / actions: mean shift + scale --
     def transform(self, X):
         return (np.asarray(X, dtype=np.float64) - self.mu) / self.sd_safe
 
@@ -229,14 +172,12 @@ class Standardizer:
         """-> SMPL-NORMALIZED units (not physical). See to_physical()."""
         return np.asarray(Xs, dtype=np.float64) * self.sd_safe + self.mu
 
-    # -- deltas: differences carry no mean offset, so scale only --
     def transform_delta(self, dX):
         return np.asarray(dX, dtype=np.float64) / self.sd_safe
 
     def inverse_transform_delta(self, dXs):
         return np.asarray(dXs, dtype=np.float64) * self.sd_safe
 
-    # -- predictive variance scales with std^2 --
     def inverse_transform_var(self, Vs):
         return np.asarray(Vs, dtype=np.float64) * (self.sd_safe ** 2)
 
@@ -255,7 +196,6 @@ class Standardizer:
                 "mu": self.mu.tolist(), "sd": self.sd.tolist(), "stats": self.stats}
 
 
-# --------------------------------------------- full physical <-> model units ---
 def _smpl_to_physical(x_norm, lo, hi):
     return (np.asarray(x_norm, dtype=np.float64) + 1.0) / 2.0 * (hi - lo) + lo
 
@@ -291,7 +231,6 @@ def load_stats(path):
         return json.load(f)
 
 
-# ------------------------------------------------------------------- loading ---
 def load_offline(dataset_folder=None, smpl_normalize=True, max_transitions=None,
                  drop_time_channel=True, standardize=True, verbose=True,
                  return_time=False, std_obs_stats=None, std_act_stats=None):
@@ -314,8 +253,6 @@ def load_offline(dataset_folder=None, smpl_normalize=True, max_transitions=None,
     if d is None:
         raise RuntimeError("get_dataset() returned None (no CSVs parsed?)")
 
-    # bounds read off the INSTANCE: PeniControlData's are half PenSimEnvGym's, and
-    # using the env's constants doubles every timestamp (0..460 h instead of 0..230)
     _tmax = float(np.asarray(getattr(_pcd, "max_observations", _MAX_OBS_RAW))[TIME_INDEX])
     _tmin = float(np.asarray(getattr(_pcd, "min_observations", _MIN_OBS_RAW))[TIME_INDEX])
 
@@ -396,7 +333,6 @@ def collect_online(env, num_episodes=1, max_steps=None, policy=None, seed=0,
     return O, A, N
 
 
-# -------------------------------------------------------------- subsampling ---
 def subsample(obs, act, nobs, n_keep=300, mode="stride", seed=0, t_hours=None):
     """Exact GP inference costs O(N^3) per GP (8 GPs here), so N must stay small.
     'stride' preserves temporal coverage; 'random' samples uniformly.
@@ -438,7 +374,7 @@ def select_pivoted_cholesky(X, m, lengthscales=None, tol=1e-10, verbose=True):
     Xs = X / ls
 
     m = int(min(m, N))
-    diag = np.ones(N)                      # RBF kernel diagonal is 1 everywhere
+    diag = np.ones(N)
     idx = []
     L = np.zeros((m, N))
 
@@ -451,7 +387,7 @@ def select_pivoted_cholesky(X, m, lengthscales=None, tol=1e-10, verbose=True):
             break
         idx.append(j)
         d2 = ((Xs - Xs[j]) ** 2).sum(axis=1)
-        row = np.exp(-0.5 * d2)                       # k(x_j, .)
+        row = np.exp(-0.5 * d2)
         if k:
             row = row - L[:k, :].T @ L[:k, j]
         row = row / np.sqrt(max(diag[j], 1e-300))

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import numpy as np
 import gpflow
 from sklearn.model_selection import train_test_split
@@ -36,7 +35,6 @@ def train_gp(data,
         dim = 1
         print('Using RBF kernel, treating vectors channel-wise.')
     
-    #split training and test set
     in_train, in_test, out_train, out_test = \
         train_test_split(input, 
                          output, 
@@ -76,7 +74,6 @@ def train_gp(data,
         
     GP = optimize_model_with_scipy(GP, epochs)
 
-    #test
     out_pred, _ = GP.predict_f(in_test)
     l2_error = np.linalg.norm(out_test - out_pred.numpy(), axis=1).mean()    
     print("Relative l2 error is {}".format(l2_error))

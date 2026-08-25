@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 import tensorflow as tf
 import gpflow
 
@@ -58,7 +57,7 @@ class ManifoldKernel(gpflow.kernels.Kernel):
             X2 = X
             
         S = self.eval_S(typ=self.typ)
-        return (X * S) @ tf.transpose(X2) # shape (n,n)
+        return (X * S) @ tf.transpose(X2)
 
     def K_diag(self, X):
         """This is just the diagonal of K"""

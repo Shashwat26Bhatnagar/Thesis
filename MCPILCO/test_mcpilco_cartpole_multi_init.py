@@ -1,13 +1,3 @@
-# Copyright (C) 2020, 2023 Mitsubishi Electric Research Laboratories (MERL)
-#
-# SPDX-License-Identifier: AGPL-3.0-or-later
-"""
-Authors: 	Alberto Dalla Libera (alberto.dallalibera.1@gmail.com)
-         	Fabio Amadio (fabioamadio93@gmail.com)
-MERL:	    Diego Romeres (romeres@merl.com)
-"""
-
-
 """
 Test MC-PILCO on a simulated cart-pole system with bimodal initial state distribution
 """
@@ -27,22 +17,17 @@ import policy_learning.MC_PILCO as MC_PILCO
 import policy_learning.Policy as Policy
 import simulation_class.ode_systems as f_ode
 
-# Load random seed from command line
 p = argparse.ArgumentParser("test cartpole multi init")
 p.add_argument("-seed", type=int, default=1, help="seed")
 locals().update(vars(p.parse_known_args()[0]))
 
-# Set the seed
 torch.manual_seed(seed)
 np.random.seed(seed)
 
 dtype = torch.float64
 
-# Set the device
 device = torch.device("cpu")
-# device=torch.device('cuda:0')
 
-# Set number of computational threads
 num_threads = 1
 torch.set_num_threads(num_threads)
 
@@ -72,7 +57,6 @@ model_learning_par["vel_indeces"] = [1, 3]
 model_learning_par["not_vel_indeces"] = [0, 2]
 model_learning_par["device"] = device
 model_learning_par["dtype"] = dtype
-# RBF initial par
 init_dict_RBF = {}
 init_dict_RBF["active_dims"] = np.arange(0, gp_input_dim)
 init_dict_RBF["lengthscales_init"] = np.ones(init_dict_RBF["active_dims"].size)
@@ -84,7 +68,6 @@ init_dict_RBF["sigma_n_num"] = None
 init_dict_RBF["flg_train_sigma_n"] = True
 init_dict_RBF["dtype"] = dtype
 init_dict_RBF["device"] = device
-# MPK initial par
 init_dict_MPK = {}
 init_dict_MPK["active_dims"] = np.arange(0, gp_input_dim)
 init_dict_MPK["poly_deg"] = 2
@@ -160,14 +143,12 @@ MC_PILCO_init_dict["device"] = device
 PL_obj = MC_PILCO.MC_PILCO(**MC_PILCO_init_dict)
 
 print("\n---- Set MC-PILCO options ----")
-# Model optimization options
 model_optimization_opt_dict = {}
 model_optimization_opt_dict["f_optimizer"] = "lambda p : torch.optim.Adam(p, lr=0.01)"
 model_optimization_opt_dict["criterion"] = Likelihood.Marginal_log_likelihood
 model_optimization_opt_dict["N_epoch"] = 1501
 model_optimization_opt_dict["N_epoch_print"] = 500
 model_optimization_opt_list = [model_optimization_opt_dict] * num_gp
-# Policy optimization options
 policy_optimization_dict = {}
 policy_optimization_dict["num_particles"] = 400
 policy_optimization_dict["opt_steps_list"] = [2000, 4000, 4000, 4000, 4000]
@@ -182,15 +163,14 @@ policy_optimization_dict["num_min_diff_cost"] = 200
 policy_optimization_dict["min_step"] = 200
 policy_optimization_dict["lr_min"] = 0.0025
 policy_optimization_dict["policy_reinit_dict"] = policy_reinit_dict
-# Options for method reinforce
 reinforce_param_dict = {}
-reinforce_param_dict["flg_init_multi_gauss"] = True  # Set True to handle multi-gaussian initial distribution
+reinforce_param_dict["flg_init_multi_gauss"] = True
 reinforce_param_dict["initial_state"] = np.array(
     [[-1.0, 0.0, 0.0, 0.0], [1.0, 0.0, 0.0, 0.0]]
-)  # Two possible mean initial state
+)
 reinforce_param_dict["initial_state_var"] = np.array(
     [[0.0001, 0.0001, 0.0001, 0.0001], [0.0001, 0.0001, 0.0001, 0.0001]]
-)  # Two associated variances
+)
 reinforce_param_dict["T_exploration"] = T_exploration
 reinforce_param_dict["T_control"] = T_control
 reinforce_param_dict["num_trials"] = num_trials
@@ -203,5 +183,4 @@ config_log_dict["MC_PILCO_init_dict"] = MC_PILCO_init_dict
 config_log_dict["reinforce_param_dict"] = reinforce_param_dict
 pkl.dump(config_log_dict, open("results_tmp/" + str(seed) + "/config_log.pkl", "wb"))
 
-# Start the learning algorithm
 PL_obj.reinforce(**reinforce_param_dict)
